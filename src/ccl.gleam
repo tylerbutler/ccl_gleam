@@ -27,42 +27,52 @@ fn parse_loop(
   lines: List(String),
   line_no: Int,
   current: Option(#(String, List(String))),
-  acc: List(Entry)
+  acc: List(Entry),
 ) -> Result(List(Entry), ParseError) {
   case list.first(lines) {
-    Error(_) -> case current {
-      None -> Ok(list.reverse(acc))
-      Some(#(k, vlines_rev)) ->
-        Ok(list.reverse([Entry(k, join_and_trim_value_lines(vlines_rev)), ..acc]))
-    }
+    Error(_) ->
+      case current {
+        None -> Ok(list.reverse(acc))
+        Some(#(k, vlines_rev)) ->
+          Ok(
+            list.reverse([
+              Entry(k, join_and_trim_value_lines(vlines_rev)),
+              ..acc
+            ]),
+          )
+      }
     Ok(line) -> {
       let tail = list.drop(lines, 1)
       case as_key_line(line) {
-        Some(#(key, value_fragment)) -> case string.length(key) == 0 {
-          True -> Error(ParseError(line_no, "Empty key"))
-          False -> {
-            let acc2 = case current {
-              None -> acc
-              Some(#(k, vlines_rev)) ->
-[Entry(k, join_and_trim_value_lines(vlines_rev)), ..acc]
+        Some(#(key, value_fragment)) ->
+          case string.length(key) == 0 {
+            True -> Error(ParseError(line_no, "Empty key"))
+            False -> {
+              let acc2 = case current {
+                None -> acc
+                Some(#(k, vlines_rev)) -> [
+                  Entry(k, join_and_trim_value_lines(vlines_rev)),
+                  ..acc
+                ]
+              }
+              let first_value_line =
+                rstrip_whitespace(lstrip_spaces(value_fragment))
+              let vlines_rev = case string.length(first_value_line) == 0 {
+                True -> []
+                False -> [first_value_line]
+              }
+              parse_loop(tail, line_no + 1, Some(#(key, vlines_rev)), acc2)
             }
-            let first_value_line = rstrip_whitespace(lstrip_spaces(value_fragment))
-            let vlines_rev = case string.length(first_value_line) == 0 {
-              True -> []
-              False -> [first_value_line]
+          }
+        None ->
+          case current {
+            None -> parse_loop(tail, line_no + 1, current, acc)
+            Some(#(k, vlines_rev)) -> {
+              let trimmed = rstrip_whitespace(lstrip_spaces(line))
+              let vlines_rev2 = [trimmed, ..vlines_rev]
+              parse_loop(tail, line_no + 1, Some(#(k, vlines_rev2)), acc)
             }
-            parse_loop(tail, line_no + 1, Some(#(key, vlines_rev)), acc2)
           }
-        }
-        None -> case current {
-          None ->
-            parse_loop(tail, line_no + 1, current, acc)
-          Some(#(k, vlines_rev)) -> {
-            let trimmed = rstrip_whitespace(lstrip_spaces(line))
-            let vlines_rev2 = [trimmed, ..vlines_rev]
-            parse_loop(tail, line_no + 1, Some(#(k, vlines_rev2)), acc)
-          }
-        }
       }
     }
   }
@@ -85,7 +95,6 @@ fn strip_key_whitespace(s: String) -> String {
   s |> lstrip_spaces_tabs |> rstrip_spaces_tabs
 }
 
-
 fn rstrip_whitespace(s: String) -> String {
   rstrip_while(s, fn(c) { c == " " || c == "\t" })
 }
@@ -93,7 +102,6 @@ fn rstrip_whitespace(s: String) -> String {
 fn lstrip_spaces(s: String) -> String {
   lstrip_while(s, fn(c) { c == " " })
 }
-
 
 fn lstrip_spaces_tabs(s: String) -> String {
   lstrip_while(s, fn(c) { c == " " || c == "\t" })
@@ -124,7 +132,10 @@ fn rstrip_while(s: String, keep: fn(String) -> Bool) -> String {
   string.join(list.reverse(kept_rev), "")
 }
 
-fn rstrip_while_helper(gs: List(String), keep: fn(String) -> Bool) -> List(String) {
+fn rstrip_while_helper(
+  gs: List(String),
+  keep: fn(String) -> Bool,
+) -> List(String) {
   case gs {
     [] -> []
     [g, ..rest] ->

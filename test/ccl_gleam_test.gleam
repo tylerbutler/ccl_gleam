@@ -1,7 +1,8 @@
 //// test/ccl_test.gleam
+
+import ccl
 import gleeunit
 import gleeunit/should
-import ccl
 
 pub fn main() {
   gleeunit.main()
@@ -31,9 +32,13 @@ pub fn equals_in_values_test() {
 
 // --- TRIMMING RULES ---
 pub fn trimming_rules_test() {
-  let input = "  spaces around key   =    value with leading spaces removed and trailing tabs kept? \t\t\n"
+  let input =
+    "  spaces around key   =    value with leading spaces removed and trailing tabs kept? \t\t\n"
   let expected = [
-    ccl.Entry("spaces around key", "value with leading spaces removed and trailing tabs kept?"),
+    ccl.Entry(
+      "spaces around key",
+      "value with leading spaces removed and trailing tabs kept?",
+    ),
   ]
   ccl.parse(input)
   |> should.equal(Ok(expected))
@@ -42,8 +47,7 @@ pub fn trimming_rules_test() {
 // --- MULTILINE VALUES ---
 pub fn multiline_values_test() {
   let input =
-    "description = First\n  Second line\n  Third line\n" <>
-    "done = yes\n"
+    "description = First\n  Second line\n  Third line\n" <> "done = yes\n"
   let expected = [
     ccl.Entry("description", "First\nSecond line\nThird line"),
     ccl.Entry("done", "yes"),
@@ -65,12 +69,12 @@ pub fn blank_lines_in_values_test() {
 // --- COMMENT EXTENSION ---
 pub fn comment_extension_test() {
   let input =
-    "/= This is an environment section\n" <>
-    "port = 8080\n" <>
-    "serve = index.html\n" <>
-    "/= Database section\n" <>
-    "mode = in-memory\n" <>
-    "connections = 16\n"
+    "/= This is an environment section\n"
+    <> "port = 8080\n"
+    <> "serve = index.html\n"
+    <> "/= Database section\n"
+    <> "mode = in-memory\n"
+    <> "connections = 16\n"
   let expected = [
     ccl.Entry("/", "This is an environment section"),
     ccl.Entry("port", "8080"),
@@ -214,9 +218,13 @@ pub fn unicode_keys_test() {
 
 // Mixed indentation in continuation lines
 pub fn mixed_indentation_continuation_test() {
-  let input = "description = First line\n    spaces indented\n\ttab indented\n  \tmixed indent\n"
+  let input =
+    "description = First line\n    spaces indented\n\ttab indented\n  \tmixed indent\n"
   let expected = [
-    ccl.Entry("description", "First line\nspaces indented\n\ttab indented\n\tmixed indent"),
+    ccl.Entry(
+      "description",
+      "First line\nspaces indented\n\ttab indented\n\tmixed indent",
+    ),
   ]
   ccl.parse(input)
   |> should.equal(Ok(expected))
