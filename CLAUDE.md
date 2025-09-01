@@ -1,0 +1,2 @@
+- The authoritative CCL documentation is at https://chshersh.com/blog/2025-01-06-the-most-elegant-configuration-language.html
+- The reference ocaml CCL implementation is at https://github.com/chshersh/ccl

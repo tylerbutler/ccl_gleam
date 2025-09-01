@@ -44,29 +44,34 @@ fn parse_loop(
     Ok(line) -> {
       let tail = list.drop(lines, 1)
       case as_key_line(line) {
-        Some(#(key, value_fragment)) ->
-          case string.length(key) == 0 {
-            True -> Error(ParseError(line_no, "Empty key"))
-            False -> {
-              let acc2 = case current {
-                None -> acc
-                Some(#(k, vlines_rev)) -> [
-                  Entry(k, join_and_trim_value_lines(vlines_rev)),
-                  ..acc
-                ]
-              }
-              let first_value_line =
-                rstrip_whitespace(lstrip_spaces(value_fragment))
-              let vlines_rev = case string.length(first_value_line) == 0 {
-                True -> []
-                False -> [first_value_line]
-              }
-              parse_loop(tail, line_no + 1, Some(#(key, vlines_rev)), acc2)
-            }
+        Some(#(key, value_fragment)) -> {
+          let acc2 = case current {
+            None -> acc
+            Some(#(k, vlines_rev)) -> [
+              Entry(k, join_and_trim_value_lines(vlines_rev)),
+              ..acc
+            ]
           }
+          let first_value_line =
+            rstrip_whitespace(lstrip_spaces(value_fragment))
+          let vlines_rev = case string.length(first_value_line) == 0 {
+            True -> []
+            False -> [first_value_line]
+          }
+          parse_loop(tail, line_no + 1, Some(#(key, vlines_rev)), acc2)
+        }
         None ->
           case current {
-            None -> parse_loop(tail, line_no + 1, current, acc)
+            None ->
+              case string.length(string.trim(line)) == 0 {
+                True -> parse_loop(tail, line_no + 1, current, acc)
+                // Skip empty lines
+                False ->
+                  Error(ParseError(
+                    line_no,
+                    "Unexpected line without equals sign: '" <> line <> "'",
+                  ))
+              }
             Some(#(k, vlines_rev)) -> {
               let trimmed = rstrip_whitespace(lstrip_spaces(line))
               let vlines_rev2 = [trimmed, ..vlines_rev]
@@ -82,10 +87,8 @@ fn as_key_line(line: String) -> Option(#(String, String)) {
   case string.split_once(line, "=") {
     Ok(#(left, right)) -> {
       let key = strip_key_whitespace(left)
-      case string.length(key) == 0 {
-        True -> None
-        False -> Some(#(key, right))
-      }
+      // Allow empty keys for list representation
+      Some(#(key, right))
     }
     Error(_) -> None
   }
