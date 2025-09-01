@@ -29,7 +29,9 @@ pub fn parse(text: String) -> Result(List(Entry), ParseError) {
   }
 }
 
-fn parse_with_indentation(lines: List(String)) -> Result(List(Entry), ParseError) {
+fn parse_with_indentation(
+  lines: List(String),
+) -> Result(List(Entry), ParseError) {
   case find_first_key_line(lines, 1) {
     Error(err) -> Error(err)
     Ok(#(first_line, _)) -> {
@@ -51,12 +53,60 @@ fn find_first_key_line(
         False ->
           case string.contains(line, "=") {
             True -> Ok(#(line, line_no))
-            False ->
-              Error(ParseError(
-                line_no,
-                "First non-empty line must contain a key-value pair with '='",
-              ))
+            False -> {
+              // Check if the next non-empty line starts with "="
+              case find_equals_line(rest) {
+                True -> Ok(#(line, line_no))
+                False ->
+                  Error(ParseError(
+                    line_no,
+                    "First non-empty line must contain a key-value pair with '='",
+                  ))
+              }
+            }
           }
+      }
+    }
+  }
+}
+
+fn find_equals_line(lines: List(String)) -> Bool {
+  case lines {
+    [] -> False
+    [line, ..rest] -> {
+      case is_empty_line(line) {
+        True -> find_equals_line(rest)
+        False -> string.starts_with(string.trim(line), "=")
+      }
+    }
+  }
+}
+
+fn find_and_consume_equals_line(
+  lines: List(String),
+) -> Result(#(String, List(String)), Nil) {
+  find_and_consume_equals_line_helper(lines, [])
+}
+
+fn find_and_consume_equals_line_helper(
+  lines: List(String),
+  skipped: List(String),
+) -> Result(#(String, List(String)), Nil) {
+  case lines {
+    [] -> Error(Nil)
+    [line, ..rest] -> {
+      case is_empty_line(line) {
+        True -> find_and_consume_equals_line_helper(rest, [line, ..skipped])
+        False -> {
+          case string.starts_with(string.trim(line), "=") {
+            True -> {
+              let value_part = string.drop_start(string.trim(line), 1)
+              let remaining_lines = list.append(list.reverse(skipped), rest)
+              Ok(#(value_part, remaining_lines))
+            }
+            False -> Error(Nil)
+          }
+        }
       }
     }
   }
@@ -159,11 +209,31 @@ fn parse_lines_with_base_indent(
                 }
                 False -> {
                   case current {
-                    None ->
-                      Error(ParseError(
-                        line_no,
-                        "Non-continuation line without equals sign",
-                      ))
+                    None -> {
+                      // Check if the next line starts with "=" (multi-line key case)
+                      case find_and_consume_equals_line(rest) {
+                        Ok(#(value_part, remaining_lines)) -> {
+                          let key = string.trim(line)
+                          let value_line = trim_value_line(value_part)
+                          let vlines_rev = case string.length(value_line) == 0 {
+                            True -> [""]
+                            False -> [value_line]
+                          }
+                          parse_lines_with_base_indent(
+                            remaining_lines,
+                            base_indent,
+                            line_no + 2,
+                            Some(#(key, vlines_rev)),
+                            acc,
+                          )
+                        }
+                        Error(_) ->
+                          Error(ParseError(
+                            line_no,
+                            "Non-continuation line without equals sign",
+                          ))
+                      }
+                    }
                     Some(#(k, vlines_rev)) -> {
                       let continuation_value = rstrip_whitespace(line)
                       let vlines_rev2 = [continuation_value, ..vlines_rev]
@@ -189,7 +259,6 @@ fn parse_lines_with_base_indent(
 fn is_empty_line(line: String) -> Bool {
   string.length(string.trim(line)) == 0
 }
-
 
 fn count_leading_spaces(line: String) -> Int {
   count_leading_spaces_helper(string.to_graphemes(line), 0)
