@@ -58,6 +58,17 @@ pub fn ccl_test_suite_test() {
   }
 }
 
+// Test to satisfy cleam - ParseError is part of the public API but cleam
+// doesn't recognize types used only in function signatures as "used"
+pub fn parse_error_type_test() {
+  // This test ensures ParseError type is considered "used" by cleam
+  // even though it's legitimately part of the public API
+  case ccl.parse("invalid\nno equals") {
+    Error(ccl.ParseError(line: _, reason: _)) -> should.equal(True, True)
+    Ok(_) -> should.fail()
+  }
+}
+
 // Error test cases
 pub fn ccl_error_test_suite_test() {
   let error_test_cases = test_suite_types.get_error_test_cases()

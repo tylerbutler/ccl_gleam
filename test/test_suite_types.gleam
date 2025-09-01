@@ -113,7 +113,7 @@ fn test_suite_decoder() {
 }
 
 // Load test suite from JSON file
-pub fn load_test_suite() -> Result(TestSuite, String) {
+fn load_test_suite() -> Result(TestSuite, String) {
   use json_string <- result.try(
     simplifile.read("ccl-test-suite/ccl-test-suite.json")
     |> result.map_error(fn(_) { "Failed to read ccl-test-suite.json" }),
