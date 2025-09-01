@@ -1,3 +1,4 @@
 [tools]
 erlang = "28"
 gleam = "latest"
+just = "latest"
