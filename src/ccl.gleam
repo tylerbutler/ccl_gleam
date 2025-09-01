@@ -63,6 +63,168 @@ pub fn ccl_from_list(ccls: List(CCL)) -> CCL {
   list.fold(ccls, empty_ccl(), merge_ccl)
 }
 
+// === CCL ACCESS FUNCTIONS ===
+
+/// Get a value from CCL using a dot-separated path (e.g., "database.host")
+pub fn get_value(ccl: CCL, path: String) -> Result(String, String) {
+  let keys = string.split(path, ".")
+  get_value_by_keys(ccl, keys)
+}
+
+/// Get a value using a list of keys
+pub fn get_value_by_keys(ccl: CCL, keys: List(String)) -> Result(String, String) {
+  case keys {
+    [] -> Error("Empty path")
+    [single_key] -> get_terminal_value(ccl, single_key)
+    [first_key, ..rest_keys] -> {
+      case get_nested_ccl(ccl, first_key) {
+        Ok(nested_ccl) -> get_value_by_keys(nested_ccl, rest_keys)
+        Error(err) -> Error(err)
+      }
+    }
+  }
+}
+
+/// Get all values for a key (useful for list-style structures with empty keys)
+pub fn get_values(ccl: CCL, path: String) -> List(String) {
+  let keys = string.split(path, ".")
+  case get_ccl_by_keys(ccl, keys) {
+    Ok(target_ccl) -> get_all_terminal_values(target_ccl)
+    Error(_) -> []
+  }
+}
+
+/// Get nested CCL object at a specific path
+pub fn get_nested(ccl: CCL, path: String) -> Result(CCL, String) {
+  let keys = string.split(path, ".")
+  get_ccl_by_keys(ccl, keys)
+}
+
+/// Check if a path exists in the CCL structure
+pub fn has_key(ccl: CCL, path: String) -> Bool {
+  case get_value(ccl, path) {
+    Ok(_) -> True
+    Error(_) -> False
+  }
+}
+
+/// Get all keys at a specific path level
+pub fn get_keys(ccl: CCL, path: String) -> List(String) {
+  let target_ccl = case path {
+    "" -> Ok(ccl)  // Top level
+    _ -> get_nested(ccl, path)
+  }
+  
+  case target_ccl {
+    Ok(CCL(map)) -> 
+      dict.keys(map) 
+      |> list.filter(fn(key) { key != "" })  // Filter out empty keys used for terminal values
+    Error(_) -> []
+  }
+}
+
+/// Get all keys recursively with their full paths
+pub fn get_all_paths(ccl: CCL) -> List(String) {
+  get_all_paths_helper(ccl, "")
+}
+
+// === HELPER FUNCTIONS ===
+
+fn get_nested_ccl(ccl: CCL, key: String) -> Result(CCL, String) {
+  case ccl {
+    CCL(map) -> {
+      case dict.get(map, key) {
+        Ok(nested_ccl) -> Ok(nested_ccl)
+        Error(_) -> Error("Key '" <> key <> "' not found")
+      }
+    }
+  }
+}
+
+fn get_terminal_value(ccl: CCL, key: String) -> Result(String, String) {
+  case get_nested_ccl(ccl, key) {
+    Ok(CCL(inner_map)) -> {
+      // Look for the empty key ("") which contains terminal values
+      case dict.get(inner_map, "") {
+        Ok(CCL(terminal_map)) -> {
+          // Get the first terminal value (keys that map to empty CCL)
+          let terminal_values = 
+            dict.to_list(terminal_map)
+            |> list.filter(fn(pair) {
+              let #(_, CCL(value_map)) = pair
+              dict.size(value_map) == 0
+            })
+            |> list.map(fn(pair) { pair.0 })
+          
+          case terminal_values {
+            [single_value] -> Ok(single_value)
+            [] -> Error("No terminal value found for key '" <> key <> "'")
+            [first_value, ..] -> Ok(first_value)  // Return first value if multiple
+          }
+        }
+        Error(_) -> Error("Key '" <> key <> "' has no terminal value (empty key not found)")
+      }
+    }
+    Error(err) -> Error(err)
+  }
+}
+
+fn get_all_terminal_values(ccl: CCL) -> List(String) {
+  get_all_terminal_values_recursive(ccl)
+}
+
+fn get_all_terminal_values_recursive(ccl: CCL) -> List(String) {
+  case ccl {
+    CCL(map) -> {
+      dict.to_list(map)
+      |> list.flat_map(fn(pair) {
+        let #(key, CCL(inner_map)) = pair
+        case dict.size(inner_map) == 0 {
+          True -> [key]  // Terminal value found
+          False -> get_all_terminal_values_recursive(CCL(inner_map))  // Keep searching deeper
+        }
+      })
+    }
+  }
+}
+
+fn get_ccl_by_keys(ccl: CCL, keys: List(String)) -> Result(CCL, String) {
+  case keys {
+    [] -> Ok(ccl)
+    [first_key, ..rest_keys] -> {
+      case get_nested_ccl(ccl, first_key) {
+        Ok(nested_ccl) -> get_ccl_by_keys(nested_ccl, rest_keys)
+        Error(err) -> Error(err)
+      }
+    }
+  }
+}
+
+fn get_all_paths_helper(ccl: CCL, prefix: String) -> List(String) {
+  case ccl {
+    CCL(map) -> {
+      dict.to_list(map)
+      |> list.flat_map(fn(pair) {
+        let #(key, nested_ccl) = pair
+        let current_path = case prefix {
+          "" -> key
+          _ -> prefix <> "." <> key
+        }
+        
+        case key {
+          "" -> []  // Skip empty keys used for terminal values
+          _ -> {
+            case dict.size(case nested_ccl { CCL(inner_map) -> inner_map }) {
+              0 -> []  // Skip empty structures 
+              _ -> [current_path, ..get_all_paths_helper(nested_ccl, current_path)]
+            }
+          }
+        }
+      })
+    }
+  }
+}
+
 pub fn parse(text: String) -> Result(List(Entry), ParseError) {
   let input =
     text

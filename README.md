@@ -178,3 +178,181 @@ These edge cases represent **<0.1%** of real-world CCL usage and were deliberate
   - **Keys**: All leading and trailing whitespace (spaces and tabs) is trimmed.
   - **Values**: Leading and trailing whitespace is trimmed, but internal whitespace including tabs is preserved.
 - **Comment convention**: The comment key (e.g., `/`) is not reserved by the core spec — it's an application-level convention.
+
+---
+
+## 10. API and Usage
+
+This implementation provides both **flat parsing** and **nested object construction** following the CCL specification and OCaml reference implementation.
+
+### Basic Usage
+
+```gleam
+import ccl
+
+// Parse CCL text into flat key-value pairs
+let ccl_text = "
+database =
+  host = localhost
+  port = 5432
+  credentials =
+    username = admin
+    password = secret123
+
+server =
+  ports =
+    = 8000
+    = 8001
+    = 8002
+"
+
+case ccl.parse(ccl_text) {
+  Ok(flat_entries) -> {
+    // Build nested CCL object
+    let ccl_obj = ccl.make_objects(flat_entries)
+    
+    // Access nested values
+    access_values(ccl_obj)
+  }
+  Error(err) -> io.println("Parse error: " <> err.reason)
+}
+```
+
+### Accessing Nested Values
+
+The CCL object provides intuitive access to nested structures:
+
+**🎯 Single Value Access:**
+```gleam
+// Get simple values using dot-separated paths
+ccl.get_value(ccl_obj, "database.host")                    // -> Ok("localhost")
+ccl.get_value(ccl_obj, "database.credentials.username")    // -> Ok("admin") 
+
+// Check if keys exist
+ccl.has_key(ccl_obj, "database.host")                      // -> True
+ccl.has_key(ccl_obj, "nonexistent")                        // -> False
+```
+
+**📋 List-Style Values (Empty Keys):**
+```gleam
+// CCL input: ports = \n  = 8000\n  = 8001\n  = 8002
+ccl.get_values(ccl_obj, "server.ports")                    // -> ["8000", "8001", "8002"]
+
+// Process list values
+let ports = ccl.get_values(ccl_obj, "server.ports")
+list.each(ports, fn(port) {
+  io.println("Port: " <> port)
+})
+```
+
+**🏗️ Working with Nested Objects:**
+```gleam
+// Get a nested CCL object to work with
+case ccl.get_nested(ccl_obj, "database") {
+  Ok(db_ccl) -> {
+    let host = ccl.get_value(db_ccl, "host")              // Works on sub-object
+    let port = ccl.get_value(db_ccl, "port")
+    // ... use host and port
+  }
+  Error(err) -> // handle error
+}
+```
+
+**🔍 Structure Exploration:**
+```gleam
+// Discover available keys
+ccl.get_keys(ccl_obj, "")                                  // -> ["database", "server"] (top-level)
+ccl.get_keys(ccl_obj, "database")                          // -> ["host", "port", "credentials"]
+
+// Get all available paths
+ccl.get_all_paths(ccl_obj)                                 // -> ["database", "database.host", ...]
+```
+
+**🛡️ Type-Safe Extraction:**
+```gleam
+pub fn get_database_config(ccl_obj: ccl.CCL) -> Result(DatabaseConfig, String) {
+  use host <- result.try(ccl.get_value(ccl_obj, "database.host"))
+  use port <- result.try(ccl.get_value(ccl_obj, "database.port"))
+  use username <- result.try(ccl.get_value(ccl_obj, "database.credentials.username"))
+  use password <- result.try(ccl.get_value(ccl_obj, "database.credentials.password"))
+  
+  Ok(DatabaseConfig(host: host, port: port, username: username, password: password))
+}
+```
+
+### Complete API Reference
+
+**Core Functions:**
+```gleam
+// Parse CCL text into flat key-value pairs
+pub fn parse(text: String) -> Result(List(Entry), ParseError)
+
+// Build nested object from flat entries using fixpoint algorithm  
+pub fn make_objects(entries: List(Entry)) -> CCL
+
+// Pretty print CCL structure for debugging
+pub fn pretty_print_ccl(ccl: CCL) -> String
+```
+
+**Access Functions:**
+```gleam
+// Get single values using dot-separated paths
+pub fn get_value(ccl: CCL, path: String) -> Result(String, String)
+
+// Get multiple values (for list-style structures)
+pub fn get_values(ccl: CCL, path: String) -> List(String)
+
+// Get nested CCL objects
+pub fn get_nested(ccl: CCL, path: String) -> Result(CCL, String)
+
+// Check key existence
+pub fn has_key(ccl: CCL, path: String) -> Bool
+
+// Explore structure
+pub fn get_keys(ccl: CCL, path: String) -> List(String)
+pub fn get_all_paths(ccl: CCL) -> List(String)
+
+// Utility functions
+pub fn merge_ccl(ccl1: CCL, ccl2: CCL) -> CCL
+pub fn empty_ccl() -> CCL
+```
+
+### Data Types
+
+```gleam
+// Flat key-value pair (output of parse)
+pub type Entry {
+  Entry(key: String, value: String)
+}
+
+// Parse errors with line number and reason
+pub type ParseError {
+  ParseError(line: Int, reason: String)
+}
+
+// Recursive CCL structure (equivalent to OCaml's type t = Fix of t Map.t)
+pub type CCL {
+  CCL(map: dict.Dict(String, CCL))
+}
+```
+
+### Architecture
+
+The implementation uses a **two-phase approach**:
+
+1. **Phase 1: Flat Parsing** (`parse`) - Parse CCL text into key-value pairs following indentation rules
+2. **Phase 2: Object Construction** (`make_objects`) - Apply fixpoint algorithm to build nested structures
+
+This separation allows:
+- **Backward compatibility**: Existing flat parsing works unchanged
+- **Flexible usage**: Use flat entries directly or build nested objects
+- **Performance**: Only pay for nesting when you need it
+- **Testing**: Each phase can be tested independently
+
+**Key Benefits:**
+- ✅ **Intuitive dot notation** for accessing nested values  
+- ✅ **Type safety** with `Result` types for error handling
+- ✅ **List support** for array-like structures using empty keys
+- ✅ **Structure exploration** to discover available keys and paths
+- ✅ **Sub-object access** to work with nested CCL objects directly
+- ✅ **Full CCL compliance** following the OCaml reference implementation
