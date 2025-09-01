@@ -63,6 +63,97 @@ pub fn ccl_from_list(ccls: List(CCL)) -> CCL {
   list.fold(ccls, empty_ccl(), merge_ccl)
 }
 
+// === NODE TYPE DETECTION ===
+
+/// Types of nodes in CCL structure
+pub type NodeType {
+  /// Single terminal value (leaf node)
+  SingleValue
+  /// List of values (multiple empty keys pointing to terminals)  
+  ListValue
+  /// Nested object with key-value pairs
+  ObjectValue
+  /// Key doesn't exist
+  Missing
+}
+
+/// Determine the type of data at a given path
+pub fn node_type(ccl: CCL, path: String) -> NodeType {
+  let keys = string.split(path, ".")
+  case get_ccl_by_keys(ccl, keys) {
+    Ok(target_ccl) -> classify_node_type(target_ccl)
+    Error(_) -> Missing
+  }
+}
+
+/// Classify the type of a CCL node
+fn classify_node_type(ccl: CCL) -> NodeType {
+  case ccl {
+    CCL(map) -> {
+      let entries = dict.to_list(map)
+      case entries {
+        // Empty map = missing/invalid
+        [] -> Missing
+        // Single entry with empty key = check if it's a terminal value or nested structure
+        [#("", inner_ccl)] -> {
+          case inner_ccl {
+            CCL(inner_map) -> {
+              let inner_entries = dict.to_list(inner_map)
+              case inner_entries {
+                // Empty inner map = this is probably not a valid terminal
+                [] -> Missing
+                // Single empty key in inner map = this is a list structure
+                [#("", CCL(_))] -> {
+                  let terminal_count = list.length(get_all_terminal_values(ccl))
+                  case terminal_count {
+                    0 -> Missing
+                    1 -> SingleValue
+                    _ -> ListValue
+                  }
+                }
+                // Multiple entries or regular keys in inner map = check if terminals
+                _ -> {
+                  let terminal_values = get_terminal_values_from_map(inner_map)
+                  case list.length(terminal_values) {
+                    0 -> Missing
+                    1 -> SingleValue
+                    _ -> ListValue
+                  }
+                }
+              }
+            }
+          }
+        }
+        // Check for multiple entries or entries with empty keys
+        _ -> {
+          let has_empty_key = list.any(entries, fn(pair) { pair.0 == "" })
+          case has_empty_key {
+            True -> {
+              let terminal_count = list.length(get_all_terminal_values(ccl))
+              case terminal_count {
+                0 -> Missing
+                1 -> SingleValue
+                _ -> ListValue
+              }
+            }
+            False -> ObjectValue
+          }
+        }
+      }
+    }
+  }
+}
+
+/// Get terminal values from a map structure
+fn get_terminal_values_from_map(map: dict.Dict(String, CCL)) -> List(String) {
+  dict.to_list(map)
+  |> list.filter(fn(pair) {
+    let #(_, CCL(inner_map)) = pair
+    dict.size(inner_map) == 0
+  })
+  |> list.map(fn(pair) { pair.0 })
+}
+
 // === CCL ACCESS FUNCTIONS ===
 
 /// Get a value from CCL using a dot-separated path (e.g., "database.host")
@@ -91,6 +182,51 @@ pub fn get_values(ccl: CCL, path: String) -> List(String) {
   case get_ccl_by_keys(ccl, keys) {
     Ok(target_ccl) -> get_all_terminal_values(target_ccl)
     Error(_) -> []
+  }
+}
+
+/// Smart value accessor that returns appropriate type based on node structure
+/// - Single values return Ok(value)
+/// - Lists return Error with suggestion to use get_list()
+/// - Objects return Error with suggestion to use get_nested()
+pub fn get_smart_value(ccl: CCL, path: String) -> Result(String, String) {
+  case node_type(ccl, path) {
+    SingleValue -> get_value(ccl, path)
+    ListValue -> Error("Path '" <> path <> "' contains a list. Use get_list() instead.")
+    ObjectValue -> Error("Path '" <> path <> "' contains an object. Use get_nested() instead.")
+    Missing -> Error("Path '" <> path <> "' not found.")
+  }
+}
+
+/// Get a list of values, with smart detection
+/// Works for both list structures (empty keys) and single values (returns single-item list)
+pub fn get_list(ccl: CCL, path: String) -> Result(List(String), String) {
+  case node_type(ccl, path) {
+    SingleValue | ListValue -> {
+      // Use get_values for both - it handles both single and multiple values
+      let values = get_values(ccl, path)
+      case values {
+        [] -> Error("Path '" <> path <> "' contains no values.")
+        _ -> Ok(values)
+      }
+    }
+    ObjectValue -> Error("Path '" <> path <> "' contains an object, not a list.")
+    Missing -> Error("Path '" <> path <> "' not found.")
+  }
+}
+
+/// Get a value with automatic list flattening for single-item lists
+/// This makes it easier to work with values that might be lists
+pub fn get_value_or_first(ccl: CCL, path: String) -> Result(String, String) {
+  case node_type(ccl, path) {
+    SingleValue | ListValue -> {
+      case get_values(ccl, path) {
+        [] -> Error("Path '" <> path <> "' contains no values.")
+        [first, ..] -> Ok(first)
+      }
+    }
+    ObjectValue -> Error("Path '" <> path <> "' contains an object, not a value.")
+    Missing -> Error("Path '" <> path <> "' not found.")
   }
 }
 

@@ -1,2 +1,4 @@
 - The authoritative CCL documentation is at https://chshersh.com/blog/2025-01-06-the-most-elegant-configuration-language.html
 - The reference ocaml CCL implementation is at https://github.com/chshersh/ccl
+- Local reference copy of the CCL blog post is saved at docs/ccl_blog_reference.md for development reference
+- Typed parsing plan is documented at docs/typed_parsing_plan.md with full API design and edge case analysis

@@ -312,6 +312,12 @@ pub fn has_key(ccl: CCL, path: String) -> Bool
 pub fn get_keys(ccl: CCL, path: String) -> List(String)
 pub fn get_all_paths(ccl: CCL) -> List(String)
 
+// Enhanced List Handling
+pub fn node_type(ccl: CCL, path: String) -> NodeType
+pub fn get_smart_value(ccl: CCL, path: String) -> Result(String, String)
+pub fn get_list(ccl: CCL, path: String) -> Result(List(String), String)  
+pub fn get_value_or_first(ccl: CCL, path: String) -> Result(String, String)
+
 // Utility functions
 pub fn merge_ccl(ccl1: CCL, ccl2: CCL) -> CCL
 pub fn empty_ccl() -> CCL
@@ -334,7 +340,181 @@ pub type ParseError {
 pub type CCL {
   CCL(map: dict.Dict(String, CCL))
 }
+
+// Node type classification for enhanced list handling
+pub type NodeType {
+  SingleValue     // Single terminal value
+  ListValue       // Multiple values (list structure)  
+  ObjectValue     // Nested object with key-value pairs
+  Missing         // Path doesn't exist
+}
 ```
+
+### Enhanced List Handling
+
+Beyond the basic CCL access functions, this implementation provides enhanced list handling that makes working with CCL lists much more intuitive and type-safe.
+
+#### The Challenge with CCL Lists
+
+In CCL, lists are represented using empty keys:
+```ccl
+ports =
+  = 8000
+  = 8001  
+  = 8002
+```
+
+This creates an internal structure with nested empty keys that can be challenging to work with using basic access functions. The enhanced list handling provides smart detection and intuitive access patterns.
+
+#### Node Type Detection
+
+Before accessing data, you can determine what type of data exists at a path:
+
+```gleam
+import ccl
+
+// Determine the type of data at a path
+case ccl.node_type(ccl_obj, "server.ports") {
+  ccl.ListValue -> {
+    // Handle as a list of values
+    let ports = ccl.get_values(ccl_obj, "server.ports")
+    list.each(ports, process_port)
+  }
+  ccl.SingleValue -> {
+    // Handle as a single value
+    case ccl.get_value(ccl_obj, "server.ports") {
+      Ok(port) -> process_port(port)
+      Error(err) -> handle_error(err)
+    }
+  }
+  ccl.ObjectValue -> {
+    // Handle as a nested object
+    case ccl.get_nested(ccl_obj, "server.ports") {
+      Ok(nested) -> process_object(nested)
+      Error(err) -> handle_error(err)
+    }
+  }
+  ccl.Missing -> {
+    // Path doesn't exist
+    use_default_ports()
+  }
+}
+```
+
+#### Smart Access Functions
+
+**🎯 Smart Value Access with Better Error Messages:**
+```gleam
+// get_smart_value gives helpful error messages
+case ccl.get_smart_value(ccl_obj, "server.ports") {
+  Ok(value) -> // Single value
+  Error("Path 'server.ports' contains a list. Use get_list() instead.") -> {
+    // Now you know to use get_list()
+    let ports = ccl.get_list(ccl_obj, "server.ports")
+    // ... handle list
+  }
+}
+```
+
+**📋 Unified List Access:**
+```gleam
+// get_list works for both single values and actual lists
+let ports = ccl.get_list(ccl_obj, "server.ports")       // Ok(["8000", "8001", "8002"])
+let single_port = ccl.get_list(ccl_obj, "api.port")     // Ok(["4000"]) - single value as list
+
+// Process uniformly regardless of single or multiple values
+case ports {
+  Ok(port_list) -> {
+    list.each(port_list, fn(port) {
+      io.println("Configuring port " <> port)
+    })
+  }
+  Error(err) -> handle_error(err)
+}
+```
+
+**⚡ Flexible Value Access:**
+```gleam
+// get_value_or_first works for both lists and single values
+let primary_port = ccl.get_value_or_first(ccl_obj, "server.ports")  // Ok("8000") - first of list
+let api_port = ccl.get_value_or_first(ccl_obj, "api.port")          // Ok("4000") - single value
+
+// Great for flexible configurations that might be single or multiple values
+case ccl.get_value_or_first(ccl_obj, "notification.email") {
+  Ok(email) -> send_notification(email)  // Works whether one email or multiple
+  Error(err) -> use_default_email()
+}
+```
+
+#### Common List Access Patterns
+
+**Pattern 1: Process All Items in a List**
+```gleam
+// Works whether the config has one port or many ports
+case ccl.get_list(ccl_obj, "server.ports") {
+  Ok(ports) -> {
+    list.each(ports, fn(port) {
+      start_server_on_port(port)
+    })
+  }
+  Error(err) -> use_default_ports()
+}
+```
+
+**Pattern 2: Get Primary/Default Value from Flexible Config**
+```gleam
+// Configuration might be a single value OR a list - take the first either way
+case ccl.get_value_or_first(ccl_obj, "database.host") {
+  Ok(primary_host) -> connect_to_database(primary_host)
+  Error(err) -> use_localhost()
+}
+```
+
+**Pattern 3: Flexible Configuration Handling**
+```gleam
+pub fn load_server_config(ccl_obj: ccl.CCL) -> ServerConfig {
+  // Handle ports (could be single or multiple)
+  let ports = case ccl.get_list(ccl_obj, "server.ports") {
+    Ok(port_list) -> list.map(port_list, string.to_int)
+    Error(_) -> [8000]  // default
+  }
+  
+  // Handle host (single value expected, but could be first of a list)  
+  let host = case ccl.get_value_or_first(ccl_obj, "server.host") {
+    Ok(host_value) -> host_value
+    Error(_) -> "localhost"  // default
+  }
+  
+  ServerConfig(host: host, ports: ports)
+}
+```
+
+#### Enhanced Error Messages
+
+The new functions provide much more helpful error messages:
+
+```gleam
+// Instead of generic "not found" errors, get specific guidance:
+
+ccl.get_smart_value(ccl_obj, "server.ports")
+// -> Error("Path 'server.ports' contains a list. Use get_list() instead.")
+
+ccl.get_list(ccl_obj, "database") 
+// -> Error("Path 'database' contains an object, not a list.")
+
+ccl.get_value_or_first(ccl_obj, "nonexistent")
+// -> Error("Path 'nonexistent' not found.")
+```
+
+#### Backward Compatibility
+
+All existing functions (`get_value`, `get_values`, `get_nested`, etc.) continue to work exactly as before. The enhanced list handling functions are additive and provide more convenient, type-safe ways to work with CCL data.
+
+**Migration Path:**
+- **Keep using existing functions** for code that already works
+- **Use enhanced functions** for new code or when you want better error messages
+- **Use `node_type()`** when you need to handle different data types dynamically
+- **Use `get_list()`** when you want uniform list handling regardless of single vs. multiple values
 
 ### Architecture
 
@@ -352,7 +532,11 @@ This separation allows:
 **Key Benefits:**
 - ✅ **Intuitive dot notation** for accessing nested values  
 - ✅ **Type safety** with `Result` types for error handling
-- ✅ **List support** for array-like structures using empty keys
+- ✅ **Enhanced list support** with smart detection and unified access patterns
+- ✅ **Flexible value access** that works for both single values and lists
+- ✅ **Better error messages** that guide you to the right access function
+- ✅ **Node type detection** to handle different data types dynamically
 - ✅ **Structure exploration** to discover available keys and paths
 - ✅ **Sub-object access** to work with nested CCL objects directly
 - ✅ **Full CCL compliance** following the OCaml reference implementation
+- ✅ **Backward compatibility** - all existing code continues to work
