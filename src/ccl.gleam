@@ -1,6 +1,9 @@
+import gleam/dict
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/string
+
+// === CORE DATA TYPES ===
 
 pub type Entry {
   Entry(key: String, value: String)
@@ -8,6 +11,56 @@ pub type Entry {
 
 pub type ParseError {
   ParseError(line: Int, reason: String)
+}
+
+// === NESTED CCL DATA STRUCTURE ===
+
+/// Recursive CCL structure equivalent to OCaml's `type t = Fix of t Map.t`
+/// This represents the nested object structure after applying the fixpoint algorithm
+pub type CCL {
+  CCL(map: dict.Dict(String, CCL))
+}
+
+/// Value entry type for intermediate processing during object construction
+pub type ValueEntry {
+  StringValue(String)
+  NestedCCL(dict.Dict(String, List(ValueEntry)))
+}
+
+// === HELPER FUNCTIONS FOR CCL ===
+
+/// Create an empty CCL structure
+pub fn empty_ccl() -> CCL {
+  CCL(dict.new())
+}
+
+/// Create a CCL with a single key-value pair
+/// For simple string values, create a terminal leaf structure
+pub fn single_key_val(key: String, value: String) -> CCL {
+  let leaf_dict = dict.from_list([#(value, empty_ccl())])
+  let leaf_ccl = CCL(leaf_dict)
+  let outer_dict = dict.from_list([#(key, leaf_ccl)])
+  CCL(outer_dict)
+}
+
+/// Merge two CCL structures recursively
+pub fn merge_ccl(ccl1: CCL, ccl2: CCL) -> CCL {
+  case ccl1, ccl2 {
+    CCL(map1), CCL(map2) -> {
+      let merged_map = dict.fold(map2, map1, fn(acc, key, value2) {
+        case dict.get(acc, key) {
+          Ok(value1) -> dict.insert(acc, key, merge_ccl(value1, value2))
+          Error(_) -> dict.insert(acc, key, value2)
+        }
+      })
+      CCL(merged_map)
+    }
+  }
+}
+
+/// Create CCL from a list of CCL structures
+pub fn ccl_from_list(ccls: List(CCL)) -> CCL {
+  list.fold(ccls, empty_ccl(), merge_ccl)
 }
 
 pub fn parse(text: String) -> Result(List(Entry), ParseError) {
@@ -327,4 +380,148 @@ fn join_and_trim_value_lines(vlines_rev: List(String)) -> String {
   out
   |> lstrip_spaces
   |> rstrip_whitespace
+}
+
+// === NEW API FUNCTIONS ===
+
+/// Parse a value string recursively into key-value pairs
+/// This is used internally by the fixpoint algorithm to parse nested values
+/// It handles indented content and determines base indentation from the first non-empty line
+fn parse_value(text: String) -> Result(List(Entry), ParseError) {
+  let input = 
+    text
+    |> string.replace("\r\n", "\n")
+    |> string.replace("\r", "\n")
+
+  // Handle empty input
+  case string.length(string.trim(text)) == 0 {
+    True -> Ok([])
+    False -> {
+      let lines = string.split(input, "\n")
+      parse_value_with_base_indent(lines)
+    }
+  }
+}
+
+/// Parse value lines by finding base indentation from first non-empty line
+fn parse_value_with_base_indent(lines: List(String)) -> Result(List(Entry), ParseError) {
+  case find_first_non_empty_line(lines, 1) {
+    Error(err) -> Error(err)
+    Ok(#(first_line, _line_no)) -> {
+      let base_indent = count_leading_spaces(first_line)
+      parse_lines_with_base_indent(lines, base_indent, 1, None, [])
+    }
+  }
+}
+
+/// Find first non-empty line for determining base indentation
+fn find_first_non_empty_line(
+  lines: List(String),
+  line_no: Int,
+) -> Result(#(String, Int), ParseError) {
+  case lines {
+    [] -> Error(ParseError(line_no, "No content found"))
+    [line, ..rest] -> {
+      case is_empty_line(line) {
+        True -> find_first_non_empty_line(rest, line_no + 1)
+        False -> Ok(#(line, line_no))
+      }
+    }
+  }
+}
+
+/// Convert flat key-value pairs into nested CCL structure using fixpoint algorithm
+/// This implements the core CCL object construction logic
+pub fn make_objects(entries: List(Entry)) -> CCL {
+  // Group entries by key, allowing multiple values per key
+  let grouped = group_entries_by_key(entries, dict.new())
+  
+  // Convert to value entries and apply fixpoint algorithm
+  let value_entries = dict.map_values(grouped, fn(_key, values) { convert_to_value_entries(values) })
+  
+  // Apply fixpoint until convergence
+  fix_value_entries(value_entries)
+}
+
+/// Group entries by key, collecting multiple values for the same key
+fn group_entries_by_key(
+  entries: List(Entry),
+  acc: dict.Dict(String, List(String)),
+) -> dict.Dict(String, List(String)) {
+  case entries {
+    [] -> acc
+    [Entry(key, value), ..rest] -> {
+      let updated_acc = case dict.get(acc, key) {
+        Ok(existing_values) -> dict.insert(acc, key, [value, ..existing_values])
+        Error(_) -> dict.insert(acc, key, [value])
+      }
+      group_entries_by_key(rest, updated_acc)
+    }
+  }
+}
+
+/// Convert string values to ValueEntry list
+fn convert_to_value_entries(values: List(String)) -> List(ValueEntry) {
+  list.map(values, fn(value) {
+    // Try to parse the value as nested CCL
+    case parse_value(value) {
+      Ok(nested_entries) -> {
+        case nested_entries {
+          [] -> StringValue(value)
+          _ -> {
+            let nested_grouped = group_entries_by_key(nested_entries, dict.new())
+            let nested_value_entries = dict.map_values(nested_grouped, fn(_key, values) { convert_to_value_entries(values) })
+            NestedCCL(nested_value_entries)
+          }
+        }
+      }
+      Error(_) -> StringValue(value)
+    }
+  })
+}
+
+/// Apply fixpoint algorithm to value entries until convergence
+fn fix_value_entries(entry_map: dict.Dict(String, List(ValueEntry))) -> CCL {
+  // Convert value entries to CCL structure
+  let ccl_map = dict.map_values(entry_map, fn(_key, value_entries) {
+    // Combine all values for this key
+    list.fold(value_entries, empty_ccl(), fn(acc, entry) {
+      case entry {
+        // For string values, create terminal entries with empty key
+        StringValue(str) -> merge_ccl(acc, single_key_val("", str))
+        // For nested structures, recursively process
+        NestedCCL(nested_map) -> merge_ccl(acc, fix_value_entries(nested_map))
+      }
+    })
+  })
+  
+  CCL(ccl_map)
+}
+
+/// Pretty print CCL structure for debugging
+pub fn pretty_print_ccl(ccl: CCL) -> String {
+  pretty_print_ccl_with_indent(ccl, 0)
+}
+
+fn pretty_print_ccl_with_indent(ccl: CCL, indent: Int) -> String {
+  case ccl {
+    CCL(map) -> {
+      let entries = dict.to_list(map)
+      case entries {
+        [] -> "{}"
+        _ -> {
+          let indent_str = string.repeat(" ", indent)
+          let formatted = list.map(entries, fn(pair) {
+            let #(key, value) = pair
+            let key_display = case key {
+              "" -> "<empty>"
+              _ -> "\"" <> key <> "\""
+            }
+            indent_str <> "  " <> key_display <> ": " <> pretty_print_ccl_with_indent(value, indent + 2)
+          })
+          "{\n" <> string.join(formatted, ",\n") <> "\n" <> indent_str <> "}"
+        }
+      }
+    }
+  }
 }

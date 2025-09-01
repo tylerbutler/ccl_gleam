@@ -1,0 +1,296 @@
+# CCL Gleam - Developer Guide
+
+This document provides detailed information about the CCL (Categorical Configuration Language) implementation in Gleam, including the API design, algorithm details, and implementation notes.
+
+## Architecture Overview
+
+The CCL implementation follows a two-phase approach based on the OCaml reference implementation:
+
+1. **Phase 1: Flat Parsing** - Parse CCL text into flat key-value pairs
+2. **Phase 2: Object Construction** - Apply fixpoint algorithm to build nested structures
+
+## Public API
+
+### Core Functions
+
+```gleam
+// Main parsing function - entry point for users
+pub fn parse(text: String) -> Result(List(Entry), ParseError)
+
+// Object construction from flat entries using fixpoint algorithm
+pub fn make_objects(entries: List(Entry)) -> CCL
+
+// Helper functions for working with CCL objects
+pub fn pretty_print_ccl(ccl: CCL) -> String
+pub fn merge_ccl(ccl1: CCL, ccl2: CCL) -> CCL
+pub fn empty_ccl() -> CCL
+```
+
+### Data Types
+
+```gleam
+// Flat key-value pair (output of parse)
+pub type Entry {
+  Entry(key: String, value: String)
+}
+
+// Parse errors with line number and reason
+pub type ParseError {
+  ParseError(line: Int, reason: String)
+}
+
+// Recursive CCL structure (equivalent to OCaml's type t = Fix of t Map.t)
+pub type CCL {
+  CCL(map: dict.Dict(String, CCL))
+}
+```
+
+## Internal Implementation
+
+### Private Functions
+
+```gleam
+// Used internally by make_objects during fixpoint algorithm
+fn parse_value(text: String) -> Result(List(Entry), ParseError)
+```
+
+### Key Differences: `parse` vs `parse_value`
+
+Even though both functions have the same signature, they serve different purposes:
+
+| Aspect | `parse` | `parse_value` |
+|--------|---------|---------------|
+| **Purpose** | Parse complete CCL documents | Parse individual values that may contain nested CCL |
+| **Visibility** | Public API | Private implementation detail |
+| **Context** | Top-level document parsing | Internal recursive parsing during object construction |
+| **Input expectations** | Complete CCL files/documents | Value content (often indented) |
+| **Indentation handling** | Uses first key-value pair to determine base indentation | Finds first non-empty line to determine base indentation |
+| **Error handling** | Requires at least one key-value pair with `=` | Can handle empty input (returns empty list) |
+
+## `make_objects` Function - Detailed Explanation
+
+The `make_objects` function implements the core CCL fixpoint algorithm that converts flat key-value pairs into a recursive nested structure.
+
+### Algorithm Steps
+
+1. **Group entries by key** - Handle multiple values per key
+2. **Recursive value parsing** - Try to parse each value as nested CCL
+3. **Fixpoint convergence** - Keep parsing until no more changes occur
+4. **Merge structures** - Combine entries with the same key
+
+### Detailed Example
+
+Let's trace through a complex example:
+
+**Input CCL:**
+```ccl
+user =
+  name = alice
+
+user =
+  age = 25
+  
+database =
+  host = localhost
+  ports =
+    = 8000
+    = 8001
+
+simple = value
+```
+
+#### Step 1: `parse` Function Processing
+
+```gleam
+case ccl.parse(input) {
+  Ok(flat_entries) -> // Result shown below
+}
+```
+
+**Flat entries from `parse`:**
+```gleam
+[
+  Entry("user", "\n  name = alice"),
+  Entry("user", "\n  age = 25"), 
+  Entry("database", "\n  host = localhost\n  ports =\n    = 8000\n    = 8001"),
+  Entry("simple", "value")
+]
+```
+
+#### Step 2: `make_objects` Processing
+
+##### 2.1 Group entries by key:
+```gleam
+{
+  "user" -> ["\n  name = alice", "\n  age = 25"],
+  "database" -> ["\n  host = localhost\n  ports =\n    = 8000\n    = 8001"], 
+  "simple" -> ["value"]
+}
+```
+
+##### 2.2 Convert to ValueEntry (recursive parsing):
+
+For each value, try `parse_value()` internally:
+
+**`"simple"` -> `"value"`:**
+- `parse_value("value")` fails (no `=` sign)
+- Result: `StringValue("value")`
+
+**`"user"` -> `"\n  name = alice"`:**
+- `parse_value("\n  name = alice")` succeeds!  
+- Parses to: `[Entry("name", "alice")]`
+- Result: `NestedCCL({"name" -> [StringValue("alice")]})`
+
+**`"user"` -> `"\n  age = 25"`:**
+- `parse_value("\n  age = 25")` succeeds!
+- Parses to: `[Entry("age", "25")]`
+- Result: `NestedCCL({"age" -> [StringValue("25")]})`
+
+**`"database"` -> `"\n  host = localhost\n  ports =\n    = 8000\n    = 8001"`:**
+- `parse_value(...)` succeeds!
+- Parses to: `[Entry("host", "localhost"), Entry("ports", "\n    = 8000\n    = 8001")]`
+- **Recursive parsing continues** for `"ports"` value:
+  - `parse_value("\n    = 8000\n    = 8001")` succeeds!
+  - Parses to: `[Entry("", "8000"), Entry("", "8001")]`
+- Result: `NestedCCL({...})`
+
+##### 2.3 Apply fixpoint algorithm:
+
+**First iteration results:**
+```gleam
+{
+  "simple": StringValue("value"),
+  "user": [
+    NestedCCL({"name" -> [StringValue("alice")]}),
+    NestedCCL({"age" -> [StringValue("25")]})
+  ],
+  "database": NestedCCL({
+    "host" -> [StringValue("localhost")],
+    "ports" -> [NestedCCL({
+      "" -> [StringValue("8000"), StringValue("8001")]
+    })]
+  })
+}
+```
+
+##### 2.4 Build final CCL structure:
+
+Convert `ValueEntry` to `CCL` and merge duplicates:
+
+```gleam
+CCL({
+  "simple": CCL({"" : CCL({"value": CCL({})})}),
+  "user": CCL({
+    "name": CCL({"": CCL({"alice": CCL({})})}),
+    "age": CCL({"": CCL({"25": CCL({})})})
+  }),
+  "database": CCL({
+    "host": CCL({"": CCL({"localhost": CCL({})})}),
+    "ports": CCL({
+      "": CCL({
+        "8000": CCL({}),
+        "8001": CCL({})
+      })
+    })
+  })
+})
+```
+
+### Key Differences: `parse` vs `make_objects`
+
+| Aspect | `parse` | `make_objects` |
+|--------|---------|----------------|
+| **Input** | Raw CCL text | List of Entry |
+| **Output** | Flat key-value pairs | Nested CCL structure |
+| **Processing** | Syntax parsing only | Recursive value parsing + merging |
+| **Duplicates** | Kept as separate entries | Merged into single structure |
+| **Nesting** | Values remain as strings | Values parsed recursively |
+
+### Example Output Comparison
+
+**`parse` output (flat):**
+```gleam
+[
+  Entry("user", "\n  name = alice"),
+  Entry("user", "\n  age = 25")  // Duplicate key kept separate
+]
+```
+
+**`make_objects` output (nested):**
+```gleam
+CCL({
+  "user": CCL({
+    "name": CCL({"": CCL({"alice": CCL({})})}),
+    "age": CCL({"": CCL({"25": CCL({})})})  // Merged with first user entry
+  })
+})
+```
+
+### When Fixpoint Converges
+
+The algorithm stops when `parse_value()` can't parse any more values:
+
+1. **"value"** - no `=`, stops immediately
+2. **"alice"** - no `=`, stops  
+3. **"25"** - no `=`, stops
+4. **"localhost"** - no `=`, stops
+5. **"8000", "8001"** - no `=`, stop
+
+**Result:** All terminal values reached, fixpoint achieved.
+
+## Usage Pattern
+
+```gleam
+// 1. Parse flat structure
+case ccl.parse(ccl_text) {
+  Ok(flat_entries) -> {
+    // 2. Build nested objects  
+    let nested_ccl = ccl.make_objects(flat_entries)
+    
+    // 3. Use nested structure
+    ccl.pretty_print_ccl(nested_ccl)
+  }
+  Error(err) -> // handle parse error
+}
+```
+
+## Implementation Notes
+
+### Design Benefits
+
+1. **Clean separation**: Users only see what they need (`parse` and `make_objects`)
+2. **Implementation flexibility**: Internal functions can change without breaking user code  
+3. **Clear intent**: `parse_value` being private makes it clear it's an implementation detail
+4. **Proper encapsulation**: The fixpoint algorithm details are hidden
+5. **Backward compatibility**: All existing flat parsing functionality is preserved
+
+### Recursive Structure Rationale
+
+The CCL structure `CCL(dict.Dict(String, CCL))` creates a recursive map where:
+- Each key maps to another CCL structure
+- Terminal values are represented as `key -> "" -> value -> {}`
+- Empty keys (`""`) are used for list-style structures
+- The structure matches the OCaml reference implementation's `type t = Fix of t Map.t`
+
+### Testing Strategy
+
+The implementation includes comprehensive test coverage:
+- **53 core flat parsing tests** - ensure backward compatibility
+- **Error condition tests** - validate proper error handling  
+- **Nested structure tests** - verify object construction behavior
+- **JSON test definitions** - language-agnostic test cases for cross-implementation validation
+
+### Performance Considerations
+
+- **Lazy evaluation**: `parse_value` is only called when needed during object construction
+- **Memoization opportunity**: The fixpoint algorithm could benefit from caching parse results
+- **Memory efficiency**: Terminal values could be optimized to avoid deep nesting
+
+## Development Workflow
+
+1. **Core parsing** remains unchanged - maintains all existing functionality
+2. **Object construction** is optional - users can work with flat entries if preferred
+3. **Extension point** - new CCL features can be added to object construction without affecting parsing
+4. **Language portability** - the JSON test suite enables validation across different language implementations
+
+This two-step process separates syntax parsing from semantic object construction, making both easier to understand and test independently while maintaining full compatibility with the CCL specification and reference implementation.
