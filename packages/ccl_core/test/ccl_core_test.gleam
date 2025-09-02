@@ -2,6 +2,7 @@ import gleeunit
 import gleeunit/should
 import gleam/list
 import gleam/string
+import gleam/io
 import ccl_core
 
 pub fn main() {
@@ -73,3 +74,4 @@ pub fn parse_error_test() {
   let result = ccl_core.parse(input)
   result |> should.be_error()
 }
+
