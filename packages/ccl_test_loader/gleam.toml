@@ -1,0 +1,12 @@
+name = "ccl_test_loader"
+version = "1.0.0"
+description = "Test case loader for CCL from JSON files"
+target = "erlang"
+
+[dependencies]
+gleam_stdlib = ">= 0.44.0 and < 2.0.0"
+gleam_json = ">= 3.0.2 and < 4.0.0"
+ccl_core = { path = "../ccl_core" }
+
+[dev-dependencies]
+gleeunit = ">= 1.0.0 and < 2.0.0"

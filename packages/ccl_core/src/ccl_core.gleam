@@ -27,208 +27,44 @@ pub type ValueEntry {
   NestedCCL(dict.Dict(String, List(ValueEntry)))
 }
 
-// ========================================
-// CORE PUBLIC API 
-// ========================================
-// Primary functions that most users will need:
-//
-// 1. parse(text) -> Result(List(Entry), ParseError)     [defined at line ~417]
-// 2. make_objects(entries) -> CCL                       [defined at line ~786] 
-// 3. get(ccl, path) -> Result(CclValue, String)         [defined below]
-
-// ========================================  
-// ADVANCED/BUILDING BLOCKS
-// ========================================
-// Lower-level functions for library builders and advanced use cases
-
-/// Create an empty CCL structure
-pub fn empty_ccl() -> CCL {
-  CCL(dict.new())
-}
-
-/// Create a CCL with a single key-value pair
-/// For simple string values, create a terminal leaf structure
-pub fn single_key_val(key: String, value: String) -> CCL {
-  let leaf_dict = dict.from_list([#(value, empty_ccl())])
-  let leaf_ccl = CCL(leaf_dict)
-  let outer_dict = dict.from_list([#(key, leaf_ccl)])
-  CCL(outer_dict)
-}
-
-/// Merge two CCL structures recursively
-pub fn merge_ccl(ccl1: CCL, ccl2: CCL) -> CCL {
-  case ccl1, ccl2 {
-    CCL(map1), CCL(map2) -> {
-      let merged_map = dict.fold(map2, map1, fn(acc, key, value2) {
-        case dict.get(acc, key) {
-          Ok(value1) -> dict.insert(acc, key, merge_ccl(value1, value2))
-          Error(_) -> dict.insert(acc, key, value2)
-        }
-      })
-      CCL(merged_map)
-    }
-  }
-}
-
-/// Create CCL from a list of CCL structures
-pub fn ccl_from_list(ccls: List(CCL)) -> CCL {
-  list.fold(ccls, empty_ccl(), merge_ccl)
-}
-
-// === CORE API TYPES ===
-
-/// Unified value type returned by the main get() function
-pub type CclValue {
-  /// Single string value
-  CclString(String)
-  /// List of string values  
-  CclList(List(String))
-  /// Nested CCL object
-  CclObject(CCL)
-}
-
-// === NODE TYPE DETECTION ===
-
-/// Types of nodes in CCL structure
-pub type NodeType {
-  /// Single terminal value (leaf node)
-  SingleValue
-  /// List of values (multiple empty keys pointing to terminals)  
-  ListValue
-  /// Nested object with key-value pairs
-  ObjectValue
-  /// Key doesn't exist
-  Missing
-}
-
-/// Determine the type of data at a given path
-pub fn node_type(ccl: CCL, path: String) -> NodeType {
-  let keys = string.split(path, ".")
-  case get_ccl_by_keys(ccl, keys) {
-    Ok(target_ccl) -> classify_node_type(target_ccl)
-    Error(_) -> Missing
-  }
-}
-
-/// Classify the type of a CCL node
-fn classify_node_type(ccl: CCL) -> NodeType {
-  case ccl {
-    CCL(map) -> {
-      let entries = dict.to_list(map)
-      case entries {
-        // Empty map = missing/invalid
-        [] -> Missing
-        // Single entry with empty key = check if it's a terminal value or nested structure
-        [#("", inner_ccl)] -> {
-          case inner_ccl {
-            CCL(inner_map) -> {
-              let inner_entries = dict.to_list(inner_map)
-              case inner_entries {
-                // Empty inner map = this is probably not a valid terminal
-                [] -> Missing
-                // Single empty key in inner map = this is a list structure
-                [#("", CCL(_))] -> {
-                  let terminal_count = list.length(get_all_terminal_values(ccl))
-                  case terminal_count {
-                    0 -> Missing
-                    1 -> SingleValue
-                    _ -> ListValue
-                  }
-                }
-                // Multiple entries or regular keys in inner map = check if terminals
-                _ -> {
-                  let terminal_values = get_terminal_values_from_map(inner_map)
-                  case list.length(terminal_values) {
-                    0 -> Missing
-                    1 -> SingleValue
-                    _ -> ListValue
-                  }
-                }
-              }
-            }
-          }
-        }
-        // Check for multiple entries or entries with empty keys
-        _ -> {
-          let has_empty_key = list.any(entries, fn(pair) { pair.0 == "" })
-          case has_empty_key {
-            True -> {
-              let terminal_count = list.length(get_all_terminal_values(ccl))
-              case terminal_count {
-                0 -> Missing
-                1 -> SingleValue
-                _ -> ListValue
-              }
-            }
-            False -> ObjectValue
-          }
-        }
-      }
-    }
-  }
-}
-
-/// Get terminal values from a map structure
-fn get_terminal_values_from_map(map: dict.Dict(String, CCL)) -> List(String) {
-  dict.to_list(map)
-  |> list.filter(fn(pair) {
-    let #(_, CCL(inner_map)) = pair
-    dict.size(inner_map) == 0
-  })
-  |> list.map(fn(pair) { pair.0 })
-}
-
 // === CORE PUBLIC API ===
 
-/// Main accessor function that returns values in their natural form
-/// This is the primary way to access CCL data
-pub fn get(ccl: CCL, path: String) -> Result(CclValue, String) {
-  case node_type(ccl, path) {
-    SingleValue -> {
-      case get_value(ccl, path) {
-        Ok(value) -> Ok(CclString(value))
-        Error(err) -> Error(err)
+/// Parse CCL text into a list of key-value entries
+pub fn parse(text: String) -> Result(List(Entry), ParseError) {
+  let input =
+    text
+    |> string.replace("\r\n", "\n")
+    |> string.replace("\r", "\n")
+
+  // Handle truly empty input
+  case string.length(string.trim(text)) == 0 && string.length(text) == 0 {
+    True -> Ok([])
+    False -> {
+      // Handle whitespace-only input as error
+      case string.length(string.trim(text)) == 0 {
+        True -> Error(ParseError(1, "Input contains only whitespace"))
+        False -> parse_with_indentation(string.split(input, "\n"))
       }
     }
-    ListValue -> {
-      let values = get_values(ccl, path)
-      case values {
-        [] -> Error("Path '" <> path <> "' contains no values.")
-        _ -> Ok(CclList(values))
-      }
-    }
-    ObjectValue -> {
-      case get_nested(ccl, path) {
-        Ok(nested_ccl) -> Ok(CclObject(nested_ccl))
-        Error(err) -> Error(err)
-      }
-    }
-    Missing -> Error("Path '" <> path <> "' not found.")
   }
 }
 
-// === ADVANCED/BUILDING BLOCKS ===
-// These functions provide lower-level access for library builders and advanced use cases
+/// Convert flat key-value pairs into nested CCL structure using fixpoint algorithm
+pub fn make_objects(entries: List(Entry)) -> CCL {
+  // Group entries by key, allowing multiple values per key
+  let grouped = group_entries_by_key(entries, dict.new())
+  
+  // Convert to value entries and apply fixpoint algorithm
+  let value_entries = dict.map_values(grouped, fn(_key, values) { convert_to_value_entries(values) })
+  
+  // Apply fixpoint until convergence
+  fix_value_entries(value_entries)
+}
 
-/// Get a value from CCL using a dot-separated path (e.g., "database.host") 
-/// For most use cases, prefer the unified get() function instead
+/// Get a value from CCL using a dot-separated path
 pub fn get_value(ccl: CCL, path: String) -> Result(String, String) {
   let keys = string.split(path, ".")
   get_value_by_keys(ccl, keys)
-}
-
-/// Get a value using a list of keys
-pub fn get_value_by_keys(ccl: CCL, keys: List(String)) -> Result(String, String) {
-  case keys {
-    [] -> Error("Empty path")
-    [single_key] -> get_terminal_value(ccl, single_key)
-    [first_key, ..rest_keys] -> {
-      case get_nested_ccl(ccl, first_key) {
-        Ok(nested_ccl) -> get_value_by_keys(nested_ccl, rest_keys)
-        Error(err) -> Error(err)
-      }
-    }
-  }
 }
 
 /// Get all values for a key (useful for list-style structures with empty keys)
@@ -237,56 +73,6 @@ pub fn get_values(ccl: CCL, path: String) -> List(String) {
   case get_ccl_by_keys(ccl, keys) {
     Ok(target_ccl) -> get_all_terminal_values(target_ccl)
     Error(_) -> []
-  }
-}
-
-// ========================================
-// SMART/CONVENIENCE FUNCTIONS
-// ========================================  
-// These will move to the full "ccl" library in the package restructure
-
-/// Smart value accessor that returns appropriate type based on node structure
-/// - Single values return Ok(value)
-/// - Lists return Error with suggestion to use get_list()
-/// - Objects return Error with suggestion to use get_nested()
-pub fn get_smart_value(ccl: CCL, path: String) -> Result(String, String) {
-  case node_type(ccl, path) {
-    SingleValue -> get_value(ccl, path)
-    ListValue -> Error("Path '" <> path <> "' contains a list. Use get_list() instead.")
-    ObjectValue -> Error("Path '" <> path <> "' contains an object. Use get_nested() instead.")
-    Missing -> Error("Path '" <> path <> "' not found.")
-  }
-}
-
-/// Get a list of values, with smart detection
-/// Works for both list structures (empty keys) and single values (returns single-item list)
-pub fn get_list(ccl: CCL, path: String) -> Result(List(String), String) {
-  case node_type(ccl, path) {
-    SingleValue | ListValue -> {
-      // Use get_values for both - it handles both single and multiple values
-      let values = get_values(ccl, path)
-      case values {
-        [] -> Error("Path '" <> path <> "' contains no values.")
-        _ -> Ok(values)
-      }
-    }
-    ObjectValue -> Error("Path '" <> path <> "' contains an object, not a list.")
-    Missing -> Error("Path '" <> path <> "' not found.")
-  }
-}
-
-/// Get a value with automatic list flattening for single-item lists
-/// This makes it easier to work with values that might be lists
-pub fn get_value_or_first(ccl: CCL, path: String) -> Result(String, String) {
-  case node_type(ccl, path) {
-    SingleValue | ListValue -> {
-      case get_values(ccl, path) {
-        [] -> Error("Path '" <> path <> "' contains no values.")
-        [first, ..] -> Ok(first)
-      }
-    }
-    ObjectValue -> Error("Path '" <> path <> "' contains an object, not a value.")
-    Missing -> Error("Path '" <> path <> "' not found.")
   }
 }
 
@@ -319,12 +105,56 @@ pub fn get_keys(ccl: CCL, path: String) -> List(String) {
   }
 }
 
-/// Get all keys recursively with their full paths
-pub fn get_all_paths(ccl: CCL) -> List(String) {
-  get_all_paths_helper(ccl, "")
+/// Create an empty CCL structure
+pub fn empty_ccl() -> CCL {
+  CCL(dict.new())
 }
 
 // === HELPER FUNCTIONS ===
+
+/// Get a value using a list of keys
+pub fn get_value_by_keys(ccl: CCL, keys: List(String)) -> Result(String, String) {
+  case keys {
+    [] -> Error("Empty path")
+    [single_key] -> get_terminal_value(ccl, single_key)
+    [first_key, ..rest_keys] -> {
+      case get_nested_ccl(ccl, first_key) {
+        Ok(nested_ccl) -> get_value_by_keys(nested_ccl, rest_keys)
+        Error(err) -> Error(err)
+      }
+    }
+  }
+}
+
+/// Create a CCL with a single key-value pair
+pub fn single_key_val(key: String, value: String) -> CCL {
+  let leaf_dict = dict.from_list([#(value, empty_ccl())])
+  let leaf_ccl = CCL(leaf_dict)
+  let outer_dict = dict.from_list([#(key, leaf_ccl)])
+  CCL(outer_dict)
+}
+
+/// Merge two CCL structures recursively
+pub fn merge_ccl(ccl1: CCL, ccl2: CCL) -> CCL {
+  case ccl1, ccl2 {
+    CCL(map1), CCL(map2) -> {
+      let merged_map = dict.fold(map2, map1, fn(acc, key, value2) {
+        case dict.get(acc, key) {
+          Ok(value1) -> dict.insert(acc, key, merge_ccl(value1, value2))
+          Error(_) -> dict.insert(acc, key, value2)
+        }
+      })
+      CCL(merged_map)
+    }
+  }
+}
+
+/// Create CCL from a list of CCL structures
+pub fn ccl_from_list(ccls: List(CCL)) -> CCL {
+  list.fold(ccls, empty_ccl(), merge_ccl)
+}
+
+// === INTERNAL FUNCTIONS ===
 
 fn get_nested_ccl(ccl: CCL, key: String) -> Result(CCL, String) {
   case ccl {
@@ -384,7 +214,7 @@ fn get_all_terminal_values_recursive(ccl: CCL) -> List(String) {
   }
 }
 
-fn get_ccl_by_keys(ccl: CCL, keys: List(String)) -> Result(CCL, String) {
+pub fn get_ccl_by_keys(ccl: CCL, keys: List(String)) -> Result(CCL, String) {
   case keys {
     [] -> Ok(ccl)
     [first_key, ..rest_keys] -> {
@@ -396,49 +226,7 @@ fn get_ccl_by_keys(ccl: CCL, keys: List(String)) -> Result(CCL, String) {
   }
 }
 
-fn get_all_paths_helper(ccl: CCL, prefix: String) -> List(String) {
-  case ccl {
-    CCL(map) -> {
-      dict.to_list(map)
-      |> list.flat_map(fn(pair) {
-        let #(key, nested_ccl) = pair
-        let current_path = case prefix {
-          "" -> key
-          _ -> prefix <> "." <> key
-        }
-        
-        case key {
-          "" -> []  // Skip empty keys used for terminal values
-          _ -> {
-            case dict.size(case nested_ccl { CCL(inner_map) -> inner_map }) {
-              0 -> []  // Skip empty structures 
-              _ -> [current_path, ..get_all_paths_helper(nested_ccl, current_path)]
-            }
-          }
-        }
-      })
-    }
-  }
-}
-
-pub fn parse(text: String) -> Result(List(Entry), ParseError) {
-  let input =
-    text
-    |> string.replace("\r\n", "\n")
-    |> string.replace("\r", "\n")
-
-  // Handle truly empty input
-  case string.length(string.trim(text)) == 0 && string.length(text) == 0 {
-    True -> Ok([])
-    False -> {
-      // Handle whitespace-only input as error
-      case string.length(string.trim(text)) == 0 {
-        True -> Error(ParseError(1, "Input contains only whitespace"))
-        False -> parse_with_indentation(string.split(input, "\n"))
-      }
-    }
-  }
-}
+// === PARSING IMPLEMENTATION ===
 
 fn parse_with_indentation(
   lines: List(String),
@@ -740,11 +528,9 @@ fn join_and_trim_value_lines(vlines_rev: List(String)) -> String {
   |> rstrip_whitespace
 }
 
-// === NEW API FUNCTIONS ===
+// === FIXPOINT ALGORITHM IMPLEMENTATION ===
 
 /// Parse a value string recursively into key-value pairs
-/// This is used internally by the fixpoint algorithm to parse nested values
-/// It handles indented content and determines base indentation from the first non-empty line
 fn parse_value(text: String) -> Result(List(Entry), ParseError) {
   let input = 
     text
@@ -786,19 +572,6 @@ fn find_first_non_empty_line(
       }
     }
   }
-}
-
-/// Convert flat key-value pairs into nested CCL structure using fixpoint algorithm
-/// This implements the core CCL object construction logic
-pub fn make_objects(entries: List(Entry)) -> CCL {
-  // Group entries by key, allowing multiple values per key
-  let grouped = group_entries_by_key(entries, dict.new())
-  
-  // Convert to value entries and apply fixpoint algorithm
-  let value_entries = dict.map_values(grouped, fn(_key, values) { convert_to_value_entries(values) })
-  
-  // Apply fixpoint until convergence
-  fix_value_entries(value_entries)
 }
 
 /// Group entries by key, collecting multiple values for the same key
@@ -854,32 +627,4 @@ fn fix_value_entries(entry_map: dict.Dict(String, List(ValueEntry))) -> CCL {
   })
   
   CCL(ccl_map)
-}
-
-/// Pretty print CCL structure for debugging
-pub fn pretty_print_ccl(ccl: CCL) -> String {
-  pretty_print_ccl_with_indent(ccl, 0)
-}
-
-fn pretty_print_ccl_with_indent(ccl: CCL, indent: Int) -> String {
-  case ccl {
-    CCL(map) -> {
-      let entries = dict.to_list(map)
-      case entries {
-        [] -> "{}"
-        _ -> {
-          let indent_str = string.repeat(" ", indent)
-          let formatted = list.map(entries, fn(pair) {
-            let #(key, value) = pair
-            let key_display = case key {
-              "" -> "<empty>"
-              _ -> "\"" <> key <> "\""
-            }
-            indent_str <> "  " <> key_display <> ": " <> pretty_print_ccl_with_indent(value, indent + 2)
-          })
-          "{\n" <> string.join(formatted, ",\n") <> "\n" <> indent_str <> "}"
-        }
-      }
-    }
-  }
 }

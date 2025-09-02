@@ -1,19 +1,22 @@
 #!/usr/bin/env just --justfile
 
+# Workspace packages
+packages := "ccl_core ccl ccl_test_loader"
+
 # Common aliases for faster development
 alias b := build
 alias t := test
 alias l := lint
 alias f := fix
 alias c := check
+alias ba := build-all
+alias ta := test-all
 
 # Default recipe - shows available commands
 default:
     @just --list
 
-
-build *ARGS='':
-    gleam build --warnings-as-errors {{ARGS}}
+build: build-all
 
 check:
 	gleam check
@@ -39,5 +42,49 @@ lint: check format-check cleam
 # Fix formatting and run checks
 fix: format check
 
+# Build a specific package
+build-package package:
+	@echo "Building {{package}}..."
+	@cd packages/{{package}} && gleam build
+
+# Test a specific package  
+test-package package:
+	@echo "Testing {{package}}..."
+	@cd packages/{{package}} && gleam test
+
+# Build all packages in workspace
+build-all:
+	@echo "Building all packages..."
+	@for package in {{packages}}; do \
+		echo "Building $package..."; \
+		cd packages/$package && gleam build || exit 1; \
+		cd - > /dev/null; \
+	done
+	@echo "Building root package..."
+	@gleam build
+	@echo "All packages built successfully!"
+
+# Test all packages in workspace
+test-all:
+	@echo "Testing all packages..."
+	@for package in {{packages}}; do \
+		echo "Testing $package..."; \
+		cd packages/$package && gleam test || exit 1; \
+		cd - > /dev/null; \
+	done
+	@echo "Testing root package..."
+	@gleam test
+	@echo "All tests completed!"
+
+# Clean build artifacts
+clean:
+	rm -rf build
+	@for package in {{packages}}; do \
+		rm -rf packages/$package/build; \
+	done
+
 # Run full CI pipeline
 ci: format-check check test
+
+# Run full CI pipeline for all packages
+ci-all: format-check build-all test-all

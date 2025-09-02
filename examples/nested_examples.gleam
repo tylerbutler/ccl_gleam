@@ -1,3 +1,4 @@
+import ccl_core
 import ccl
 import gleam/dict
 import gleam/io
@@ -10,7 +11,7 @@ pub type NestedConfig =
   dict.Dict(String, String)
 
 /// Parse CCL into a nested structure using dot notation
-pub fn to_nested_dict(entries: List(ccl.Entry)) -> NestedConfig {
+pub fn to_nested_dict(entries: List(ccl_core.Entry)) -> NestedConfig {
   list.fold(entries, dict.new(), fn(acc, entry) {
     dict.insert(acc, entry.key, entry.value)
   })
@@ -69,7 +70,7 @@ api.cors.origins =
   https://app.example.com
   http://localhost:3000"
 
-  case ccl.parse(config_text) {
+  case ccl_core.parse(config_text) {
     Ok(entries) -> {
       let config = to_nested_dict(entries)
       

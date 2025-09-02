@@ -1,3 +1,4 @@
+import ccl_core
 import ccl
 import gleam/io
 import gleam/list
@@ -22,7 +23,7 @@ fn test_basic_parsing() {
   
   let input = "name = Alice\nage = 42"
   
-  case ccl.parse(input) {
+  case ccl_core.parse(input) {
     Ok(entries) -> {
       io.println("Input: " <> input)
       io.println("Entries:")
@@ -41,8 +42,8 @@ fn test_make_objects() {
   io.println("=============================")
   
   let entries = [
-    ccl.Entry("database", "enabled = true"),
-    ccl.Entry("name", "myapp"),
+    ccl_core.Entry("database", "enabled = true"),
+    ccl_core.Entry("name", "myapp"),
   ]
   
   io.println("Input entries:")
@@ -50,9 +51,9 @@ fn test_make_objects() {
     io.println("  " <> entry.key <> " = " <> entry.value)
   })
   
-  let ccl_obj = ccl.make_objects(entries)
+  let ccl_core_obj = ccl_core.make_objects(entries)
   io.println("\nResulting CCL object:")
-  io.println(ccl.pretty_print_ccl(ccl_obj))
+  io.println(ccl.pretty_print_ccl(ccl_core_obj))
   
   io.println("")
 }
@@ -66,7 +67,7 @@ fn test_nested_parsing() {
   io.println("Input: " <> input)
   
   // Step 1: Parse to flat entries
-  case ccl.parse(input) {
+  case ccl_core.parse(input) {
     Ok(entries) -> {
       io.println("\nFlat parsed entries:")
       list.each(entries, fn(entry) {
@@ -74,9 +75,9 @@ fn test_nested_parsing() {
       })
       
       // Step 2: Build nested objects
-      let ccl_obj = ccl.make_objects(entries)
+      let ccl_core_obj = ccl_core.make_objects(entries)
       io.println("\nNested CCL object:")
-      io.println(ccl.pretty_print_ccl(ccl_obj))
+      io.println(ccl.pretty_print_ccl(ccl_core_obj))
     }
     Error(err) -> io.println("Parse error: " <> err.reason)
   }

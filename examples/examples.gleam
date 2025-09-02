@@ -1,3 +1,4 @@
+import ccl_core
 import ccl
 import gleam/io
 import gleam/list
@@ -38,7 +39,7 @@ database.pool.min_connections = 2
 database.pool.timeout_seconds = 30
 "
 
-  case ccl.parse(ccl_config) {
+  case ccl_core.parse(ccl_config) {
     Ok(entries) -> {
       io.println("Parsed entries:")
       list.each(entries, fn(entry) {
@@ -85,7 +86,7 @@ server.staging.debug = false
 server.staging.log_level = info
 "
 
-  case ccl.parse(ccl_config) {
+  case ccl_core.parse(ccl_config) {
     Ok(entries) -> {
       io.println("Parsed entries:")
       list.each(entries, fn(entry) {
@@ -141,7 +142,7 @@ cache.memory.max_items = 1000
 cache.memory.eviction_policy = lru
 "
 
-  case ccl.parse(ccl_config) {
+  case ccl_core.parse(ccl_config) {
     Ok(entries) -> {
       io.println("Parsed entries:")
       list.each(entries, fn(entry) {
@@ -193,7 +194,7 @@ cors.allowed_origins =
   https://api.example.com
   http://localhost:3000"
 
-  case ccl.parse(ccl_config) {
+  case ccl_core.parse(ccl_config) {
     Ok(entries) -> {
       io.println("Parsed entries:")
       list.each(entries, fn(entry) {

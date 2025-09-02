@@ -1,25 +1,23 @@
 name = "ccl_gleam"
 version = "1.0.0"
+description = "CCL Gleam workspace - Configuration specification language implementation"
 
 target = "erlang"
-# target = "javascript"
 
-# Fill out these fields if you intend to generate HTML documentation or publish
-# your project to the Hex package manager.
-#
-# description = ""
-# licences = ["Apache-2.0"]
-# repository = { type = "github", user = "", repo = "" }
-# links = [{ title = "Website", href = "" }]
-#
-# For a full reference of all the available options, you can have a look at
-# https://gleam.run/writing-gleam/gleam-toml/.
+[workspace]
+members = [
+  "packages/ccl_core",
+  "packages/ccl",
+  "packages/ccl_test_loader"
+]
 
 [dependencies]
 gleam_stdlib = ">= 0.44.0 and < 2.0.0"
 simplifile = ">= 2.3.0 and < 3.0.0"
 gleam_json = ">= 3.0.2 and < 4.0.0"
+# Import specific packages as needed
+ccl_core = { path = "packages/ccl_core" }
+ccl = { path = "packages/ccl" }
 
 [dev-dependencies]
 gleeunit = ">= 1.0.0 and < 2.0.0"
-cleam = ">= 2.0.0 and < 3.0.0"
