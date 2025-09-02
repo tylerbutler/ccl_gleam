@@ -1,5 +1,7 @@
 import ccl_core.{type CCL, type Entry}
 import gleam/dict
+import gleam/float
+import gleam/int
 import gleam/list
 import gleam/string
 
@@ -290,4 +292,148 @@ pub fn filter_keys(
   exclude_keys: List(String),
 ) -> List(Entry) {
   list.filter(entries, fn(entry) { !list.contains(exclude_keys, entry.key) })
+}
+
+// === TYPED PARSING LAYER ===
+
+/// Types for typed parsing functionality
+pub type ValueType {
+  StringVal(String)
+  IntVal(Int) 
+  FloatVal(Float)
+  BoolVal(Bool)
+  EmptyVal
+}
+
+/// Parse options for controlling type inference behavior
+pub type ParseOptions {
+  ParseOptions(
+    parse_integers: Bool,
+    parse_floats: Bool,
+    parse_booleans: Bool,
+  )
+}
+
+/// Smart parsing options - all type parsing enabled
+pub fn smart_options() -> ParseOptions {
+  ParseOptions(parse_integers: True, parse_floats: True, parse_booleans: True)
+}
+
+/// Basic parsing options - no type inference, all strings
+pub fn basic_options() -> ParseOptions {
+  ParseOptions(parse_integers: False, parse_floats: False, parse_booleans: False)
+}
+
+// === CORE TYPED PARSING FUNCTIONS ===
+
+/// Parse a value as an integer
+pub fn get_int(ccl: CCL, path: String) -> Result(Int, String) {
+  case get_smart_value(ccl, path) {
+    Ok(str_val) -> parse_int(str_val, path)
+    Error(err) -> Error(err)
+  }
+}
+
+/// Parse a value as a float
+pub fn get_float(ccl: CCL, path: String) -> Result(Float, String) {
+  case get_smart_value(ccl, path) {
+    Ok(str_val) -> parse_float(str_val, path)
+    Error(err) -> Error(err)
+  }
+}
+
+/// Parse a value as a boolean
+pub fn get_bool(ccl: CCL, path: String) -> Result(Bool, String) {
+  case get_smart_value(ccl, path) {
+    Ok(str_val) -> parse_bool(str_val, path)
+    Error(err) -> Error(err)
+  }
+}
+
+/// Parse a value with automatic type inference using smart options
+pub fn get_typed_value(ccl: CCL, path: String) -> Result(ValueType, String) {
+  get_typed_value_with_options(ccl, path, smart_options())
+}
+
+/// Parse a value with custom parsing options
+pub fn get_typed_value_with_options(
+  ccl: CCL,
+  path: String,
+  options: ParseOptions,
+) -> Result(ValueType, String) {
+  case get_smart_value(ccl, path) {
+    Ok("") -> Ok(EmptyVal)
+    Ok(str_val) -> {
+      // Try parsing in priority order: int -> float -> bool -> string
+      case options.parse_integers, try_parse_int(str_val) {
+        True, Ok(int_val) -> Ok(IntVal(int_val))
+        _, _ -> case options.parse_floats, try_parse_float(str_val) {
+          True, Ok(float_val) -> Ok(FloatVal(float_val))
+          _, _ -> case options.parse_booleans, try_parse_bool(str_val) {
+            True, Ok(bool_val) -> Ok(BoolVal(bool_val))
+            _, _ -> Ok(StringVal(str_val))
+          }
+        }
+      }
+    }
+    Error(err) -> Error(err)
+  }
+}
+
+// === INTERNAL PARSING HELPERS ===
+
+/// Parse integer with path context for better error messages
+fn parse_int(value: String, path: String) -> Result(Int, String) {
+  let trimmed = string.trim(value)
+  case int.parse(trimmed) {
+    Ok(n) -> Ok(n)
+    Error(_) -> Error("Cannot parse '" <> value <> "' as integer at path '" <> path <> "'")
+  }
+}
+
+/// Parse float with path context for better error messages
+fn parse_float(value: String, path: String) -> Result(Float, String) {
+  let trimmed = string.trim(value)
+  case float.parse(trimmed) {
+    Ok(f) -> Ok(f)
+    Error(_) -> Error("Cannot parse '" <> value <> "' as float at path '" <> path <> "'")
+  }
+}
+
+/// Parse boolean with path context for better error messages
+fn parse_bool(value: String, path: String) -> Result(Bool, String) {
+  let trimmed = string.trim(string.lowercase(value))
+  case trimmed {
+    "true" | "yes" | "on" | "1" -> Ok(True)
+    "false" | "no" | "off" | "0" -> Ok(False)
+    _ -> Error("Cannot parse '" <> value <> "' as boolean at path '" <> path <> "'")
+  }
+}
+
+/// Try to parse integer without error context (for type inference)
+fn try_parse_int(value: String) -> Result(Int, Nil) {
+  let trimmed = string.trim(value)
+  case int.parse(trimmed) {
+    Ok(n) -> Ok(n)
+    Error(_) -> Error(Nil)
+  }
+}
+
+/// Try to parse float without error context (for type inference)
+fn try_parse_float(value: String) -> Result(Float, Nil) {
+  let trimmed = string.trim(value)
+  case float.parse(trimmed) {
+    Ok(f) -> Ok(f)
+    Error(_) -> Error(Nil)
+  }
+}
+
+/// Try to parse boolean without error context (for type inference)
+fn try_parse_bool(value: String) -> Result(Bool, Nil) {
+  let trimmed = string.trim(string.lowercase(value))
+  case trimmed {
+    "true" | "yes" | "on" | "1" -> Ok(True)
+    "false" | "no" | "off" | "0" -> Ok(False)
+    _ -> Error(Nil)
+  }
 }
