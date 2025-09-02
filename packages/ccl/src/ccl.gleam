@@ -1,7 +1,7 @@
 import gleam/dict
 import gleam/list
 import gleam/string
-import ccl_core.{type CCL}
+import ccl_core.{type CCL, type Entry}
 
 // === CORE API TYPES ===
 
@@ -257,4 +257,14 @@ fn pretty_print_ccl_with_indent(ccl: CCL, indent: Int) -> String {
       }
     }
   }
+}
+
+// === COMMENT FILTERING ===
+
+/// Filter out entries with specific keys (useful for removing comments)
+/// Takes a list of entries and excludes any with keys matching the exclude list
+pub fn filter_keys(entries: List(Entry), exclude_keys: List(String)) -> List(Entry) {
+  list.filter(entries, fn(entry) {
+    !list.contains(exclude_keys, entry.key)
+  })
 }
