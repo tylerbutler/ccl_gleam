@@ -66,7 +66,7 @@ range =
 1. **Basic Format:** `<key> = <value>`
 2. **Simple parsing rules**
 3. **Lists** - Using empty keys or indexed keys
-4. **Comments** - Using special key convention
+4. **Comments** - Using special key convention like `/=` or `#=`
 5. **Sections** - Nested configuration blocks
 6. **Multiline strings** - Indentation-based
 7. **Nested configurations** - Recursive parsing
@@ -122,6 +122,46 @@ CCL is designed for scenarios where:
 - Mathematical properties are valuable
 - Embedding other formats is required
 - Minimal syntax overhead is preferred
+
+## Comment Implementation
+
+Comments in CCL use special key conventions that can be easily filtered out:
+
+### Comment Syntax
+- **Primary format**: `/= This is a comment`
+- **Alternative formats**: 
+  - `#= Python-style comment`
+  - `//= C-style comment`
+  - `/= Decorative comment =/`
+
+### Comment Examples
+```ccl
+/= This is an environment config
+port = 8080
+serve = index.html
+/= This is a database config
+mode = in-memory
+connections = 16
+```
+
+### Implementation Pattern
+Comments are treated as regular key-value entries where the key is the comment marker:
+- Key: `/` (or `#`, `//`, etc.)
+- Value: The comment text
+
+### Filtering Comments
+Reference OCaml implementation shows filtering:
+```ocaml
+(* Keeping only keys that are not equal to "/" *)
+let no_comments_example =
+  List.filter (fun {key; _} -> key <> "/") comments_example
+```
+
+Key principles:
+- Comments are flexible - users can choose their preferred syntax
+- Leading and trailing spaces are removed from comment text
+- Comments can be placed anywhere in the configuration
+- Easy programmatic filtering using key comparison
 
 ---
 

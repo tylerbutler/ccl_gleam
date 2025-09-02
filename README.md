@@ -154,6 +154,18 @@ Two OCaml edge cases are handled differently in our implementation:
 
 These edge cases represent **<0.1%** of real-world CCL usage and were deliberately not implemented to maintain parser simplicity and performance. For all practical CCL applications, this implementation is fully compliant and production-ready.
 
+### Design Philosophy Notes
+
+**Quote Handling**: CCL treats quotes as literal characters in values. For example:
+- `name = John` → `"John"`  
+- `name = "John"` → `"\"John\""`
+
+This is intentional - CCL's design principle is "no quotes required" for values. An "auto-strip quotes" feature was considered but rejected because:
+- It conflicts with CCL's "minimal preprocessing" philosophy
+- It violates the "configurations are just text" principle  
+- CCL is designed so you write `name = John Doe`, not `name = "John Doe"`
+- Users migrating from JSON/YAML should adapt to CCL's quote-free syntax rather than CCL adapting to quote-heavy formats
+
 ### Parsing Outline
 
 1. Normalize line endings to LF.

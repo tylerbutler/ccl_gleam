@@ -1,4 +1,7 @@
-- The authoritative CCL documentation is at https://chshersh.com/blog/2025-01-06-the-most-elegant-configuration-language.html
-- The reference ocaml CCL implementation is at https://github.com/chshersh/ccl
-- Local reference copy of the CCL blog post is saved at docs/ccl_blog_reference.md for development reference
+- Local reference copy of the CCL blog post is saved at docs/ccl_blog_reference.md - use this first for CCL documentation
 - Typed parsing plan is documented at docs/typed_parsing_plan.md with full API design and edge case analysis
+- Comment layer implementation plan is documented at docs/comment_layer_plan.md with simple key-based filtering approach
+- Nested section syntax parser plan is documented at docs/nested_section_syntax_plan.md for indented hierarchical config parsing
+- Decorative section headers plan is documented at docs/decorative_section_headers_plan.md for visual config organization
+- If local docs are insufficient, fall back to the authoritative CCL documentation at https://chshersh.com/blog/2025-01-06-the-most-elegant-configuration-language.html
+- The reference OCaml CCL implementation is at https://github.com/chshersh/ccl
