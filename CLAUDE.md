@@ -43,3 +43,10 @@
 - Automatic compilation and error reporting
 - Type inference and hover documentation
 - Format-on-save enabled by default
+=======
+## Test Suite
+- All test cases are in JSON format in `ccl-test-suite/ccl-test-suite.json` for language-agnostic testing
+- Test suite includes 57 regular test cases, 5 error test cases, and 10 nested test cases
+- Tests are loaded via `test/test_suite_types.gleam` and executed by `test/ccl_gleam_test.gleam`
+- Demo files are located in `test/demo_*.gleam` (moved from src directory)
+- Future test specification is in `test/ccl_nested_test.gleam` (defines target behavior for unimplemented features)
