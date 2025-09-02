@@ -1,10 +1,16 @@
 # CCL (Categorical Configuration Language) Informal Specification
 
-**Version:** 1.1.0  
+**Version:** 1.2.0  
 **Date:** 2025-01-02  
 **Status:** Living Document
 
 This document consolidates the informal specification for CCL based on analysis of the blog post, reference implementations, and test suites.
+
+**Version 1.2.0 Changes:**
+- Resolved visual vs logical indentation issue with consistency rules
+- Added mixed indentation detection and warning guidelines
+- Introduced strict parsing mode concept
+- Clarified that tabs count as 1 indentation unit
 
 **Version 1.1.0 Changes:**
 - Added explicit core parsing algorithm section
@@ -227,7 +233,7 @@ CCL uses specific whitespace handling rules that distinguish between different t
 - **Count spaces and tabs only** for measuring line indentation levels
 - Each space character = 1 indentation unit
 - Each tab character = 1 indentation unit  
-- Mixed tab/space indentation allowed but discouraged
+- Mixed tab/space indentation technically allowed but SHOULD generate warnings (see v1.2.0 consistency rules)
 
 #### Continuation Line Processing
 - **Remove trailing whitespace** from continuation lines during parsing
@@ -255,11 +261,11 @@ CCL uses specific whitespace handling rules that distinguish between different t
 
 4. **Indentation-sensitive parsing:**
    - Count leading indentation characters (spaces and tabs) `N` for the first key-value line
-   - Each space character counts as 1 indentation unit, each tab character counts as 1 indentation unit (see Whitespace Handling Rules below for details)
+   - Each space character counts as 1 indentation unit, each tab character counts as 1 indentation unit
    - Lines with `≤ N` indentation units start a new key-value entry
    - Lines with `> N` indentation units continue the previous value
-   - Mixed space/tab indentation is allowed (e.g., "  \t " = 4 indentation units)
-   - **Note**: See Outstanding Design Issues section for important caveats about visual vs logical indentation
+   - Mixed space/tab indentation is technically allowed (e.g., "  \t " = 4 indentation units) but SHOULD generate warnings
+   - **Note**: v1.2.0 recommends consistent indentation style throughout a file
 
 5. **Nested parsing approach:**
    - Recursively parse values as potential nested CCL configs
@@ -335,56 +341,67 @@ CCL implementations should handle these error conditions:
 
 ## Outstanding Design Issues
 
-### ⚠️ Visual vs Logical Indentation
+### ⚠️ Visual vs Logical Indentation (RESOLVED in v1.2.0)
 
-**Problem**: The current character-by-character counting approach creates a mismatch between visual appearance and logical nesting levels, potentially leading to user confusion.
+**Problem**: The character-by-character counting approach creates a mismatch between visual appearance and logical nesting levels, as tab stop widths vary across editors and users.
 
-**Examples of problematic behavior:**
+**Mathematical Impossibility**: There is no way to reconcile visual alignment when:
+- Tab stops vary (4 vs 8 spaces)
+- Indentation preferences differ (2 vs 4 spaces)
+- Mixed tabs and spaces are used
 
-1. **Same logical level, different visual indentation:**
-   ```ccl
-   config = 
-    host = localhost    # 1 space = 1 unit
-   	port = 5432        # 1 tab = 1 unit (displays as 4-8 spaces visually)
-   ```
-   Both are at the same logical nesting level (1 unit) but visually the tab line appears much more deeply nested.
+**Resolution (v1.2.0)**: CCL maintains character-based counting for simplicity but strongly recommends consistent indentation:
 
-2. **Visual alignment but different logical levels:**
-   ```ccl
-   database =
-       name = prod     # 4 spaces = 4 units
-   	config = live   # 1 tab = 1 unit (visually aligned if tab width = 4)
-   ```
-   These might look visually aligned but `config` would be treated as less nested than `name`, potentially even as a top-level key.
+#### Core Behavior (Unchanged)
+- **1 space character = 1 indentation unit**
+- **1 tab character = 1 indentation unit**
+- Character-by-character counting, not visual/column-based
 
-3. **Mixed indentation chaos:**
-   ```ccl
-   server =
-     	cache = redis    # 2 spaces + 1 tab = 3 units
-      	logs = file      # 3 spaces + 1 tab = 4 units
-   ```
-   These look similarly indented but are at different logical nesting levels.
+#### Indentation Consistency Rules (NEW)
+1. **Pure Spaces**: ✅ Allowed and recommended
+2. **Pure Tabs**: ✅ Allowed
+3. **Mixed Indentation**: ⚠️ Warning (configurable to error)
 
-**Current Implementation Status:**
-- **OCaml Reference**: Implements character-by-character counting (`List.length spaces`)
-- **Gleam Implementation**: Currently only handles spaces (bug), but will implement same approach when fixed
+**Implementation Guidance:**
+```ccl
+# GOOD - Pure spaces
+config =
+  host = localhost
+  port = 5432
 
-**Alternative Design Considerations:**
-- **Tab Expansion**: Convert tabs to fixed number of spaces (e.g., 4 or 8) before counting
-- **Visual Alignment**: Use column-based indentation calculation
-- **Strict Mode**: Require consistent indentation style (spaces-only or tabs-only)
+# GOOD - Pure tabs
+config =
+	host = localhost
+	port = 5432
 
-**Impact**: This design choice prioritizes implementation simplicity over user experience. While functionally consistent, it may surprise users who expect indentation to work visually rather than by character count.
+# WARNING - Mixed indentation for structure
+config =
+  host = localhost
+	port = 5432     # Tab indentation mixed with space indentation
+```
 
-**Status**: Unresolved - following OCaml reference behavior for compatibility
+**Parser Behavior:**
+- Core `parse()` function: Accepts all valid CCL including mixed indentation
+- Strict mode `parse_strict()`: Warns or errors on mixed indentation
+- Configuration flags may control strictness level
 
-**Possible Mitigations:**
-- **Mixed Indentation Warnings**: Implementations should warn when key-value lines use mixed tab/space indentation styles, while allowing mixed whitespace within continuation line values
-- **Linting Tools**: Separate tools could warn about mixed indentation styles in CCL files
-- **Editor Support**: CCL syntax highlighters could visually indicate logical nesting levels vs visual appearance
-- **Best Practice Guidelines**: Documentation could recommend consistent indentation styles (e.g., "use only spaces" or "use only tabs")
-- **Parser Warnings**: Implementations could optionally warn when visual and logical indentation don't align
-- **Normalization Tools**: Utilities to convert between indentation styles while preserving logical structure
+**Specification Language:**
+- Implementations SHOULD detect mixed indentation styles
+- Implementations SHOULD provide warnings for mixed indentation
+- Implementations MAY provide strict mode to reject mixed indentation
+- Future versions MAY make consistent indentation mandatory
+
+**Rationale**: This approach:
+- Preserves backward compatibility
+- Provides clear guidance to users
+- Allows gradual migration to stricter rules
+- Maintains implementation simplicity
+
+**Best Practices:**
+1. Use spaces exclusively (recommended)
+2. Configure editors to show whitespace characters
+3. Use linting tools to enforce consistency
+4. Convert tabs to spaces when sharing configurations
 
 ## Implementation Checklist
 
@@ -408,6 +425,8 @@ Recommended features for practical CCL usage:
 - [ ] **Comment Filtering** - Filter entries by special keys (`/`, `#`, `//`)
 - [ ] **Multi-line Key Support** - Handle keys split across lines
 - [ ] **Mixed Indentation Handling** - Process tabs and spaces correctly
+- [ ] **Mixed Indentation Detection** - Warn when tabs and spaces are mixed (v1.2.0)
+- [ ] **Strict Parsing Mode** - Optional mode to reject mixed indentation (v1.2.0)
 - [ ] **Edge Case Handling** - Proper behavior for empty input, whitespace-only input
 - [ ] **Access APIs** - Convenient methods for querying nested data
 - [ ] **Type Conversion** - String to basic type conversion utilities
