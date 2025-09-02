@@ -1,0 +1,31 @@
+{
+  "description": "MCP Server configuration for CCL Gleam project",
+  "servers": {
+    "filesystem": {
+      "description": "File system operations for Gleam source files and CCL test data",
+      "command": "mcp-server-filesystem",
+      "args": ["--allow-write", "--base-path", "."]
+    },
+    "sequential-thinking": {
+      "description": "Enhanced reasoning for complex CCL parsing logic and functional programming patterns",
+      "command": "mcp-sequential-thinking"
+    },
+    "github": {
+      "description": "GitHub integration for repository management and CI/CD",
+      "command": "mcp-server-github",
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
+      }
+    }
+  },
+  "recommended_additional_servers": {
+    "database": {
+      "description": "For CCL configuration management in production systems",
+      "note": "Consider PostgreSQL MCP for storing parsed CCL configurations"
+    },
+    "web-automation": {
+      "description": "For testing CCL web interfaces",
+      "note": "Puppeteer/Playwright MCP for browser-based CCL editor testing"
+    }
+  }
+}
