@@ -211,8 +211,18 @@ case ccl.parse(ccl_text) {
     // Build nested CCL object
     let ccl_obj = ccl.make_objects(flat_entries)
     
-    // Access nested values
-    access_values(ccl_obj)
+    // Use the new unified get() API - returns values in their natural form
+    case ccl.get(ccl_obj, "database.host") {
+      Ok(ccl.CclString(host)) -> io.println("Host: " <> host)
+      _ -> io.println("Host not found")
+    }
+    
+    case ccl.get(ccl_obj, "server.ports") {
+      Ok(ccl.CclList(ports)) -> {
+        io.println("Ports: " <> string.join(ports, ", "))
+      }
+      _ -> io.println("Ports not found")  
+    }
   }
   Error(err) -> io.println("Parse error: " <> err.reason)
 }
@@ -222,9 +232,29 @@ case ccl.parse(ccl_text) {
 
 The CCL object provides intuitive access to nested structures:
 
-**🎯 Single Value Access:**
+**🎯 Unified Access API (Recommended):**
 ```gleam
-// Get simple values using dot-separated paths
+// The new get() function automatically returns values in their natural form
+case ccl.get(ccl_obj, "database.host") {
+  Ok(ccl.CclString(host)) -> io.println("Host: " <> host)
+  Ok(ccl.CclList(hosts)) -> io.println("Multiple hosts found")
+  Ok(ccl.CclObject(nested)) -> io.println("Nested object found") 
+  Error(msg) -> io.println("Error: " <> msg)
+}
+
+// Works seamlessly for any data type - no need to know ahead of time!
+case ccl.get(ccl_obj, "server.ports") {
+  Ok(ccl.CclList(ports)) -> {
+    // Handle list of ports
+    list.each(ports, fn(port) { start_server(port) })
+  }
+  _ -> use_default_ports()
+}
+```
+
+**🔧 Legacy/Building Block Functions (Advanced Use):**
+```gleam
+// These functions still available for advanced use cases
 ccl.get_value(ccl_obj, "database.host")                    // -> Ok("localhost")
 ccl.get_value(ccl_obj, "database.credentials.username")    // -> Ok("admin") 
 
@@ -268,11 +298,23 @@ ccl.get_keys(ccl_obj, "database")                          // -> ["host", "port"
 ccl.get_all_paths(ccl_obj)                                 // -> ["database", "database.host", ...]
 ```
 
-**🛡️ Type-Safe Extraction:**
+**🛡️ Type-Safe Extraction (New Unified API):**
 ```gleam
 pub fn get_database_config(ccl_obj: ccl.CCL) -> Result(DatabaseConfig, String) {
-  use host <- result.try(ccl.get_value(ccl_obj, "database.host"))
-  use port <- result.try(ccl.get_value(ccl_obj, "database.port"))
+  // Extract host using new unified API
+  use host <- result.try(case ccl.get(ccl_obj, "database.host") {
+    Ok(ccl.CclString(h)) -> Ok(h)
+    Ok(_) -> Error("database.host must be a string")
+    Error(e) -> Error(e)
+  })
+  
+  use port <- result.try(case ccl.get(ccl_obj, "database.port") {
+    Ok(ccl.CclString(p)) -> Ok(p)  
+    Ok(_) -> Error("database.port must be a string")
+    Error(e) -> Error(e)
+  })
+  
+  // Can also use legacy API for specific cases where you know the type
   use username <- result.try(ccl.get_value(ccl_obj, "database.credentials.username"))
   use password <- result.try(ccl.get_value(ccl_obj, "database.credentials.password"))
   
@@ -282,7 +324,7 @@ pub fn get_database_config(ccl_obj: ccl.CCL) -> Result(DatabaseConfig, String) {
 
 ### Complete API Reference
 
-**Core Functions:**
+**🎯 Core Public API (Primary Functions):**
 ```gleam
 // Parse CCL text into flat key-value pairs
 pub fn parse(text: String) -> Result(List(Entry), ParseError)
@@ -290,37 +332,38 @@ pub fn parse(text: String) -> Result(List(Entry), ParseError)
 // Build nested object from flat entries using fixpoint algorithm  
 pub fn make_objects(entries: List(Entry)) -> CCL
 
-// Pretty print CCL structure for debugging
-pub fn pretty_print_ccl(ccl: CCL) -> String
+// ✨ NEW: Unified accessor that returns values in their natural form
+pub fn get(ccl: CCL, path: String) -> Result(CclValue, String)
 ```
 
-**Access Functions:**
+**🔧 Advanced/Building Block Functions:**
 ```gleam
-// Get single values using dot-separated paths
+// Low-level CCL construction
+pub fn empty_ccl() -> CCL
+pub fn single_key_val(key: String, value: String) -> CCL
+pub fn merge_ccl(ccl1: CCL, ccl2: CCL) -> CCL
+
+// Specific accessors (for advanced use cases)
 pub fn get_value(ccl: CCL, path: String) -> Result(String, String)
-
-// Get multiple values (for list-style structures)
 pub fn get_values(ccl: CCL, path: String) -> List(String)
-
-// Get nested CCL objects
 pub fn get_nested(ccl: CCL, path: String) -> Result(CCL, String)
 
-// Check key existence
+// Structure inspection
 pub fn has_key(ccl: CCL, path: String) -> Bool
-
-// Explore structure
 pub fn get_keys(ccl: CCL, path: String) -> List(String)
 pub fn get_all_paths(ccl: CCL) -> List(String)
+```
 
+**🎨 Smart/Convenience Functions (Will move to full library):**
+```gleam
 // Enhanced List Handling
 pub fn node_type(ccl: CCL, path: String) -> NodeType
 pub fn get_smart_value(ccl: CCL, path: String) -> Result(String, String)
 pub fn get_list(ccl: CCL, path: String) -> Result(List(String), String)  
 pub fn get_value_or_first(ccl: CCL, path: String) -> Result(String, String)
 
-// Utility functions
-pub fn merge_ccl(ccl1: CCL, ccl2: CCL) -> CCL
-pub fn empty_ccl() -> CCL
+// Debugging utilities
+pub fn pretty_print_ccl(ccl: CCL) -> String
 ```
 
 ### Data Types
@@ -341,6 +384,13 @@ pub type CCL {
   CCL(map: dict.Dict(String, CCL))
 }
 
+// ✨ NEW: Unified value type returned by get() function
+pub type CclValue {
+  CclString(String)      // Single string value
+  CclList(List(String))  // List of string values  
+  CclObject(CCL)         // Nested CCL object
+}
+
 // Node type classification for enhanced list handling
 pub type NodeType {
   SingleValue     // Single terminal value
@@ -349,6 +399,47 @@ pub type NodeType {
   Missing         // Path doesn't exist
 }
 ```
+
+### API Migration Guide
+
+**✨ New Unified API (Recommended)**
+
+The new `get()` function simplifies CCL access by automatically returning values in their natural form:
+
+```gleam
+// Before: You had to know what type of data to expect
+case ccl.get_value(ccl_obj, "database.host") {
+  Ok(host) -> handle_string(host)
+  Error(_) -> {
+    // Maybe it's a list? Try get_values...
+    case ccl.get_values(ccl_obj, "database.host") {
+      [host] -> handle_string(host)  
+      hosts -> handle_list(hosts)
+      [] -> handle_error()
+    }
+  }
+}
+
+// After: Single unified interface handles all cases
+case ccl.get(ccl_obj, "database.host") {
+  Ok(ccl.CclString(host)) -> handle_string(host)
+  Ok(ccl.CclList(hosts)) -> handle_list(hosts)
+  Ok(ccl.CclObject(nested)) -> handle_nested(nested)
+  Error(msg) -> handle_error(msg)
+}
+```
+
+**🔄 Migration Strategy**
+- ✅ **Existing code continues to work** - all old functions still available
+- ✅ **Gradual migration** - update code as needed, no breaking changes
+- ✅ **Use new `get()` for new code** - cleaner and more robust
+- ✅ **Keep old functions for specific use cases** - when you know the exact type
+
+**⚡ Key Benefits of the New API:**
+- **Type safety**: Pattern match on the actual data type
+- **No guessing**: Don't need to know if something is single/list/object ahead of time
+- **Better errors**: Clear error messages when paths don't exist
+- **Cleaner code**: One function handles all access patterns
 
 ### Enhanced List Handling
 

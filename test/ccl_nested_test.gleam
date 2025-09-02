@@ -18,6 +18,50 @@ pub type NestedValue {
 
 // === BASIC FLAT PARSING TESTS (should already work) ===
 
+pub fn quotes_treated_as_literal_test() {
+  // Test that quotes are treated as literal characters, not string delimiters
+  let unquoted_input = "host = localhost"
+  let quoted_input = "host = \"localhost\""
+  
+  case ccl.parse(unquoted_input) {
+    Ok([ccl.Entry(key: "host", value: "localhost")]) -> should.be_true(True)
+    _ -> should.fail()
+  }
+  
+  case ccl.parse(quoted_input) {
+    Ok([ccl.Entry(key: "host", value: "\"localhost\"")]) -> should.be_true(True)
+    _ -> should.fail()  
+  }
+}
+
+pub fn unified_get_api_test() {
+  // Test the new unified get() API
+  let input = "host = localhost\nports = 8000\nports = 8001"
+  
+  case ccl.parse(input) {
+    Ok(entries) -> {
+      let ccl_obj = ccl.make_objects(entries)
+      
+      // Test single value
+      case ccl.get(ccl_obj, "host") {
+        Ok(ccl.CclString("localhost")) -> should.be_true(True)
+        _ -> should.fail()
+      }
+      
+      // Test list value
+      case ccl.get(ccl_obj, "ports") {
+        Ok(ccl.CclList(values)) -> {
+          should.equal(list.length(values), 2)
+          should.equal(list.contains(values, "8000"), True)
+          should.equal(list.contains(values, "8001"), True)
+        }
+        _ -> should.fail()
+      }
+    }
+    Error(_) -> should.fail()
+  }
+}
+
 pub fn basic_single_key_test() {
   let input = "key = value"
   case ccl.parse(input) {

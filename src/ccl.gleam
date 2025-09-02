@@ -27,7 +27,19 @@ pub type ValueEntry {
   NestedCCL(dict.Dict(String, List(ValueEntry)))
 }
 
-// === HELPER FUNCTIONS FOR CCL ===
+// ========================================
+// CORE PUBLIC API 
+// ========================================
+// Primary functions that most users will need:
+//
+// 1. parse(text) -> Result(List(Entry), ParseError)     [defined at line ~417]
+// 2. make_objects(entries) -> CCL                       [defined at line ~786] 
+// 3. get(ccl, path) -> Result(CclValue, String)         [defined below]
+
+// ========================================  
+// ADVANCED/BUILDING BLOCKS
+// ========================================
+// Lower-level functions for library builders and advanced use cases
 
 /// Create an empty CCL structure
 pub fn empty_ccl() -> CCL {
@@ -61,6 +73,18 @@ pub fn merge_ccl(ccl1: CCL, ccl2: CCL) -> CCL {
 /// Create CCL from a list of CCL structures
 pub fn ccl_from_list(ccls: List(CCL)) -> CCL {
   list.fold(ccls, empty_ccl(), merge_ccl)
+}
+
+// === CORE API TYPES ===
+
+/// Unified value type returned by the main get() function
+pub type CclValue {
+  /// Single string value
+  CclString(String)
+  /// List of string values  
+  CclList(List(String))
+  /// Nested CCL object
+  CclObject(CCL)
 }
 
 // === NODE TYPE DETECTION ===
@@ -154,9 +178,40 @@ fn get_terminal_values_from_map(map: dict.Dict(String, CCL)) -> List(String) {
   |> list.map(fn(pair) { pair.0 })
 }
 
-// === CCL ACCESS FUNCTIONS ===
+// === CORE PUBLIC API ===
 
-/// Get a value from CCL using a dot-separated path (e.g., "database.host")
+/// Main accessor function that returns values in their natural form
+/// This is the primary way to access CCL data
+pub fn get(ccl: CCL, path: String) -> Result(CclValue, String) {
+  case node_type(ccl, path) {
+    SingleValue -> {
+      case get_value(ccl, path) {
+        Ok(value) -> Ok(CclString(value))
+        Error(err) -> Error(err)
+      }
+    }
+    ListValue -> {
+      let values = get_values(ccl, path)
+      case values {
+        [] -> Error("Path '" <> path <> "' contains no values.")
+        _ -> Ok(CclList(values))
+      }
+    }
+    ObjectValue -> {
+      case get_nested(ccl, path) {
+        Ok(nested_ccl) -> Ok(CclObject(nested_ccl))
+        Error(err) -> Error(err)
+      }
+    }
+    Missing -> Error("Path '" <> path <> "' not found.")
+  }
+}
+
+// === ADVANCED/BUILDING BLOCKS ===
+// These functions provide lower-level access for library builders and advanced use cases
+
+/// Get a value from CCL using a dot-separated path (e.g., "database.host") 
+/// For most use cases, prefer the unified get() function instead
 pub fn get_value(ccl: CCL, path: String) -> Result(String, String) {
   let keys = string.split(path, ".")
   get_value_by_keys(ccl, keys)
@@ -184,6 +239,11 @@ pub fn get_values(ccl: CCL, path: String) -> List(String) {
     Error(_) -> []
   }
 }
+
+// ========================================
+// SMART/CONVENIENCE FUNCTIONS
+// ========================================  
+// These will move to the full "ccl" library in the package restructure
 
 /// Smart value accessor that returns appropriate type based on node structure
 /// - Single values return Ok(value)
