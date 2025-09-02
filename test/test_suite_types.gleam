@@ -1,7 +1,7 @@
 import ccl_core
-import gleam/json
 import gleam/dynamic/decode
 import gleam/io
+import gleam/json
 import simplifile
 
 pub type TestCase {
@@ -51,10 +51,13 @@ fn load_test_suite() -> Result(TestSuite, String) {
     Ok(content) -> {
       let test_suite_decoder = {
         use tests <- decode.field("tests", decode.list(test_case_decoder()))
-        use error_tests <- decode.field("error_tests", decode.list(error_test_case_decoder()))
+        use error_tests <- decode.field(
+          "error_tests",
+          decode.list(error_test_case_decoder()),
+        )
         decode.success(TestSuite(tests:, error_tests:))
       }
-      
+
       case json.parse(content, test_suite_decoder) {
         Ok(parsed) -> Ok(parsed)
         Error(err) -> {
@@ -95,5 +98,12 @@ fn error_test_case_decoder() -> decode.Decoder(ErrorTestCase) {
   use expected_error <- decode.field("expected_error", decode.bool)
   use error_message <- decode.field("error_message", decode.string)
   use tags <- decode.field("tags", decode.list(decode.string))
-  decode.success(ErrorTestCase(name:, description:, input:, expected_error:, error_message:, tags:))
+  decode.success(ErrorTestCase(
+    name:,
+    description:,
+    input:,
+    expected_error:,
+    error_message:,
+    tags:,
+  ))
 }

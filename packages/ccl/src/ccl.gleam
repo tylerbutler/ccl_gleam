@@ -1,7 +1,7 @@
+import ccl_core.{type CCL, type Entry}
 import gleam/dict
 import gleam/list
 import gleam/string
-import ccl_core.{type CCL, type Entry}
 
 // === CORE API TYPES ===
 
@@ -117,8 +117,10 @@ fn get_all_terminal_values_recursive(ccl: CCL) -> List(String) {
       |> list.flat_map(fn(pair) {
         let #(key, ccl_core.CCL(inner_map)) = pair
         case dict.size(inner_map) == 0 {
-          True -> [key]  // Terminal value found
-          False -> get_all_terminal_values_recursive(ccl_core.CCL(inner_map))  // Keep searching deeper
+          True -> [key]
+          // Terminal value found
+          False -> get_all_terminal_values_recursive(ccl_core.CCL(inner_map))
+          // Keep searching deeper
         }
       })
     }
@@ -163,8 +165,12 @@ pub fn get(ccl: CCL, path: String) -> Result(CclValue, String) {
 pub fn get_smart_value(ccl: CCL, path: String) -> Result(String, String) {
   case node_type(ccl, path) {
     SingleValue -> ccl_core.get_value(ccl, path)
-    ListValue -> Error("Path '" <> path <> "' contains a list. Use get_list() instead.")
-    ObjectValue -> Error("Path '" <> path <> "' contains an object. Use get_nested() instead.")
+    ListValue ->
+      Error("Path '" <> path <> "' contains a list. Use get_list() instead.")
+    ObjectValue ->
+      Error(
+        "Path '" <> path <> "' contains an object. Use get_nested() instead.",
+      )
     Missing -> Error("Path '" <> path <> "' not found.")
   }
 }
@@ -181,7 +187,8 @@ pub fn get_list(ccl: CCL, path: String) -> Result(List(String), String) {
         _ -> Ok(values)
       }
     }
-    ObjectValue -> Error("Path '" <> path <> "' contains an object, not a list.")
+    ObjectValue ->
+      Error("Path '" <> path <> "' contains an object, not a list.")
     Missing -> Error("Path '" <> path <> "' not found.")
   }
 }
@@ -196,7 +203,8 @@ pub fn get_value_or_first(ccl: CCL, path: String) -> Result(String, String) {
         [first, ..] -> Ok(first)
       }
     }
-    ObjectValue -> Error("Path '" <> path <> "' contains an object, not a value.")
+    ObjectValue ->
+      Error("Path '" <> path <> "' contains an object, not a value.")
     Missing -> Error("Path '" <> path <> "' not found.")
   }
 }
@@ -216,13 +224,22 @@ fn get_all_paths_helper(ccl: CCL, prefix: String) -> List(String) {
           "" -> key
           _ -> prefix <> "." <> key
         }
-        
+
         case key {
-          "" -> []  // Skip empty keys used for terminal values
+          "" -> []
+          // Skip empty keys used for terminal values
           _ -> {
-            case dict.size(case nested_ccl { ccl_core.CCL(inner_map) -> inner_map }) {
-              0 -> []  // Skip empty structures 
-              _ -> [current_path, ..get_all_paths_helper(nested_ccl, current_path)]
+            case
+              dict.size(case nested_ccl {
+                ccl_core.CCL(inner_map) -> inner_map
+              })
+            {
+              0 -> []
+              // Skip empty structures 
+              _ -> [
+                current_path,
+                ..get_all_paths_helper(nested_ccl, current_path)
+              ]
             }
           }
         }
@@ -244,14 +261,19 @@ fn pretty_print_ccl_with_indent(ccl: CCL, indent: Int) -> String {
         [] -> "{}"
         _ -> {
           let indent_str = string.repeat(" ", indent)
-          let formatted = list.map(entries, fn(pair) {
-            let #(key, value) = pair
-            let key_display = case key {
-              "" -> "<empty>"
-              _ -> "\"" <> key <> "\""
-            }
-            indent_str <> "  " <> key_display <> ": " <> pretty_print_ccl_with_indent(value, indent + 2)
-          })
+          let formatted =
+            list.map(entries, fn(pair) {
+              let #(key, value) = pair
+              let key_display = case key {
+                "" -> "<empty>"
+                _ -> "\"" <> key <> "\""
+              }
+              indent_str
+              <> "  "
+              <> key_display
+              <> ": "
+              <> pretty_print_ccl_with_indent(value, indent + 2)
+            })
           "{\n" <> string.join(formatted, ",\n") <> "\n" <> indent_str <> "}"
         }
       }
@@ -263,8 +285,9 @@ fn pretty_print_ccl_with_indent(ccl: CCL, indent: Int) -> String {
 
 /// Filter out entries with specific keys (useful for removing comments)
 /// Takes a list of entries and excludes any with keys matching the exclude list
-pub fn filter_keys(entries: List(Entry), exclude_keys: List(String)) -> List(Entry) {
-  list.filter(entries, fn(entry) {
-    !list.contains(exclude_keys, entry.key)
-  })
+pub fn filter_keys(
+  entries: List(Entry),
+  exclude_keys: List(String),
+) -> List(Entry) {
+  list.filter(entries, fn(entry) { !list.contains(exclude_keys, entry.key) })
 }

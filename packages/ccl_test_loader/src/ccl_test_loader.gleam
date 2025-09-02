@@ -1,7 +1,7 @@
+import ccl_core.{type CCL, CCL}
 import gleam/dict
 import gleam/json
 import gleam/list
-import ccl_core.{type CCL, CCL}
 
 /// Convert CCL to JSON
 pub fn ccl_to_json(ccl: CCL) -> json.Json {
@@ -16,10 +16,12 @@ fn ccl_to_json_value(ccl: CCL) -> json.Json {
         0 -> json.null()
         _ -> {
           let entries = dict.to_list(map)
-          json.object(list.map(entries, fn(pair) {
-            let #(key, nested_ccl) = pair
-            #(key, ccl_to_json_value(nested_ccl))
-          }))
+          json.object(
+            list.map(entries, fn(pair) {
+              let #(key, nested_ccl) = pair
+              #(key, ccl_to_json_value(nested_ccl))
+            }),
+          )
         }
       }
     }

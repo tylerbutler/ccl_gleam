@@ -13,8 +13,10 @@ pub fn main() {
 // Dynamic test suite execution
 pub fn ccl_test_suite_test() {
   let test_cases = test_suite_types.get_test_cases()
-  
-  io.println("Loaded " <> string.inspect(list.length(test_cases)) <> " test cases")
+
+  io.println(
+    "Loaded " <> string.inspect(list.length(test_cases)) <> " test cases",
+  )
 
   let results =
     list.map(test_cases, fn(test_case) {
@@ -66,7 +68,8 @@ pub fn parse_error_type_test() {
   // This test ensures ParseError type is considered "used" by cleam
   // even though it's legitimately part of the public API
   case ccl_core.parse("invalid\nno equals") {
-    Error(_) -> should.equal(True, True)  // Just check that it's an error
+    Error(_) -> should.equal(True, True)
+    // Just check that it's an error
     Ok(_) -> should.fail()
   }
 }

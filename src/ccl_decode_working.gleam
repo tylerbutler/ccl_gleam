@@ -15,7 +15,7 @@ pub type DecodeError {
   InvalidFormat(value: String, expected_type: String)
 }
 
-pub type Decoder(a) = 
+pub type Decoder(a) =
   fn(ccl_core.CCL, String) -> Result(a, DecodeError)
 
 // === CORE DECODERS ===
@@ -32,7 +32,7 @@ pub fn string_decoder() -> Decoder(String) {
 pub fn int_decoder() -> Decoder(Int) {
   fn(ccl: ccl_core.CCL, path: String) -> Result(Int, DecodeError) {
     case ccl_core.get_value(ccl, path) {
-      Ok(value) -> 
+      Ok(value) ->
         case int.parse(string.trim(value)) {
           Ok(parsed_int) -> Ok(parsed_int)
           Error(_) -> Error(InvalidFormat(value, "Int"))
@@ -60,40 +60,37 @@ pub fn bool_decoder() -> Decoder(Bool) {
 // === CONFIGURATION TYPES ===
 
 pub type DatabaseConfig {
-  DatabaseConfig(
-    host: String,
-    port: Int, 
-    ssl: Bool,
-    timeout_ms: Option(Int)
-  )
+  DatabaseConfig(host: String, port: Int, ssl: Bool, timeout_ms: Option(Int))
 }
 
 pub type AppConfig {
-  AppConfig(
-    name: String,
-    debug: Bool,
-    database: DatabaseConfig
-  )
+  AppConfig(name: String, debug: Bool, database: DatabaseConfig)
 }
 
 // === DECODERS ===
 
 pub fn database_config_decoder() -> Decoder(DatabaseConfig) {
-  fn(ccl: ccl_core.CCL, base_path: String) -> Result(DatabaseConfig, DecodeError) {
+  fn(ccl: ccl_core.CCL, base_path: String) -> Result(
+    DatabaseConfig,
+    DecodeError,
+  ) {
     let make_path = fn(field: String) {
       case base_path {
-        "" -> "database." <> field  // For flat structure, always use database prefix
+        "" -> "database." <> field
+        // For flat structure, always use database prefix
         _ -> base_path <> ".database." <> field
       }
     }
-    
+
     case string_decoder()(ccl, make_path("host")) {
-      Ok(host) -> 
+      Ok(host) ->
         case int_decoder()(ccl, make_path("port")) {
           Ok(port) ->
             case bool_decoder()(ccl, make_path("ssl")) {
               Ok(ssl) -> {
-                let timeout_ms = case int_decoder()(ccl, make_path("timeout_ms")) {
+                let timeout_ms = case
+                  int_decoder()(ccl, make_path("timeout_ms"))
+                {
                   Ok(timeout) -> Some(timeout)
                   Error(_) -> None
                 }
@@ -114,7 +111,8 @@ pub fn app_config_decoder() -> Decoder(AppConfig) {
       Ok(name) ->
         case bool_decoder()(ccl, "debug") {
           Ok(debug) ->
-            case database_config_decoder()(ccl, "") {  // Pass empty path since decoder handles prefix
+            case database_config_decoder()(ccl, "") {
+              // Pass empty path since decoder handles prefix
               Ok(database) -> Ok(AppConfig(name:, debug:, database:))
               Error(err) -> Error(err)
             }
@@ -143,14 +141,16 @@ pub fn decode_ccl(ccl_text: String, decoder: Decoder(a)) -> Result(a, String) {
 fn decode_error_to_string(error: DecodeError) -> String {
   case error {
     FieldNotFound(field) -> "Field not found: " <> field
-    InvalidFormat(value, expected_type) -> "Invalid " <> expected_type <> " format: " <> value
+    InvalidFormat(value, expected_type) ->
+      "Invalid " <> expected_type <> " format: " <> value
   }
 }
 
 // === DEMONSTRATION ===
 
 pub fn example() -> Result(AppConfig, String) {
-  let ccl_text = "
+  let ccl_text =
+    "
 name = My Application
 debug = true
 
@@ -164,7 +164,8 @@ database.timeout_ms = 30000
 }
 
 pub fn debug_ccl_structure() {
-  let ccl_text = "
+  let ccl_text =
+    "
 name = My Application
 debug = true
 
@@ -178,28 +179,30 @@ database.timeout_ms = 30000
     Ok(entries) -> {
       io.println("=== Parsed Entries ===")
       list.each(entries, fn(entry) {
-        io.println("Key: '" <> entry.key <> "' -> Value: '" <> entry.value <> "'")
+        io.println(
+          "Key: '" <> entry.key <> "' -> Value: '" <> entry.value <> "'",
+        )
       })
-      
+
       let ccl_obj = ccl_core.make_objects(entries)
       io.println("\n=== CCL Object Structure ===")
-      
+
       // Test what keys exist at root level
       let root_keys = ccl_core.get_keys(ccl_obj, "")
       io.println("Root keys: " <> string.inspect(root_keys))
-      
+
       // Test getting values
       case ccl_core.get_value(ccl_obj, "name") {
         Ok(value) -> io.println("name: " <> value)
         Error(err) -> io.println("name error: " <> err)
       }
-      
+
       // Test direct key access (should work since it's a flat key)
       case ccl_core.get_value(ccl_obj, "database.host") {
         Ok(value) -> io.println("database.host: " <> value)
         Error(err) -> io.println("database.host error: " <> err)
       }
-      
+
       // Check if the root keys contain our values as flat keys
       io.println("Looking for database.host in keys...")
       case list.contains(root_keys, "database.host") {
@@ -214,26 +217,35 @@ database.timeout_ms = 30000
 pub fn main() {
   debug_ccl_structure()
   io.println("\n" <> string.repeat("=", 50) <> "\n")
-  
+
   case example() {
     Ok(config) -> {
       io.println("=== CCL High-Level Decode API Demo ===")
       io.println("✓ Successfully decoded CCL into typed structure!")
       io.println("App name: " <> config.name)
-      io.println("Debug mode: " <> case config.debug {
-        True -> "enabled"
-        False -> "disabled"
-      })
+      io.println(
+        "Debug mode: "
+        <> case config.debug {
+          True -> "enabled"
+          False -> "disabled"
+        },
+      )
       io.println("Database host: " <> config.database.host)
       io.println("Database port: " <> int.to_string(config.database.port))
-      io.println("SSL enabled: " <> case config.database.ssl {
-        True -> "yes"
-        False -> "no"
-      })
-      io.println("Timeout: " <> case config.database.timeout_ms {
-        Some(timeout) -> int.to_string(timeout) <> "ms"
-        None -> "not set"
-      })
+      io.println(
+        "SSL enabled: "
+        <> case config.database.ssl {
+          True -> "yes"
+          False -> "no"
+        },
+      )
+      io.println(
+        "Timeout: "
+        <> case config.database.timeout_ms {
+          Some(timeout) -> int.to_string(timeout) <> "ms"
+          None -> "not set"
+        },
+      )
     }
     Error(error) -> {
       io.println("❌ Decode failed: " <> error)

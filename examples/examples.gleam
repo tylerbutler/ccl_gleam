@@ -1,5 +1,5 @@
-import ccl_core
 import ccl
+import ccl_core
 import gleam/io
 import gleam/list
 import gleam/string
@@ -7,16 +7,16 @@ import gleam/string
 /// Examples demonstrating how to handle nested structures in CCL
 pub fn main() {
   io.println("=== CCL Nested Structure Examples ===\n")
-  
+
   // Example 1: Database configuration with nested connection details
   example_database_config()
-  
+
   // Example 2: Server configuration with multiple environments
   example_server_config()
-  
+
   // Example 3: Complex application settings with various data types
   example_app_config()
-  
+
   // Example 4: Multi-line values representing nested data
   example_multiline_nested()
 }
@@ -24,8 +24,9 @@ pub fn main() {
 pub fn example_database_config() {
   io.println("Example 1: Database Configuration")
   io.println("--------------------------------")
-  
-  let ccl_config = "
+
+  let ccl_config =
+    "
 database.host = localhost
 database.port = 5432
 database.name = myapp
@@ -45,31 +46,33 @@ database.pool.timeout_seconds = 30
       list.each(entries, fn(entry) {
         io.println("  " <> entry.key <> " = " <> entry.value)
       })
-      
+
       // Show how to extract nested configuration
       io.println("\nExtracted nested config:")
-      let db_entries = list.filter(entries, fn(entry) {
-        case entry.key {
-          "database.host" | "database.port" | "database.name" -> True
-          _ -> False
-        }
-      })
-      
+      let db_entries =
+        list.filter(entries, fn(entry) {
+          case entry.key {
+            "database.host" | "database.port" | "database.name" -> True
+            _ -> False
+          }
+        })
+
       list.each(db_entries, fn(entry) {
         io.println("  " <> entry.key <> " -> " <> entry.value)
       })
     }
     Error(err) -> io.println("Parse error: " <> err.reason)
   }
-  
+
   io.println("")
 }
 
 pub fn example_server_config() {
   io.println("Example 2: Server Configuration")
   io.println("------------------------------")
-  
-  let ccl_config = "
+
+  let ccl_config =
+    "
 server.development.host = localhost
 server.development.port = 3000
 server.development.debug = true
@@ -92,16 +95,17 @@ server.staging.log_level = info
       list.each(entries, fn(entry) {
         io.println("  " <> entry.key <> " = " <> entry.value)
       })
-      
+
       // Show how to group by environment
       io.println("\nGrouped by environment:")
-      let prod_entries = list.filter(entries, fn(entry) {
-        case entry.key {
-          "server.production." <> _ -> True
-          _ -> False
-        }
-      })
-      
+      let prod_entries =
+        list.filter(entries, fn(entry) {
+          case entry.key {
+            "server.production." <> _ -> True
+            _ -> False
+          }
+        })
+
       io.println("Production settings:")
       list.each(prod_entries, fn(entry) {
         io.println("  " <> entry.key <> " -> " <> entry.value)
@@ -109,15 +113,16 @@ server.staging.log_level = info
     }
     Error(err) -> io.println("Parse error: " <> err.reason)
   }
-  
+
   io.println("")
 }
 
 pub fn example_app_config() {
   io.println("Example 3: Complex Application Settings")
   io.println("--------------------------------------")
-  
-  let ccl_config = "
+
+  let ccl_config =
+    "
 app.name = My Application
 app.version = 1.2.3
 app.author.name = John Doe
@@ -148,31 +153,33 @@ cache.memory.eviction_policy = lru
       list.each(entries, fn(entry) {
         io.println("  " <> entry.key <> " = " <> entry.value)
       })
-      
+
       // Show how to extract feature flags
       io.println("\nFeature configuration:")
-      let feature_entries = list.filter(entries, fn(entry) {
-        case entry.key {
-          "features." <> _ -> True
-          _ -> False
-        }
-      })
-      
+      let feature_entries =
+        list.filter(entries, fn(entry) {
+          case entry.key {
+            "features." <> _ -> True
+            _ -> False
+          }
+        })
+
       list.each(feature_entries, fn(entry) {
         io.println("  " <> entry.key <> " -> " <> entry.value)
       })
     }
     Error(err) -> io.println("Parse error: " <> err.reason)
   }
-  
+
   io.println("")
 }
 
 pub fn example_multiline_nested() {
   io.println("Example 4: Multi-line Values for Nested Data")
   io.println("--------------------------------------------")
-  
-  let ccl_config = "api.endpoints.users
+
+  let ccl_config =
+    "api.endpoints.users
   = /api/v1/users
     /api/v1/users/{id}
     /api/v1/users/{id}/profile
@@ -203,7 +210,7 @@ cors.allowed_origins =
         io.println(entry.value)
         io.println("---")
       })
-      
+
       // Show how multi-line values can represent arrays/lists
       io.println("\nMulti-line values as arrays:")
       list.each(entries, fn(entry) {
@@ -220,9 +227,7 @@ cors.allowed_origins =
                 |> list.filter(fn(line) { string.length(line) > 0 })
               }
             }
-            list.each(lines, fn(origin) {
-              io.println("  - " <> origin)
-            })
+            list.each(lines, fn(origin) { io.println("  - " <> origin) })
           }
           _ -> Nil
         }
@@ -230,6 +235,6 @@ cors.allowed_origins =
     }
     Error(err) -> io.println("Parse error: " <> err.reason)
   }
-  
+
   io.println("")
 }

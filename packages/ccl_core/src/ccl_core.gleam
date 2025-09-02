@@ -53,10 +53,13 @@ pub fn parse(text: String) -> Result(List(Entry), ParseError) {
 pub fn make_objects(entries: List(Entry)) -> CCL {
   // Group entries by key, allowing multiple values per key
   let grouped = group_entries_by_key(entries, dict.new())
-  
+
   // Convert to value entries and apply fixpoint algorithm
-  let value_entries = dict.map_values(grouped, fn(_key, values) { convert_to_value_entries(values) })
-  
+  let value_entries =
+    dict.map_values(grouped, fn(_key, values) {
+      convert_to_value_entries(values)
+    })
+
   // Apply fixpoint until convergence
   fix_value_entries(value_entries)
 }
@@ -93,14 +96,16 @@ pub fn has_key(ccl: CCL, path: String) -> Bool {
 /// Get all keys at a specific path level
 pub fn get_keys(ccl: CCL, path: String) -> List(String) {
   let target_ccl = case path {
-    "" -> Ok(ccl)  // Top level
+    "" -> Ok(ccl)
+    // Top level
     _ -> get_nested(ccl, path)
   }
-  
+
   case target_ccl {
-    Ok(CCL(map)) -> 
-      dict.keys(map) 
-      |> list.filter(fn(key) { key != "" })  // Filter out empty keys used for terminal values
+    Ok(CCL(map)) ->
+      dict.keys(map)
+      |> list.filter(fn(key) { key != "" })
+    // Filter out empty keys used for terminal values
     Error(_) -> []
   }
 }
@@ -138,12 +143,13 @@ pub fn single_key_val(key: String, value: String) -> CCL {
 pub fn merge_ccl(ccl1: CCL, ccl2: CCL) -> CCL {
   case ccl1, ccl2 {
     CCL(map1), CCL(map2) -> {
-      let merged_map = dict.fold(map2, map1, fn(acc, key, value2) {
-        case dict.get(acc, key) {
-          Ok(value1) -> dict.insert(acc, key, merge_ccl(value1, value2))
-          Error(_) -> dict.insert(acc, key, value2)
-        }
-      })
+      let merged_map =
+        dict.fold(map2, map1, fn(acc, key, value2) {
+          case dict.get(acc, key) {
+            Ok(value1) -> dict.insert(acc, key, merge_ccl(value1, value2))
+            Error(_) -> dict.insert(acc, key, value2)
+          }
+        })
       CCL(merged_map)
     }
   }
@@ -174,21 +180,25 @@ fn get_terminal_value(ccl: CCL, key: String) -> Result(String, String) {
       case dict.get(inner_map, "") {
         Ok(CCL(terminal_map)) -> {
           // Get the first terminal value (keys that map to empty CCL)
-          let terminal_values = 
+          let terminal_values =
             dict.to_list(terminal_map)
             |> list.filter(fn(pair) {
               let #(_, CCL(value_map)) = pair
               dict.size(value_map) == 0
             })
             |> list.map(fn(pair) { pair.0 })
-          
+
           case terminal_values {
             [single_value] -> Ok(single_value)
             [] -> Error("No terminal value found for key '" <> key <> "'")
-            [first_value, ..] -> Ok(first_value)  // Return first value if multiple
+            [first_value, ..] -> Ok(first_value)
+            // Return first value if multiple
           }
         }
-        Error(_) -> Error("Key '" <> key <> "' has no terminal value (empty key not found)")
+        Error(_) ->
+          Error(
+            "Key '" <> key <> "' has no terminal value (empty key not found)",
+          )
       }
     }
     Error(err) -> Error(err)
@@ -206,8 +216,10 @@ fn get_all_terminal_values_recursive(ccl: CCL) -> List(String) {
       |> list.flat_map(fn(pair) {
         let #(key, CCL(inner_map)) = pair
         case dict.size(inner_map) == 0 {
-          True -> [key]  // Terminal value found
-          False -> get_all_terminal_values_recursive(CCL(inner_map))  // Keep searching deeper
+          True -> [key]
+          // Terminal value found
+          False -> get_all_terminal_values_recursive(CCL(inner_map))
+          // Keep searching deeper
         }
       })
     }
@@ -535,7 +547,7 @@ fn join_and_trim_value_lines(vlines_rev: List(String)) -> String {
 
 /// Parse a value string recursively into key-value pairs
 fn parse_value(text: String) -> Result(List(Entry), ParseError) {
-  let input = 
+  let input =
     text
     |> string.replace("\r\n", "\n")
     |> string.replace("\r", "\n")
@@ -551,7 +563,9 @@ fn parse_value(text: String) -> Result(List(Entry), ParseError) {
 }
 
 /// Parse value lines by finding base indentation from first non-empty line
-fn parse_value_with_base_indent(lines: List(String)) -> Result(List(Entry), ParseError) {
+fn parse_value_with_base_indent(
+  lines: List(String),
+) -> Result(List(Entry), ParseError) {
   case find_first_non_empty_line(lines, 1) {
     Error(err) -> Error(err)
     Ok(#(first_line, _line_no)) -> {
@@ -603,8 +617,12 @@ fn convert_to_value_entries(values: List(String)) -> List(ValueEntry) {
         case nested_entries {
           [] -> StringValue(value)
           _ -> {
-            let nested_grouped = group_entries_by_key(nested_entries, dict.new())
-            let nested_value_entries = dict.map_values(nested_grouped, fn(_key, values) { convert_to_value_entries(values) })
+            let nested_grouped =
+              group_entries_by_key(nested_entries, dict.new())
+            let nested_value_entries =
+              dict.map_values(nested_grouped, fn(_key, values) {
+                convert_to_value_entries(values)
+              })
             NestedCCL(nested_value_entries)
           }
         }
@@ -617,17 +635,18 @@ fn convert_to_value_entries(values: List(String)) -> List(ValueEntry) {
 /// Apply fixpoint algorithm to value entries until convergence
 fn fix_value_entries(entry_map: dict.Dict(String, List(ValueEntry))) -> CCL {
   // Convert value entries to CCL structure
-  let ccl_map = dict.map_values(entry_map, fn(_key, value_entries) {
-    // Combine all values for this key
-    list.fold(value_entries, empty_ccl(), fn(acc, entry) {
-      case entry {
-        // For string values, create terminal entries with empty key
-        StringValue(str) -> merge_ccl(acc, single_key_val("", str))
-        // For nested structures, recursively process
-        NestedCCL(nested_map) -> merge_ccl(acc, fix_value_entries(nested_map))
-      }
+  let ccl_map =
+    dict.map_values(entry_map, fn(_key, value_entries) {
+      // Combine all values for this key
+      list.fold(value_entries, empty_ccl(), fn(acc, entry) {
+        case entry {
+          // For string values, create terminal entries with empty key
+          StringValue(str) -> merge_ccl(acc, single_key_val("", str))
+          // For nested structures, recursively process
+          NestedCCL(nested_map) -> merge_ccl(acc, fix_value_entries(nested_map))
+        }
+      })
     })
-  })
-  
+
   CCL(ccl_map)
 }

@@ -1,5 +1,5 @@
-import ccl_core
 import ccl
+import ccl_core
 import gleam/dict
 import gleam/list
 import gleam/string
@@ -7,7 +7,6 @@ import gleeunit/should
 
 /// Test cases for full CCL nested functionality based on OCaml reference implementation
 /// These tests currently FAIL - they define the target behavior we need to implement
-
 pub type NestedCCL {
   NestedCCL(values: dict.Dict(String, List(NestedValue)))
 }
@@ -23,32 +22,34 @@ pub fn quotes_treated_as_literal_test() {
   // Test that quotes are treated as literal characters, not string delimiters
   let unquoted_input = "host = localhost"
   let quoted_input = "host = \"localhost\""
-  
+
   case ccl_core.parse(unquoted_input) {
-    Ok([ccl_core.Entry(key: "host", value: "localhost")]) -> should.be_true(True)
+    Ok([ccl_core.Entry(key: "host", value: "localhost")]) ->
+      should.be_true(True)
     _ -> should.fail()
   }
-  
+
   case ccl_core.parse(quoted_input) {
-    Ok([ccl_core.Entry(key: "host", value: "\"localhost\"")]) -> should.be_true(True)
-    _ -> should.fail()  
+    Ok([ccl_core.Entry(key: "host", value: "\"localhost\"")]) ->
+      should.be_true(True)
+    _ -> should.fail()
   }
 }
 
 pub fn unified_get_api_test() {
   // Test the new unified get() API
   let input = "host = localhost\nports = 8000\nports = 8001"
-  
+
   case ccl_core.parse(input) {
     Ok(entries) -> {
       let ccl_obj = ccl_core.make_objects(entries)
-      
+
       // Test single value
       case ccl.get(ccl_obj, "host") {
         Ok(ccl.CclString("localhost")) -> should.be_true(True)
         _ -> should.fail()
       }
-      
+
       // Test list value
       case ccl.get(ccl_obj, "ports") {
         Ok(ccl.CclList(values)) -> {
@@ -90,7 +91,7 @@ pub fn basic_multiple_keys_test() {
 pub fn nested_value_parsing_test() {
   // This should parse the value "enabled = true\nport = 8080" recursively
   let input = "database =\n  enabled = true\n  port = 8080"
-  
+
   // Current implementation returns this as a flat Entry with multiline value
   // Target: Should recursively parse the value into nested structure
   case ccl_core.parse(input) {
@@ -105,8 +106,9 @@ pub fn nested_value_parsing_test() {
 }
 
 pub fn deeply_nested_parsing_test() {
-  let input = "server =\n  database =\n    host = localhost\n    port = 5432\n  cache =\n    enabled = true"
-  
+  let input =
+    "server =\n  database =\n    host = localhost\n    port = 5432\n  cache =\n    enabled = true"
+
   case ccl_core.parse(input) {
     Ok([ccl_core.Entry(key: "server", value: nested_value)]) -> {
       // Verify we get the nested content (flat for now)
@@ -123,12 +125,13 @@ pub fn deeply_nested_parsing_test() {
 pub fn multiple_values_same_key_test() {
   // Should support multiple entries with same key that get merged
   let input = "ports = 8000\nports = 8001\nports = 8002"
-  
+
   case ccl_core.parse(input) {
     Ok(entries) -> {
       // Current implementation creates separate entries
       // Target: Should merge into single key with multiple values
-      let port_entries = list.filter(entries, fn(entry) { entry.key == "ports" })
+      let port_entries =
+        list.filter(entries, fn(entry) { entry.key == "ports" })
       should.equal(list.length(port_entries), 3)
     }
     Error(_) -> should.fail()
@@ -137,12 +140,13 @@ pub fn multiple_values_same_key_test() {
 
 pub fn mixed_keys_with_duplicates_test() {
   let input = "name = app\nports = 8000\nname = service\nports = 8001"
-  
+
   case ccl_core.parse(input) {
     Ok(entries) -> {
       should.equal(list.length(entries), 4)
       let name_entries = list.filter(entries, fn(entry) { entry.key == "name" })
-      let port_entries = list.filter(entries, fn(entry) { entry.key == "ports" })
+      let port_entries =
+        list.filter(entries, fn(entry) { entry.key == "ports" })
       should.equal(list.length(name_entries), 2)
       should.equal(list.length(port_entries), 2)
     }
@@ -155,7 +159,7 @@ pub fn mixed_keys_with_duplicates_test() {
 pub fn empty_key_test() {
   // Should support "= value" syntax (empty key)
   let input = "= root_value"
-  
+
   // This currently fails because parser expects key before =
   case ccl_core.parse(input) {
     Ok([ccl_core.Entry(key: "", value: "root_value")]) -> should.be_true(True)
@@ -170,11 +174,12 @@ pub fn empty_key_test() {
 
 pub fn mixed_empty_and_normal_keys_test() {
   let input = "= root\nkey = value\n= another_root"
-  
+
   case ccl_core.parse(input) {
     Ok(entries) -> {
       should.equal(list.length(entries), 3)
-      let empty_key_entries = list.filter(entries, fn(entry) { entry.key == "" })
+      let empty_key_entries =
+        list.filter(entries, fn(entry) { entry.key == "" })
       should.equal(list.length(empty_key_entries), 2)
     }
     Error(_) -> {
@@ -189,7 +194,7 @@ pub fn mixed_empty_and_normal_keys_test() {
 pub fn nested_ports_test() {
   // From the OCaml stress test - this is the canonical nested example
   let input = "ports =\n  = 8000\n  = 8001\n  = 8002"
-  
+
   case ccl_core.parse(input) {
     Ok([ccl_core.Entry(key: "ports", value: nested_value)]) -> {
       // Should contain the empty key entries
@@ -206,7 +211,8 @@ pub fn nested_ports_test() {
 
 pub fn stress_test_flat_parsing() {
   // This is the stress test from OCaml implementation, testing current flat parsing
-  let input = "/ = This is a CCL document
+  let input =
+    "/ = This is a CCL document
 title = CCL Example
 
 database =
@@ -230,14 +236,14 @@ user =
     Ok(entries) -> {
       // Just verify we can parse it without errors for now
       should.be_true(list.length(entries) > 0)
-      
+
       // Check that we have the expected top-level keys
       let keys = list.map(entries, fn(entry) { entry.key })
       should.equal(list.contains(keys, "/"), True)
       should.equal(list.contains(keys, "title"), True)
       should.equal(list.contains(keys, "database"), True)
       should.equal(list.contains(keys, "user"), True)
-      
+
       // Verify we have multiple user entries (duplicate key handling)
       let user_entries = list.filter(entries, fn(entry) { entry.key == "user" })
       should.equal(list.length(user_entries), 2)
@@ -253,7 +259,7 @@ user =
 pub fn fixpoint_merge_test() {
   // Test case: same key appears multiple times and should be merged
   let input = "user =\n  name = alice\nuser =\n  age = 25"
-  
+
   case ccl_core.parse(input) {
     Ok(entries) -> {
       // Current: two separate entries
@@ -270,7 +276,7 @@ pub fn fixpoint_merge_test() {
 pub fn comment_test() {
   // CCL supports comments starting with /
   let input = "/ = This is a comment\nkey = value"
-  
+
   case ccl_core.parse(input) {
     Ok(entries) -> {
       should.equal(list.length(entries), 2)
@@ -280,7 +286,6 @@ pub fn comment_test() {
     Error(_) -> should.fail()
   }
 }
-
 // === FUTURE: FUNCTIONS TO TEST AFTER IMPLEMENTATION ===
 
 // These would test the separated parse/make_objects architecture:
