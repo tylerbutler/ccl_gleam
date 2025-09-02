@@ -364,14 +364,14 @@ pub fn get_typed_value_with_options(
   case get_smart_value(ccl, path) {
     Ok("") -> Ok(EmptyVal)
     Ok(str_val) -> {
-      // Try parsing in priority order: bool -> int -> float -> string
-      // Booleans have highest priority to handle "1"/"0" as booleans, not integers
-      case options.parse_booleans, try_parse_bool(str_val) {
-        True, Ok(bool_val) -> Ok(BoolVal(bool_val))
-        _, _ -> case options.parse_integers, try_parse_int(str_val) {
-          True, Ok(int_val) -> Ok(IntVal(int_val))
-          _, _ -> case options.parse_floats, try_parse_float(str_val) {
-            True, Ok(float_val) -> Ok(FloatVal(float_val))
+      // Try parsing in priority order: int -> float -> bool -> string
+      // Integers win over booleans in overlapping cases (1/0) since booleans have many non-numeric forms
+      case options.parse_integers, try_parse_int(str_val) {
+        True, Ok(int_val) -> Ok(IntVal(int_val))
+        _, _ -> case options.parse_floats, try_parse_float(str_val) {
+          True, Ok(float_val) -> Ok(FloatVal(float_val))
+          _, _ -> case options.parse_booleans, try_parse_bool(str_val) {
+            True, Ok(bool_val) -> Ok(BoolVal(bool_val))
             _, _ -> Ok(StringVal(str_val))
           }
         }
