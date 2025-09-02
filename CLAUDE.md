@@ -51,3 +51,4 @@
 - Demo files are located in `test/demo_*.gleam` (moved from src directory)
 - Future test specification is in `test/ccl_nested_test.gleam` (defines target behavior for unimplemented features)
 - remember tests should awlays be innjson format and dynamically run!
+- Never add hardcoded test cases! Always define the test cases in JSON.

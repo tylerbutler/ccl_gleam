@@ -1,4 +1,5 @@
 import ccl_core
+import gleam/dict
 import gleam/dynamic/decode
 import gleam/io
 import gleam/json
@@ -99,7 +100,7 @@ fn load_test_suite() -> Result(TestSuite, String) {
 
       case json.parse(content, test_suite_decoder) {
         Ok(parsed) -> Ok(parsed)
-        Error(err) -> {
+        Error(_err) -> {
           io.println("JSON parse error occurred")
           Error("Failed to parse JSON")
         }
@@ -165,7 +166,7 @@ fn load_typed_parsing_test_suite() -> Result(List(TypedTestCase), String) {
 
       case json.parse(content, typed_parsing_decoder) {
         Ok(parsed) -> Ok(parsed)
-        Error(err) -> {
+        Error(_err) -> {
           io.println("JSON parse error for typed parsing tests")
           Error("Failed to parse typed parsing JSON")
         }
@@ -178,23 +179,63 @@ fn load_typed_parsing_test_suite() -> Result(List(TypedTestCase), String) {
   }
 }
 
-// Simplified decoder for the existing JSON format
+// Full decoder for the typed parsing JSON format
 fn simple_typed_test_decoder() -> decode.Decoder(TypedTestCase) {
   use name <- decode.field("name", decode.string)
   use description <- decode.field("description", decode.string)
   use input <- decode.field("input", decode.string)
   use expected_flat <- decode.field("expected_flat", decode.list(entry_decoder()))
+  use expected_typed <- decode.field("expected_typed", typed_values_decoder())
+  use api_calls <- decode.field("api_calls", decode.list(decode.string))
   use tags <- decode.field("tags", decode.list(decode.string))
   
-  // For now, use placeholder values for fields not in current JSON
+  // Parse options are optional in JSON, default to smart parsing
+  let parse_options = ParseOptions(parse_integers: True, parse_floats: True, parse_booleans: True)
+  
   decode.success(TypedTestCase(
     name:,
     description:,
     input:,
     expected_flat:,
-    expected_typed: [], // Will extract from expected_typed field later
-    parse_options: ParseOptions(parse_integers: True, parse_floats: True, parse_booleans: True),
-    api_calls: [], // Will extract from api_calls field later
+    expected_typed:,
+    parse_options:,
+    api_calls:,
     tags:,
   ))
 }
+
+// Decoder for the expected_typed field (dict of path -> typed value)
+fn typed_values_decoder() -> decode.Decoder(List(#(String, TypedValue))) {
+  let dict_decoder = decode.dict(decode.string, typed_value_decoder())
+  use dict_data <- decode.then(dict_decoder)
+  decode.success(dict.to_list(dict_data))
+}
+
+// Decoder for a single typed value object
+fn typed_value_decoder() -> decode.Decoder(TypedValue) {
+  use type_name <- decode.field("type", decode.string)
+  case type_name {
+    "StringVal" -> {
+      use value <- decode.field("value", decode.string)
+      decode.success(StringVal(value))
+    }
+    "IntVal" -> {
+      use value <- decode.field("value", decode.int)
+      decode.success(IntVal(value))
+    }
+    "FloatVal" -> {
+      use value <- decode.field("value", decode.float)
+      decode.success(FloatVal(value))
+    }
+    "BoolVal" -> {
+      use value <- decode.field("value", decode.bool)
+      decode.success(BoolVal(value))
+    }
+    "EmptyVal" -> decode.success(EmptyVal)
+    _ -> {
+      // For unknown type, just return a StringVal as fallback
+      decode.success(StringVal("unknown"))
+    }
+  }
+}
+

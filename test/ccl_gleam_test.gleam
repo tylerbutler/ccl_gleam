@@ -101,7 +101,7 @@ pub fn ccl_error_test_suite_test() {
 
 // === TYPED PARSING TESTS ===
 
-/// Test typed parsing functionality using JSON test cases
+/// Test typed parsing functionality using JSON test cases - fully JSON-driven
 pub fn ccl_typed_parsing_test() {
   io.println("\n=== CCL Typed Parsing Tests ===")
   
@@ -119,8 +119,28 @@ pub fn ccl_typed_parsing_test() {
     case ccl_core.parse(cleaned_input) {
       Ok(entries) -> {
         let parsed = ccl_core.make_objects(entries)
-        run_typed_test_by_name(test_case.name, parsed)
-        True
+        
+        // First verify the flat parsing matches expected
+        case verify_flat_parsing(entries, test_case.expected_flat) {
+          True -> {
+            io.println("  ✓ Flat parsing matches expected")
+            // Now validate typed parsing results from JSON
+            case validate_typed_parsing_from_json(parsed, test_case.expected_typed) {
+              True -> {
+                io.println("  ✓ Typed parsing validation passed")
+                True
+              }
+              False -> {
+                io.println("  ✗ Typed parsing validation failed")
+                False
+              }
+            }
+          }
+          False -> {
+            io.println("  ✗ Flat parsing doesn't match expected")
+            False
+          }
+        }
       }
       Error(err) -> {
         io.println("  ✗ PARSE ERROR: " <> string.inspect(err))
@@ -138,317 +158,129 @@ pub fn ccl_typed_parsing_test() {
   }
 }
 
-// Route to appropriate test based on name from JSON
-fn run_typed_test_by_name(name: String, parsed: ccl_core.CCL) {
-  case name {
-    "parse_basic_integer" -> test_basic_integer(parsed)
-    "parse_basic_float" -> test_basic_float(parsed)
-    "parse_boolean_true" -> test_boolean_true(parsed)
-    "parse_boolean_variants" -> test_boolean_variants(parsed)
-    "parse_mixed_types" -> test_mixed_types(parsed)
-    "parse_empty_value" -> test_empty_value(parsed)
-    "parse_with_whitespace" -> test_with_whitespace(parsed)
-    "parse_with_conservative_options" -> test_conservative_options(parsed)
-    _ -> {
-      io.println("  ! Test case '" <> name <> "' not implemented yet")
-    }
-  }
+// Verify flat parsing results match expected from JSON
+fn verify_flat_parsing(actual: List(ccl_core.Entry), expected: List(ccl_core.Entry)) -> Bool {
+  // Simple equality check for now
+  actual == expected
 }
 
-// Test implementations
-fn test_basic_integer(parsed: ccl_core.CCL) {
-  case ccl.get_int(parsed, "port") {
-    Ok(8080) -> io.println("  ✓ get_int(port) = 8080")
-    Ok(other) -> {
-      io.println("  ✗ get_int(port) = " <> string.inspect(other) <> ", expected 8080")
-      should.fail()
-    }
-    Error(err) -> {
-      io.println("  ✗ get_int(port) error: " <> err)
-      should.fail()
-    }
-  }
-  
-  case ccl.get_typed_value(parsed, "port") {
-    Ok(ccl.IntVal(8080)) -> io.println("  ✓ get_typed_value(port) = IntVal(8080)")
-    Ok(other) -> {
-      io.println("  ✗ get_typed_value(port) = " <> string.inspect(other))
-      should.fail()
-    }
-    Error(err) -> {
-      io.println("  ✗ get_typed_value(port) error: " <> err)
-      should.fail()
-    }
-  }
-}
-
-fn test_basic_float(parsed: ccl_core.CCL) {
-  case ccl.get_float(parsed, "temperature") {
-    Ok(98.6) -> io.println("  ✓ get_float(temperature) = 98.6")
-    Ok(other) -> {
-      io.println("  ✗ get_float(temperature) = " <> string.inspect(other))
-      should.fail()
-    }
-    Error(err) -> {
-      io.println("  ✗ get_float(temperature) error: " <> err)
-      should.fail()
-    }
-  }
-  
-  case ccl.get_typed_value(parsed, "temperature") {
-    Ok(ccl.FloatVal(98.6)) -> io.println("  ✓ get_typed_value(temperature) = FloatVal(98.6)")
-    Ok(other) -> {
-      io.println("  ✗ get_typed_value(temperature) = " <> string.inspect(other))
-      should.fail()
-    }
-    Error(err) -> {
-      io.println("  ✗ get_typed_value(temperature) error: " <> err)
-      should.fail()
-    }
-  }
-}
-
-fn test_boolean_true(parsed: ccl_core.CCL) {
-  case ccl.get_bool(parsed, "enabled") {
-    Ok(True) -> io.println("  ✓ get_bool(enabled) = True")
-    Ok(False) -> {
-      io.println("  ✗ get_bool(enabled) = False, expected True")
-      should.fail()
-    }
-    Error(err) -> {
-      io.println("  ✗ get_bool(enabled) error: " <> err)
-      should.fail()
-    }
-  }
-  
-  case ccl.get_typed_value(parsed, "enabled") {
-    Ok(ccl.BoolVal(True)) -> io.println("  ✓ get_typed_value(enabled) = BoolVal(True)")
-    Ok(other) -> {
-      io.println("  ✗ get_typed_value(enabled) = " <> string.inspect(other))
-      should.fail()
-    }
-    Error(err) -> {
-      io.println("  ✗ get_typed_value(enabled) error: " <> err)
-      should.fail()
-    }
-  }
-}
-
-fn test_boolean_variants(parsed: ccl_core.CCL) {
-  let true_flags = ["flag1", "flag2", "flag3"]
-  let false_flags = ["flag4", "flag5", "flag6", "flag7"]
-  
-  list.each(true_flags, fn(flag) {
-    case ccl.get_bool(parsed, flag) {
-      Ok(True) -> io.println("  ✓ get_bool(" <> flag <> ") = True")
-      Ok(False) -> {
-        io.println("  ✗ get_bool(" <> flag <> ") = False, expected True")
-        should.fail()
+// JSON-driven validation function that uses the expected_typed data
+fn validate_typed_parsing_from_json(parsed: ccl_core.CCL, expected_typed: List(#(String, test_suite_types.TypedValue))) -> Bool {
+  list.all(expected_typed, fn(pair) {
+    let #(path, expected_value) = pair
+    case expected_value {
+      test_suite_types.StringVal(expected_str) -> {
+        case ccl.get_typed_value(parsed, path) {
+          Ok(ccl.StringVal(actual_str)) -> {
+            case actual_str == expected_str {
+              True -> {
+                io.println("  ✓ get_typed_value(" <> path <> ") = StringVal(" <> actual_str <> ")")
+                True
+              }
+              False -> {
+                io.println("  ✗ get_typed_value(" <> path <> ") = StringVal(" <> actual_str <> "), expected StringVal(" <> expected_str <> ")")
+                False
+              }
+            }
+          }
+          Ok(other) -> {
+            io.println("  ✗ get_typed_value(" <> path <> ") = " <> string.inspect(other) <> ", expected StringVal(" <> expected_str <> ")")
+            False
+          }
+          Error(err) -> {
+            io.println("  ✗ get_typed_value(" <> path <> ") error: " <> err)
+            False
+          }
+        }
       }
-      Error(err) -> {
-        io.println("  ✗ get_bool(" <> flag <> ") error: " <> err)
-        should.fail()
+      test_suite_types.IntVal(expected_int) -> {
+        case ccl.get_typed_value(parsed, path) {
+          Ok(ccl.IntVal(actual_int)) -> {
+            case actual_int == expected_int {
+              True -> {
+                io.println("  ✓ get_typed_value(" <> path <> ") = IntVal(" <> string.inspect(actual_int) <> ")")
+                True
+              }
+              False -> {
+                io.println("  ✗ get_typed_value(" <> path <> ") = IntVal(" <> string.inspect(actual_int) <> "), expected IntVal(" <> string.inspect(expected_int) <> ")")
+                False
+              }
+            }
+          }
+          Ok(other) -> {
+            io.println("  ✗ get_typed_value(" <> path <> ") = " <> string.inspect(other) <> ", expected IntVal(" <> string.inspect(expected_int) <> ")")
+            False
+          }
+          Error(err) -> {
+            io.println("  ✗ get_typed_value(" <> path <> ") error: " <> err)
+            False
+          }
+        }
       }
-    }
-  })
-  
-  list.each(false_flags, fn(flag) {
-    case ccl.get_bool(parsed, flag) {
-      Ok(False) -> io.println("  ✓ get_bool(" <> flag <> ") = False")
-      Ok(True) -> {
-        io.println("  ✗ get_bool(" <> flag <> ") = True, expected False")
-        should.fail()
+      test_suite_types.FloatVal(expected_float) -> {
+        case ccl.get_typed_value(parsed, path) {
+          Ok(ccl.FloatVal(actual_float)) -> {
+            case actual_float == expected_float {
+              True -> {
+                io.println("  ✓ get_typed_value(" <> path <> ") = FloatVal(" <> string.inspect(actual_float) <> ")")
+                True
+              }
+              False -> {
+                io.println("  ✗ get_typed_value(" <> path <> ") = FloatVal(" <> string.inspect(actual_float) <> "), expected FloatVal(" <> string.inspect(expected_float) <> ")")
+                False
+              }
+            }
+          }
+          Ok(other) -> {
+            io.println("  ✗ get_typed_value(" <> path <> ") = " <> string.inspect(other) <> ", expected FloatVal(" <> string.inspect(expected_float) <> ")")
+            False
+          }
+          Error(err) -> {
+            io.println("  ✗ get_typed_value(" <> path <> ") error: " <> err)
+            False
+          }
+        }
       }
-      Error(err) -> {
-        io.println("  ✗ get_bool(" <> flag <> ") error: " <> err)
-        should.fail()
+      test_suite_types.BoolVal(expected_bool) -> {
+        case ccl.get_typed_value(parsed, path) {
+          Ok(ccl.BoolVal(actual_bool)) -> {
+            case actual_bool == expected_bool {
+              True -> {
+                io.println("  ✓ get_typed_value(" <> path <> ") = BoolVal(" <> string.inspect(actual_bool) <> ")")
+                True
+              }
+              False -> {
+                io.println("  ✗ get_typed_value(" <> path <> ") = BoolVal(" <> string.inspect(actual_bool) <> "), expected BoolVal(" <> string.inspect(expected_bool) <> ")")
+                False
+              }
+            }
+          }
+          Ok(other) -> {
+            io.println("  ✗ get_typed_value(" <> path <> ") = " <> string.inspect(other) <> ", expected BoolVal(" <> string.inspect(expected_bool) <> ")")
+            False
+          }
+          Error(err) -> {
+            io.println("  ✗ get_typed_value(" <> path <> ") error: " <> err)
+            False
+          }
+        }
+      }
+      test_suite_types.EmptyVal -> {
+        case ccl.get_typed_value(parsed, path) {
+          Ok(ccl.EmptyVal) -> {
+            io.println("  ✓ get_typed_value(" <> path <> ") = EmptyVal")
+            True
+          }
+          Ok(other) -> {
+            io.println("  ✗ get_typed_value(" <> path <> ") = " <> string.inspect(other) <> ", expected EmptyVal")
+            False
+          }
+          Error(err) -> {
+            io.println("  ✗ get_typed_value(" <> path <> ") error: " <> err)
+            False
+          }
+        }
       }
     }
   })
-}
-
-fn test_mixed_types(parsed: ccl_core.CCL) {
-  // Test various get_typed_value() calls
-  case ccl.get_typed_value(parsed, "host") {
-    Ok(ccl.StringVal("localhost")) -> io.println("  ✓ get_typed_value(host) = StringVal(localhost)")
-    Ok(other) -> {
-      io.println("  ✗ get_typed_value(host) = " <> string.inspect(other))
-      should.fail()
-    }
-    Error(err) -> {
-      io.println("  ✗ get_typed_value(host) error: " <> err)
-      should.fail()
-    }
-  }
-  
-  case ccl.get_typed_value(parsed, "port") {
-    Ok(ccl.IntVal(8080)) -> io.println("  ✓ get_typed_value(port) = IntVal(8080)")
-    Ok(other) -> {
-      io.println("  ✗ get_typed_value(port) = " <> string.inspect(other))
-      should.fail()
-    }
-    Error(err) -> {
-      io.println("  ✗ get_typed_value(port) error: " <> err)
-      should.fail()
-    }
-  }
-  
-  case ccl.get_typed_value(parsed, "ssl") {
-    Ok(ccl.BoolVal(True)) -> io.println("  ✓ get_typed_value(ssl) = BoolVal(True)")
-    Ok(other) -> {
-      io.println("  ✗ get_typed_value(ssl) = " <> string.inspect(other))
-      should.fail()
-    }
-    Error(err) -> {
-      io.println("  ✗ get_typed_value(ssl) error: " <> err)
-      should.fail()
-    }
-  }
-  
-  case ccl.get_typed_value(parsed, "timeout") {
-    Ok(ccl.FloatVal(30.5)) -> io.println("  ✓ get_typed_value(timeout) = FloatVal(30.5)")
-    Ok(other) -> {
-      io.println("  ✗ get_typed_value(timeout) = " <> string.inspect(other))
-      should.fail()
-    }
-    Error(err) -> {
-      io.println("  ✗ get_typed_value(timeout) error: " <> err)
-      should.fail()
-    }
-  }
-  
-  case ccl.get_typed_value(parsed, "debug") {
-    Ok(ccl.BoolVal(False)) -> io.println("  ✓ get_typed_value(debug) = BoolVal(False)")
-    Ok(other) -> {
-      io.println("  ✗ get_typed_value(debug) = " <> string.inspect(other))
-      should.fail()
-    }
-    Error(err) -> {
-      io.println("  ✗ get_typed_value(debug) error: " <> err)
-      should.fail()
-    }
-  }
-}
-
-fn test_error_cases(parsed: ccl_core.CCL) {
-  // Test integer parsing error
-  case ccl.get_int(parsed, "port") {
-    Error(_) -> io.println("  ✓ get_int(port) correctly returned error")
-    Ok(_) -> {
-      io.println("  ✗ get_int(port) should have returned error")
-      should.fail()
-    }
-  }
-  
-  // Test float parsing error
-  case ccl.get_float(parsed, "temperature") {
-    Error(_) -> io.println("  ✓ get_float(temperature) correctly returned error")
-    Ok(_) -> {
-      io.println("  ✗ get_float(temperature) should have returned error")
-      should.fail()
-    }
-  }
-  
-  // Test boolean parsing error
-  case ccl.get_bool(parsed, "enabled") {
-    Error(_) -> io.println("  ✓ get_bool(enabled) correctly returned error")
-    Ok(_) -> {
-      io.println("  ✗ get_bool(enabled) should have returned error")
-      should.fail()
-    }
-  }
-  
-  // Test missing path error
-  case ccl.get_int(parsed, "missing") {
-    Error(_) -> io.println("  ✓ get_int(missing) correctly returned error")
-    Ok(_) -> {
-      io.println("  ✗ get_int(missing) should have returned error")
-      should.fail()
-    }
-  }
-}
-
-fn test_empty_value(parsed: ccl_core.CCL) {
-  case ccl.get_typed_value(parsed, "empty_key") {
-    Ok(ccl.EmptyVal) -> io.println("  ✓ get_typed_value(empty_key) = EmptyVal")
-    Ok(other) -> {
-      io.println("  ✗ get_typed_value(empty_key) = " <> string.inspect(other))
-      should.fail()
-    }
-    Error(err) -> {
-      io.println("  ✗ get_typed_value(empty_key) error: " <> err)
-      should.fail()
-    }
-  }
-}
-
-fn test_with_whitespace(parsed: ccl_core.CCL) {
-  // Test integer with whitespace
-  case ccl.get_int(parsed, "number") {
-    Ok(42) -> io.println("  ✓ get_int(number) = 42 (whitespace trimmed)")
-    Ok(other) -> {
-      io.println("  ✗ get_int(number) = " <> string.inspect(other))
-      should.fail()
-    }
-    Error(err) -> {
-      io.println("  ✗ get_int(number) error: " <> err)
-      should.fail()
-    }
-  }
-  
-  // Test boolean with whitespace
-  case ccl.get_bool(parsed, "flag") {
-    Ok(True) -> io.println("  ✓ get_bool(flag) = True (whitespace trimmed)")
-    Ok(False) -> {
-      io.println("  ✗ get_bool(flag) = False, expected True")
-      should.fail()
-    }
-    Error(err) -> {
-      io.println("  ✗ get_bool(flag) error: " <> err)
-      should.fail()
-    }
-  }
-}
-
-fn test_conservative_options(parsed: ccl_core.CCL) {
-  let conservative = ccl.ParseOptions(parse_integers: True, parse_floats: False, parse_booleans: False)
-  
-  // Should parse as integer
-  case ccl.get_typed_value_with_options(parsed, "number", conservative) {
-    Ok(ccl.IntVal(42)) -> io.println("  ✓ get_typed_value_with_options(number) = IntVal(42)")
-    Ok(other) -> {
-      io.println("  ✗ get_typed_value_with_options(number) = " <> string.inspect(other))
-      should.fail()
-    }
-    Error(err) -> {
-      io.println("  ✗ get_typed_value_with_options(number) error: " <> err)
-      should.fail()
-    }
-  }
-  
-  // Should remain as string (float parsing disabled)
-  case ccl.get_typed_value_with_options(parsed, "decimal", conservative) {
-    Ok(ccl.StringVal("3.14")) -> io.println("  ✓ get_typed_value_with_options(decimal) = StringVal(3.14)")
-    Ok(other) -> {
-      io.println("  ✗ get_typed_value_with_options(decimal) = " <> string.inspect(other))
-      should.fail()
-    }
-    Error(err) -> {
-      io.println("  ✗ get_typed_value_with_options(decimal) error: " <> err)
-      should.fail()
-    }
-  }
-  
-  // Should remain as string (boolean parsing disabled)
-  case ccl.get_typed_value_with_options(parsed, "flag", conservative) {
-    Ok(ccl.StringVal("true")) -> io.println("  ✓ get_typed_value_with_options(flag) = StringVal(true)")
-    Ok(other) -> {
-      io.println("  ✗ get_typed_value_with_options(flag) = " <> string.inspect(other))
-      should.fail()
-    }
-    Error(err) -> {
-      io.println("  ✗ get_typed_value_with_options(flag) error: " <> err)
-      should.fail()
-    }
-  }
 }

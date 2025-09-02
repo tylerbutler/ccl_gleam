@@ -59,7 +59,8 @@
       "Bash(mkdir:*)",
       "Bash(just build-all:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []
