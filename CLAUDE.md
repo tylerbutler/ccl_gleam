@@ -50,3 +50,4 @@
 - Tests are loaded via `test/test_suite_types.gleam` and executed by `test/ccl_gleam_test.gleam`
 - Demo files are located in `test/demo_*.gleam` (moved from src directory)
 - Future test specification is in `test/ccl_nested_test.gleam` (defines target behavior for unimplemented features)
+- remember tests should awlays be innjson format and dynamically run!
