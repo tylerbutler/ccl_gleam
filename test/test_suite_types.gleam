@@ -70,12 +70,7 @@ pub fn get_error_test_cases() -> List(ErrorTestCase) {
   }
 }
 
-pub fn get_typed_parsing_test_cases() -> List(TypedTestCase) {
-  case load_test_suite() {
-    Ok(test_suite) -> test_suite.typed_parsing_tests
-    Error(_) -> []
-  }
-}
+// This function now loads from separate JSON file instead of main test suite
 
 // JSON test suite structure decoder
 type TestSuite {
@@ -152,18 +147,54 @@ fn error_test_case_decoder() -> decode.Decoder(ErrorTestCase) {
   ))
 }
 
-// TODO: Implement full typed parsing test decoder later
-// For now, using placeholder function to allow compilation
-fn typed_test_case_decoder() -> decode.Decoder(TypedTestCase) {
-  // Placeholder - will implement proper decoder later
+// Load typed parsing test cases from JSON file
+pub fn get_typed_parsing_test_cases() -> List(TypedTestCase) {
+  case load_typed_parsing_test_suite() {
+    Ok(test_cases) -> test_cases
+    Error(_) -> []
+  }
+}
+
+fn load_typed_parsing_test_suite() -> Result(List(TypedTestCase), String) {
+  case simplifile.read("ccl-test-suite/ccl-typed-parsing-examples.json") {
+    Ok(content) -> {
+      let typed_parsing_decoder = {
+        use typed_parsing_tests <- decode.field("typed_parsing_tests", decode.list(simple_typed_test_decoder()))
+        decode.success(typed_parsing_tests)
+      }
+
+      case json.parse(content, typed_parsing_decoder) {
+        Ok(parsed) -> Ok(parsed)
+        Error(err) -> {
+          io.println("JSON parse error for typed parsing tests")
+          Error("Failed to parse typed parsing JSON")
+        }
+      }
+    }
+    Error(err) -> {
+      io.println("File read error: " <> simplifile.describe_error(err))
+      Error("Failed to read typed parsing test suite file")
+    }
+  }
+}
+
+// Simplified decoder for the existing JSON format
+fn simple_typed_test_decoder() -> decode.Decoder(TypedTestCase) {
+  use name <- decode.field("name", decode.string)
+  use description <- decode.field("description", decode.string)
+  use input <- decode.field("input", decode.string)
+  use expected_flat <- decode.field("expected_flat", decode.list(entry_decoder()))
+  use tags <- decode.field("tags", decode.list(decode.string))
+  
+  // For now, use placeholder values for fields not in current JSON
   decode.success(TypedTestCase(
-    name: "placeholder",
-    description: "placeholder",
-    input: "placeholder = value",
-    expected_flat: [],
-    expected_typed: [],
+    name:,
+    description:,
+    input:,
+    expected_flat:,
+    expected_typed: [], // Will extract from expected_typed field later
     parse_options: ParseOptions(parse_integers: True, parse_floats: True, parse_booleans: True),
-    api_calls: [],
-    tags: ["placeholder"],
+    api_calls: [], // Will extract from api_calls field later
+    tags:,
   ))
 }

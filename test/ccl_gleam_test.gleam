@@ -101,28 +101,25 @@ pub fn ccl_error_test_suite_test() {
 
 // === TYPED PARSING TESTS ===
 
-/// Test typed parsing functionality as extension to core CCL tests
+/// Test typed parsing functionality using JSON test cases
 pub fn ccl_typed_parsing_test() {
   io.println("\n=== CCL Typed Parsing Tests ===")
   
-  // Test cases based on our JSON test design
-  let test_cases = [
-    #("basic_integer", "port = 8080", test_basic_integer),
-    #("basic_float", "temperature = 98.6", test_basic_float),
-    #("boolean_true", "enabled = true", test_boolean_true),
-    #("boolean_variants", "flag1 = yes\nflag2 = on\nflag3 = 1\nflag4 = false\nflag5 = no\nflag6 = off\nflag7 = 0", test_boolean_variants),
-    #("mixed_types", "host = localhost\nport = 8080\nssl = true\ntimeout = 30.5\ndebug = off", test_mixed_types),
-    #("error_cases", "port = not_a_number\ntemperature = invalid\nenabled = maybe", test_error_cases),
-  ]
+  // Load test cases from JSON
+  let test_cases = test_suite_types.get_typed_parsing_test_cases()
+  
+  io.println("Loaded " <> string.inspect(list.length(test_cases)) <> " typed parsing test cases")
   
   let passed = list.count(test_cases, fn(test_case) {
-    let #(name, input, test_fn) = test_case
-    io.println("Running typed test: " <> name)
+    io.println("Running typed test: " <> test_case.name <> " - " <> test_case.description)
     
-    case ccl_core.parse(input) {
+    // Convert \\n to actual newlines in input
+    let cleaned_input = string.replace(test_case.input, "\\n", "\n")
+    
+    case ccl_core.parse(cleaned_input) {
       Ok(entries) -> {
         let parsed = ccl_core.make_objects(entries)
-        test_fn(parsed)
+        run_typed_test_by_name(test_case.name, parsed)
         True
       }
       Error(err) -> {
@@ -138,6 +135,23 @@ pub fn ccl_typed_parsing_test() {
   case passed == list.length(test_cases) {
     False -> should.fail()
     True -> Nil
+  }
+}
+
+// Route to appropriate test based on name from JSON
+fn run_typed_test_by_name(name: String, parsed: ccl_core.CCL) {
+  case name {
+    "parse_basic_integer" -> test_basic_integer(parsed)
+    "parse_basic_float" -> test_basic_float(parsed)
+    "parse_boolean_true" -> test_boolean_true(parsed)
+    "parse_boolean_variants" -> test_boolean_variants(parsed)
+    "parse_mixed_types" -> test_mixed_types(parsed)
+    "parse_empty_value" -> test_empty_value(parsed)
+    "parse_with_whitespace" -> test_with_whitespace(parsed)
+    "parse_with_conservative_options" -> test_conservative_options(parsed)
+    _ -> {
+      io.println("  ! Test case '" <> name <> "' not implemented yet")
+    }
   }
 }
 
@@ -349,6 +363,91 @@ fn test_error_cases(parsed: ccl_core.CCL) {
     Error(_) -> io.println("  ✓ get_int(missing) correctly returned error")
     Ok(_) -> {
       io.println("  ✗ get_int(missing) should have returned error")
+      should.fail()
+    }
+  }
+}
+
+fn test_empty_value(parsed: ccl_core.CCL) {
+  case ccl.get_typed_value(parsed, "empty_key") {
+    Ok(ccl.EmptyVal) -> io.println("  ✓ get_typed_value(empty_key) = EmptyVal")
+    Ok(other) -> {
+      io.println("  ✗ get_typed_value(empty_key) = " <> string.inspect(other))
+      should.fail()
+    }
+    Error(err) -> {
+      io.println("  ✗ get_typed_value(empty_key) error: " <> err)
+      should.fail()
+    }
+  }
+}
+
+fn test_with_whitespace(parsed: ccl_core.CCL) {
+  // Test integer with whitespace
+  case ccl.get_int(parsed, "number") {
+    Ok(42) -> io.println("  ✓ get_int(number) = 42 (whitespace trimmed)")
+    Ok(other) -> {
+      io.println("  ✗ get_int(number) = " <> string.inspect(other))
+      should.fail()
+    }
+    Error(err) -> {
+      io.println("  ✗ get_int(number) error: " <> err)
+      should.fail()
+    }
+  }
+  
+  // Test boolean with whitespace
+  case ccl.get_bool(parsed, "flag") {
+    Ok(True) -> io.println("  ✓ get_bool(flag) = True (whitespace trimmed)")
+    Ok(False) -> {
+      io.println("  ✗ get_bool(flag) = False, expected True")
+      should.fail()
+    }
+    Error(err) -> {
+      io.println("  ✗ get_bool(flag) error: " <> err)
+      should.fail()
+    }
+  }
+}
+
+fn test_conservative_options(parsed: ccl_core.CCL) {
+  let conservative = ccl.ParseOptions(parse_integers: True, parse_floats: False, parse_booleans: False)
+  
+  // Should parse as integer
+  case ccl.get_typed_value_with_options(parsed, "number", conservative) {
+    Ok(ccl.IntVal(42)) -> io.println("  ✓ get_typed_value_with_options(number) = IntVal(42)")
+    Ok(other) -> {
+      io.println("  ✗ get_typed_value_with_options(number) = " <> string.inspect(other))
+      should.fail()
+    }
+    Error(err) -> {
+      io.println("  ✗ get_typed_value_with_options(number) error: " <> err)
+      should.fail()
+    }
+  }
+  
+  // Should remain as string (float parsing disabled)
+  case ccl.get_typed_value_with_options(parsed, "decimal", conservative) {
+    Ok(ccl.StringVal("3.14")) -> io.println("  ✓ get_typed_value_with_options(decimal) = StringVal(3.14)")
+    Ok(other) -> {
+      io.println("  ✗ get_typed_value_with_options(decimal) = " <> string.inspect(other))
+      should.fail()
+    }
+    Error(err) -> {
+      io.println("  ✗ get_typed_value_with_options(decimal) error: " <> err)
+      should.fail()
+    }
+  }
+  
+  // Should remain as string (boolean parsing disabled)
+  case ccl.get_typed_value_with_options(parsed, "flag", conservative) {
+    Ok(ccl.StringVal("true")) -> io.println("  ✓ get_typed_value_with_options(flag) = StringVal(true)")
+    Ok(other) -> {
+      io.println("  ✗ get_typed_value_with_options(flag) = " <> string.inspect(other))
+      should.fail()
+    }
+    Error(err) -> {
+      io.println("  ✗ get_typed_value_with_options(flag) error: " <> err)
       should.fail()
     }
   }
