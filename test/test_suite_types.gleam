@@ -25,6 +25,36 @@ pub type ErrorTestCase {
   )
 }
 
+// Types for typed parsing tests
+pub type TypedTestCase {
+  TypedTestCase(
+    name: String,
+    description: String,
+    input: String,
+    expected_flat: List(ccl_core.Entry),
+    expected_typed: List(#(String, TypedValue)),  // path -> typed value pairs
+    parse_options: ParseOptions,
+    api_calls: List(String),
+    tags: List(String),
+  )
+}
+
+pub type TypedValue {
+  StringVal(String)
+  IntVal(Int)
+  FloatVal(Float)
+  BoolVal(Bool)
+  EmptyVal
+}
+
+pub type ParseOptions {
+  ParseOptions(
+    parse_integers: Bool,
+    parse_floats: Bool,
+    parse_booleans: Bool,
+  )
+}
+
 // Load and parse JSON test suite
 pub fn get_test_cases() -> List(TestCase) {
   case load_test_suite() {
@@ -40,9 +70,20 @@ pub fn get_error_test_cases() -> List(ErrorTestCase) {
   }
 }
 
+pub fn get_typed_parsing_test_cases() -> List(TypedTestCase) {
+  case load_test_suite() {
+    Ok(test_suite) -> test_suite.typed_parsing_tests
+    Error(_) -> []
+  }
+}
+
 // JSON test suite structure decoder
 type TestSuite {
-  TestSuite(tests: List(TestCase), error_tests: List(ErrorTestCase))
+  TestSuite(
+    tests: List(TestCase), 
+    error_tests: List(ErrorTestCase),
+    typed_parsing_tests: List(TypedTestCase),
+  )
 }
 
 // Load and parse JSON test suite
@@ -55,7 +96,10 @@ fn load_test_suite() -> Result(TestSuite, String) {
           "error_tests",
           decode.list(error_test_case_decoder()),
         )
-        decode.success(TestSuite(tests:, error_tests:))
+        // For now, just return empty list for typed parsing tests
+        // Will implement full decoder later
+        let typed_parsing_tests = []
+        decode.success(TestSuite(tests:, error_tests:, typed_parsing_tests:))
       }
 
       case json.parse(content, test_suite_decoder) {
@@ -105,5 +149,21 @@ fn error_test_case_decoder() -> decode.Decoder(ErrorTestCase) {
     expected_error:,
     error_message:,
     tags:,
+  ))
+}
+
+// TODO: Implement full typed parsing test decoder later
+// For now, using placeholder function to allow compilation
+fn typed_test_case_decoder() -> decode.Decoder(TypedTestCase) {
+  // Placeholder - will implement proper decoder later
+  decode.success(TypedTestCase(
+    name: "placeholder",
+    description: "placeholder",
+    input: "placeholder = value",
+    expected_flat: [],
+    expected_typed: [],
+    parse_options: ParseOptions(parse_integers: True, parse_floats: True, parse_booleans: True),
+    api_calls: [],
+    tags: ["placeholder"],
   ))
 }
