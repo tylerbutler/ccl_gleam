@@ -125,7 +125,7 @@ pub fn ccl_typed_parsing_test() {
           True -> {
             io.println("  ✓ Flat parsing matches expected")
             // Now validate typed parsing results from JSON
-            case validate_typed_parsing_from_json(parsed, test_case.expected_typed) {
+            case validate_typed_parsing_from_json(parsed, test_case.expected_typed, test_case.parse_options) {
               True -> {
                 io.println("  ✓ Typed parsing validation passed")
                 True
@@ -160,17 +160,32 @@ pub fn ccl_typed_parsing_test() {
 
 // Verify flat parsing results match expected from JSON
 fn verify_flat_parsing(actual: List(ccl_core.Entry), expected: List(ccl_core.Entry)) -> Bool {
-  // Simple equality check for now
-  actual == expected
+  case actual == expected {
+    True -> True
+    False -> {
+      io.println("    FLAT PARSING MISMATCH:")
+      io.println("    Expected: " <> string.inspect(expected))
+      io.println("    Actual:   " <> string.inspect(actual))
+      False
+    }
+  }
 }
 
 // JSON-driven validation function that uses the expected_typed data
-fn validate_typed_parsing_from_json(parsed: ccl_core.CCL, expected_typed: List(#(String, test_suite_types.TypedValue))) -> Bool {
+fn validate_typed_parsing_from_json(parsed: ccl_core.CCL, expected_typed: List(#(String, test_suite_types.TypedValue)), parse_options: test_suite_types.ParseOptions) -> Bool {
+  // Convert test_suite_types.ParseOptions to ccl.ParseOptions
+  let ccl_options = ccl.ParseOptions(
+    parse_integers: parse_options.parse_integers,
+    parse_floats: parse_options.parse_floats, 
+    parse_booleans: parse_options.parse_booleans,
+  )
+  
+  
   list.all(expected_typed, fn(pair) {
     let #(path, expected_value) = pair
     case expected_value {
       test_suite_types.StringVal(expected_str) -> {
-        case ccl.get_typed_value(parsed, path) {
+        case ccl.get_typed_value_with_options(parsed, path, ccl_options) {
           Ok(ccl.StringVal(actual_str)) -> {
             case actual_str == expected_str {
               True -> {
@@ -194,7 +209,7 @@ fn validate_typed_parsing_from_json(parsed: ccl_core.CCL, expected_typed: List(#
         }
       }
       test_suite_types.IntVal(expected_int) -> {
-        case ccl.get_typed_value(parsed, path) {
+        case ccl.get_typed_value_with_options(parsed, path, ccl_options) {
           Ok(ccl.IntVal(actual_int)) -> {
             case actual_int == expected_int {
               True -> {
@@ -218,7 +233,7 @@ fn validate_typed_parsing_from_json(parsed: ccl_core.CCL, expected_typed: List(#
         }
       }
       test_suite_types.FloatVal(expected_float) -> {
-        case ccl.get_typed_value(parsed, path) {
+        case ccl.get_typed_value_with_options(parsed, path, ccl_options) {
           Ok(ccl.FloatVal(actual_float)) -> {
             case actual_float == expected_float {
               True -> {
@@ -242,7 +257,7 @@ fn validate_typed_parsing_from_json(parsed: ccl_core.CCL, expected_typed: List(#
         }
       }
       test_suite_types.BoolVal(expected_bool) -> {
-        case ccl.get_typed_value(parsed, path) {
+        case ccl.get_typed_value_with_options(parsed, path, ccl_options) {
           Ok(ccl.BoolVal(actual_bool)) -> {
             case actual_bool == expected_bool {
               True -> {
@@ -266,7 +281,7 @@ fn validate_typed_parsing_from_json(parsed: ccl_core.CCL, expected_typed: List(#
         }
       }
       test_suite_types.EmptyVal -> {
-        case ccl.get_typed_value(parsed, path) {
+        case ccl.get_typed_value_with_options(parsed, path, ccl_options) {
           Ok(ccl.EmptyVal) -> {
             io.println("  ✓ get_typed_value(" <> path <> ") = EmptyVal")
             True
