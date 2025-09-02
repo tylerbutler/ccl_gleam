@@ -1,10 +1,35 @@
 # CCL (Categorical Configuration Language) Informal Specification
 
-**Version:** 1.0  
+**Version:** 1.1.0  
 **Date:** 2025-01-02  
 **Status:** Living Document
 
 This document consolidates the informal specification for CCL based on analysis of the blog post, reference implementations, and test suites.
+
+**Version 1.1.0 Changes:**
+- Added explicit core parsing algorithm section
+- Clarified whitespace and indentation handling throughout
+- Major reorganization for better user experience
+- Distinguished core vs. non-core features
+- Added quick start guide and implementation checklist
+
+## Table of Contents
+
+- [Sources](#sources)
+- [Quick Start](#quick-start)
+- [Core Philosophy](#core-philosophy)
+- [Syntax Reference](#syntax-reference)
+- [Core Parsing Algorithm](#-core-parsing-algorithm)
+- [Data Structure Representation](#data-structure-representation)
+- [Error Handling](#error-handling)
+- [Edge Cases](#edge-cases)
+- [Outstanding Design Issues](#outstanding-design-issues)
+- [Implementation Checklist](#implementation-checklist)
+- [Implementation Details](#implementation-details)
+- [Mathematical Foundation](#mathematical-foundation)
+- [Conformance Requirements](#conformance-requirements)
+- [Future Extensions](#future-extensions)
+- [Quick Reference Card](#quick-reference-card)
 
 ## Sources
 
@@ -12,6 +37,46 @@ This document consolidates the informal specification for CCL based on analysis 
 - **Reference Implementation:** [OCaml CCL implementation](https://github.com/chshersh/ccl)
 - **Test Suite:** Language-agnostic CCL test suite v1.0.0 (57 test cases)
 - **This Implementation:** Gleam CCL implementation analysis
+
+## Quick Start
+
+Here's a simple CCL configuration to get you started:
+
+```ccl
+name = My Application
+version = 1.0.0
+debug = true
+
+database =
+  host = localhost
+  port = 5432
+  name = myapp_db
+
+features =
+  = authentication
+  = logging
+  = metrics
+
+/= This is a comment
+description = A sample application
+  with multiline description
+  that preserves indentation
+```
+
+**Parsing Result:**
+- `name` → `"My Application"`
+- `version` → `"1.0.0"`
+- `debug` → `"true"`
+- `database` → nested object with `host`, `port`, `name`
+- `features` → list with 3 items
+- `description` → multiline string preserving formatting
+
+**Key Points:**
+- Use `key = value` for basic entries
+- Empty values after `=` create nested sections
+- Empty keys (`= item`) create list items
+- Lines starting with `/=` are comments
+- Indentation continues values or creates nesting
 
 ## Core Philosophy
 
@@ -24,30 +89,66 @@ CCL is designed around the principle that "powerful software can emerge from sim
 3. Fixed-point recursion for nested structures
 4. Mathematical composition properties
 
-## Basic Syntax
+## Syntax Reference
 
 ### Fundamental Unit
 **Source:** Blog Post
 
 The core unit is: `<key> = <value>`
 
-### Key-Value Parsing Rules
+### Basic Key-Value Pairs
 **Sources:** Blog Post, Test Suite, Gleam Implementation
 
+**Format:** `key = value`
+
+**Rules:**
 1. **Separator:** First `=` character separates key from value
-2. **Key Trimming:** Leading and trailing whitespace (spaces, tabs) removed from keys
-3. **Value Trimming:** Leading spaces removed, trailing whitespace preserved except for explicit trim
+2. **Key Processing:** Keys are trimmed of all whitespace (see Whitespace Handling Rules)
+3. **Value Processing:** Leading spaces removed, trailing whitespace preserved (see Whitespace Handling Rules)
 4. **Empty Values:** Values can be empty (key with no content after `=`)
 
-### Line Structure
-**Sources:** Test Suite, Gleam Implementation
-
+**Line Structure:**
 - Each line can contain one key-value pair
 - Lines without `=` are treated as continuation lines (indented content)
 - Empty lines are preserved in multiline values
 - Whitespace-only input is an error
 
-## Advanced Syntax
+### Lists
+**Sources:** Blog Post, Test Suite, Gleam Implementation
+
+Lists use empty keys or indexed keys:
+
+**Empty key format:**
+```ccl
+= item 1
+= item 2  
+= item 3
+```
+
+**Indexed format:**
+```ccl
+0 = item 1
+1 = item 2
+2 = item 3
+```
+
+### Comments
+**Sources:** Blog Post, Test Suite
+
+Comments use special key conventions that can be filtered programmatically:
+
+**Primary format:** `/= This is a comment`
+
+**Alternative formats:**
+- `#= Python-style comment`  
+- `//= C-style comment`
+- `/= Decorative comment =/`
+
+**Implementation Pattern:**
+- Comments are regular key-value entries
+- Key is the comment marker (`/`, `#`, `//`, etc.)
+- Value is the comment text
+- Easy filtering: `filter(entry => entry.key !== "/")`
 
 ### Multiline Values
 **Sources:** Blog Post, Test Suite, Gleam Implementation
@@ -82,43 +183,6 @@ long key name
 2. Next non-empty line must start with `=`
 3. Value part follows normal value parsing rules
 
-### Comments
-**Sources:** Blog Post, Test Suite
-
-Comments use special key conventions that can be filtered programmatically:
-
-**Primary format:** `/= This is a comment`
-
-**Alternative formats:**
-- `#= Python-style comment`  
-- `//= C-style comment`
-- `/= Decorative comment =/`
-
-**Implementation Pattern:**
-- Comments are regular key-value entries
-- Key is the comment marker (`/`, `#`, `//`, etc.)
-- Value is the comment text
-- Easy filtering: `filter(entry => entry.key !== "/")`
-
-### Lists
-**Sources:** Blog Post, Test Suite, Gleam Implementation
-
-Lists use empty keys or indexed keys:
-
-**Empty key format:**
-```ccl
-= item 1
-= item 2  
-= item 3
-```
-
-**Indexed format:**
-```ccl
-0 = item 1
-1 = item 2
-2 = item 3
-```
-
 ### Nested Sections
 **Sources:** Blog Post, Gleam Implementation
 
@@ -138,6 +202,73 @@ prod =
 2. Nested content must be indented
 3. Recursive parsing applied to nested content
 4. Fixed-point algorithm converts flat entries to nested structure
+
+### Whitespace Handling Rules
+**Sources:** Test Suite, Gleam Implementation, OCaml Reference
+
+CCL uses specific whitespace handling rules that distinguish between different types of whitespace and different parsing contexts:
+
+#### Character Types
+- **Space character:** ` ` (ASCII 32)
+- **Tab character:** `\t` (ASCII 9) 
+- **Other whitespace:** Newlines, carriage returns, etc.
+
+#### Key Processing
+- **Remove all leading and trailing whitespace characters** from keys
+- Applies to spaces, tabs, newlines, and other whitespace
+- Keys are fully cleaned of whitespace
+
+#### Value Processing  
+- **Remove leading space characters only** from value start
+- **Preserve all trailing whitespace characters** in final values
+- This asymmetric processing prevents accidental content loss
+
+#### Indentation Calculation
+- **Count spaces and tabs only** for measuring line indentation levels
+- Each space character = 1 indentation unit
+- Each tab character = 1 indentation unit  
+- Mixed tab/space indentation allowed but discouraged
+
+#### Continuation Line Processing
+- **Remove trailing whitespace** from continuation lines during parsing
+- **Preserve original indentation structure** in final multiline values
+- Content within values keeps its intended whitespace
+
+## 🚀 CORE PARSING ALGORITHM
+
+**This is the essential step-by-step algorithm from the original CCL blog post:**
+
+### Simple CCL Parsing Algorithm
+**Source:** [Original Blog Post Algorithm](https://chshersh.com/blog/2025-01-06-the-most-elegant-configuration-language.html)
+
+1. **Parse line by line, tracking indentation**
+
+2. **Key parsing rules:**
+   - Key = everything before the first `=`
+   - Remove all leading and trailing whitespace characters from key (see Whitespace Handling Rules below)
+   - Empty key after processing is allowed
+
+3. **Value parsing rules:**
+   - Value = everything after the `=`
+   - Remove leading space characters only, preserve trailing whitespace characters (see Whitespace Handling Rules below)
+   - Empty value after processing is allowed
+
+4. **Indentation-sensitive parsing:**
+   - Count leading indentation characters (spaces and tabs) `N` for the first key-value line
+   - Each space character counts as 1 indentation unit, each tab character counts as 1 indentation unit (see Whitespace Handling Rules below for details)
+   - Lines with `≤ N` indentation units start a new key-value entry
+   - Lines with `> N` indentation units continue the previous value
+   - Mixed space/tab indentation is allowed (e.g., "  \t " = 4 indentation units)
+   - **Note**: See Outstanding Design Issues section for important caveats about visual vs logical indentation
+
+5. **Nested parsing approach:**
+   - Recursively parse values as potential nested CCL configs
+   - Stop parsing when no further nested parsing is possible
+   - Reach a "fixed point" where parsing doesn't change the structure
+
+**Key Principle:** "CCL does the smallest job possible, so the user can do the next smallest thing possible."
+
+---
 
 ## Data Structure Representation
 
@@ -166,53 +297,135 @@ CCL uses a recursive fixed-point data structure equivalent to OCaml's `type t = 
 3. **Fixpoint Application:** Recursive structure built using mathematical fixed-point algorithm
 4. **Terminal Values:** Leaf nodes stored using empty keys in the internal structure
 
-## Parsing Behavior
+## Edge Cases
 
-### Edge Cases
 **Sources:** Test Suite, Gleam Implementation
+
+CCL handles various edge cases during parsing:
 
 1. **Empty Input:** Truly empty input returns empty result
-2. **Whitespace-only Input:** Error condition 
-3. **Equals in Values:** Values can contain `=` characters
-4. **Duplicate Keys:** Multiple entries with same key preserved in order
-5. **Base Indentation:** Determined by first non-empty line containing key-value pair
+2. **Whitespace-only Input:** Input containing only whitespace characters is an error condition
+3. **Equals in Values:** Values can contain `=` characters - only the first `=` separates key from value
+4. **Duplicate Keys:** Multiple entries with same key are preserved in order
+5. **Base Indentation:** Base indentation level is determined by first non-empty line containing key-value pair
+6. **Empty Keys:** Keys can be empty after whitespace trimming (used for lists)
+7. **Empty Values:** Values can be empty (used for nested sections)
 
-### Error Conditions
+## Error Handling
+
 **Sources:** Gleam Implementation, Test Suite
 
-1. **Parse Errors:** Include line number and reason
-2. **Continuation without Key:** Indented line without preceding key-value pair
-3. **Invalid Structure:** Lines that don't conform to key-value or continuation patterns
-4. **Whitespace-only Input:** Input containing only whitespace characters
+CCL implementations should handle these error conditions:
 
-### Whitespace Handling
-**Sources:** Test Suite, Gleam Implementation
+### Parse Errors
+- **Line Numbers:** Error messages must include line number and reason
+- **Context:** Provide enough context to help users locate the problem
+- **Graceful Degradation:** Where possible, continue parsing to find multiple errors
 
-1. **Key Trimming:** All leading/trailing whitespace removed
-2. **Value Leading Spaces:** Removed from start of values  
-3. **Value Trailing Whitespace:** Preserved (spaces, tabs, etc.)
-4. **Continuation Lines:** Right-stripped of trailing whitespace
-5. **Indentation Preservation:** Original indentation maintained in multiline values
+### Common Error Types
+1. **Continuation without Key:** Indented line without preceding key-value pair
+2. **Invalid Structure:** Lines that don't conform to key-value or continuation patterns  
+3. **Whitespace-only Input:** Input containing only whitespace characters
+4. **Malformed Key-Value:** Lines with invalid syntax that can't be parsed
 
-## Composition Properties
+### Error Recovery
+- Stop parsing on first structural error
+- Preserve partial results where safe
+- Report all found errors in batch where possible
 
-### Mathematical Foundation
-**Source:** Blog Post
+## Outstanding Design Issues
 
-CCL configurations form mathematical structures:
+### ⚠️ Visual vs Logical Indentation
 
-- **Semigroup:** Configurations can be combined associatively
-- **Monoid:** Empty configuration serves as identity element
-- **Homomorphisms:** Structure-preserving transformations supported
-- **Fixed-point Recursion:** Nested parsing uses mathematical fixed-point algorithms
+**Problem**: The current character-by-character counting approach creates a mismatch between visual appearance and logical nesting levels, potentially leading to user confusion.
 
-### Composition Behavior
-**Sources:** Test Suite, Blog Post
+**Examples of problematic behavior:**
 
-1. **Order Preservation:** When combining configurations, order is maintained
-2. **Key Multiplication:** Same keys can appear multiple times
-3. **Associativity:** `(a + b) + c = a + (b + c)`
-4. **Identity:** Empty configuration + any config = that config
+1. **Same logical level, different visual indentation:**
+   ```ccl
+   config = 
+    host = localhost    # 1 space = 1 unit
+   	port = 5432        # 1 tab = 1 unit (displays as 4-8 spaces visually)
+   ```
+   Both are at the same logical nesting level (1 unit) but visually the tab line appears much more deeply nested.
+
+2. **Visual alignment but different logical levels:**
+   ```ccl
+   database =
+       name = prod     # 4 spaces = 4 units
+   	config = live   # 1 tab = 1 unit (visually aligned if tab width = 4)
+   ```
+   These might look visually aligned but `config` would be treated as less nested than `name`, potentially even as a top-level key.
+
+3. **Mixed indentation chaos:**
+   ```ccl
+   server =
+     	cache = redis    # 2 spaces + 1 tab = 3 units
+      	logs = file      # 3 spaces + 1 tab = 4 units
+   ```
+   These look similarly indented but are at different logical nesting levels.
+
+**Current Implementation Status:**
+- **OCaml Reference**: Implements character-by-character counting (`List.length spaces`)
+- **Gleam Implementation**: Currently only handles spaces (bug), but will implement same approach when fixed
+
+**Alternative Design Considerations:**
+- **Tab Expansion**: Convert tabs to fixed number of spaces (e.g., 4 or 8) before counting
+- **Visual Alignment**: Use column-based indentation calculation
+- **Strict Mode**: Require consistent indentation style (spaces-only or tabs-only)
+
+**Impact**: This design choice prioritizes implementation simplicity over user experience. While functionally consistent, it may surprise users who expect indentation to work visually rather than by character count.
+
+**Status**: Unresolved - following OCaml reference behavior for compatibility
+
+**Possible Mitigations:**
+- **Mixed Indentation Warnings**: Implementations should warn when key-value lines use mixed tab/space indentation styles, while allowing mixed whitespace within continuation line values
+- **Linting Tools**: Separate tools could warn about mixed indentation styles in CCL files
+- **Editor Support**: CCL syntax highlighters could visually indicate logical nesting levels vs visual appearance
+- **Best Practice Guidelines**: Documentation could recommend consistent indentation styles (e.g., "use only spaces" or "use only tabs")
+- **Parser Warnings**: Implementations could optionally warn when visual and logical indentation don't align
+- **Normalization Tools**: Utilities to convert between indentation styles while preserving logical structure
+
+## Implementation Checklist
+
+### Must-Have Features (Core Compliance)
+
+Essential features for any CCL implementation:
+
+- [ ] **Basic Key-Value Parsing** - Handle `key = value` pairs with proper trimming
+- [ ] **Multiline Value Support** - Parse indentation-based value continuation
+- [ ] **Empty Key/Value Handling** - Support empty keys (lists) and empty values (nested sections)
+- [ ] **Nested Section Parsing** - Recursive parsing for hierarchical configurations
+- [ ] **Fixed-Point Algorithm** - Proper object construction from flat entries
+- [ ] **Order Preservation** - Maintain entry order including duplicates
+- [ ] **Error Reporting** - Line number reporting for parse errors
+- [ ] **Whitespace Rules** - Correct key/value trimming behavior
+
+### Should-Have Features (Enhanced Compliance)
+
+Recommended features for practical CCL usage:
+
+- [ ] **Comment Filtering** - Filter entries by special keys (`/`, `#`, `//`)
+- [ ] **Multi-line Key Support** - Handle keys split across lines
+- [ ] **Mixed Indentation Handling** - Process tabs and spaces correctly
+- [ ] **Edge Case Handling** - Proper behavior for empty input, whitespace-only input
+- [ ] **Access APIs** - Convenient methods for querying nested data
+- [ ] **Type Conversion** - String to basic type conversion utilities
+- [ ] **Composition Operations** - Merge and combine configurations
+- [ ] **Validation Tools** - Schema or structure validation support
+
+### Optional Features (Extended Functionality)
+
+Advanced features for specialized use cases:
+
+- [ ] **Performance Optimization** - Streaming or lazy parsing for large files
+- [ ] **Format Embedding** - Support for JSON/YAML values within CCL
+- [ ] **Schema Validation** - Type-aware parsing and validation
+- [ ] **IDE Integration** - Language server protocol support
+- [ ] **Linting Tools** - Style and consistency checking
+- [ ] **Migration Tools** - Convert from/to other configuration formats
+- [ ] **Debugging Support** - Parse tree visualization and debugging
+- [ ] **Watch Mode** - File system monitoring for configuration changes
 
 ## Implementation Details
 
@@ -233,6 +446,26 @@ The OCaml implementation serves as the specification reference for:
 2. **Nested Formats:** Values can embed other configuration formats
 3. **Type Inference:** Implementation-specific type interpretation
 4. **Access APIs:** Different ways to query the parsed structure
+
+## Mathematical Foundation
+
+### Composition Properties
+**Source:** Blog Post
+
+CCL configurations form mathematical structures:
+
+- **Semigroup:** Configurations can be combined associatively
+- **Monoid:** Empty configuration serves as identity element
+- **Homomorphisms:** Structure-preserving transformations supported
+- **Fixed-point Recursion:** Nested parsing uses mathematical fixed-point algorithms
+
+### Composition Behavior
+**Sources:** Test Suite, Blog Post
+
+1. **Order Preservation:** When combining configurations, order is maintained
+2. **Key Multiplication:** Same keys can appear multiple times
+3. **Associativity:** `(a + b) + c = a + (b + c)`
+4. **Identity:** Empty configuration + any config = that config
 
 ## Conformance Requirements
 
@@ -282,6 +515,98 @@ Implementations should pass the standard test suite including:
 3. **Nested Section Syntax:** Enhanced hierarchical parsing
 4. **Decorative Headers:** Visual organization features
 5. **Format Embedding:** Support for embedding JSON, YAML, etc.
+
+## Quick Reference Card
+
+### Basic Syntax Cheat Sheet
+
+```ccl
+# Basic key-value pairs
+name = My App
+version = 1.0.0
+
+# Empty values (nested sections)
+database =
+  host = localhost
+  port = 5432
+
+# Lists (empty keys)
+items =
+  = first item
+  = second item
+  = third item
+
+# Lists (indexed keys)  
+users =
+  0 = alice
+  1 = bob
+  2 = charlie
+
+# Multiline values (indented continuation)
+description = This is a long description
+  that continues on the next line
+  and preserves indentation
+
+# Multi-line keys
+very long configuration key name
+= value for the long key
+
+# Comments (filterable by key)
+/= This is a comment
+#= Python-style comment
+//= C-style comment
+```
+
+### Key Parsing Rules
+
+| Rule | Description |
+|------|-------------|
+| **Key Separator** | First `=` separates key from value |
+| **Key Trimming** | Remove all leading/trailing whitespace from keys |
+| **Value Trimming** | Remove leading spaces only, preserve trailing whitespace |
+| **Empty Keys** | Allowed (used for lists) |
+| **Empty Values** | Allowed (used for nested sections) |
+| **Duplicate Keys** | Allowed, order preserved |
+
+### Indentation Rules
+
+| Rule | Description |
+|------|-------------|
+| **Base Level** | Determined by first key-value line |
+| **Continuation** | Lines indented beyond base level continue previous value |
+| **Nesting** | Empty values with indented content create nested sections |
+| **Mixed Indentation** | Each space = 1 unit, each tab = 1 unit |
+| **Whitespace Preservation** | Original indentation maintained in final values |
+
+### Common Patterns
+
+```ccl
+# Configuration object
+server =
+  host = 0.0.0.0
+  port = 8080
+  ssl =
+    enabled = true
+    cert = /path/to/cert.pem
+
+# List of objects
+environments =
+  0 =
+    name = development
+    debug = true
+  1 =
+    name = production
+    debug = false
+
+# Mixed content with comments
+/= API Configuration Section
+api =
+  /= The base URL for all API calls
+  base_url = https://api.example.com
+  
+  /= Timeout in milliseconds
+  timeout = 30000
+```
 
 ---
 

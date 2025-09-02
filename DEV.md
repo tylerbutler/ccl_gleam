@@ -294,3 +294,36 @@ The implementation includes comprehensive test coverage:
 4. **Language portability** - the JSON test suite enables validation across different language implementations
 
 This two-step process separates syntax parsing from semantic object construction, making both easier to understand and test independently while maintaining full compatibility with the CCL specification and reference implementation.
+
+## Known Issues & TODOs
+
+### 🚨 CRITICAL BUG: Tab Indentation Not Supported
+
+**Issue**: The current implementation only counts spaces for indentation tracking, but the OCaml reference implementation supports both spaces and tabs.
+
+**Impact**: 
+- Test case `tab_only_indentation` in the JSON test suite fails
+- CCL files using tabs for indentation will be parsed incorrectly
+- Incompatible with OCaml reference implementation
+
+**Root Cause**: 
+- Function `count_leading_spaces_helper()` in `ccl_core.gleam:470-477` only handles `" "` characters
+- Missing case for `"\t"` characters
+
+**OCaml Reference**: 
+- Uses `char ' ' <|> char '\t'` treating spaces and tabs as equivalent indentation units
+- Each space or tab counts as one unit of indentation
+
+**Fix Required**:
+```gleam
+fn count_leading_spaces_helper(graphemes: List(String), count: Int) -> Int {
+  case graphemes {
+    [] -> count
+    [" ", ..rest] -> count_leading_spaces_helper(rest, count + 1)  // Space
+    ["\t", ..rest] -> count_leading_spaces_helper(rest, count + 1)  // Tab - MISSING
+    _ -> count
+  }
+}
+```
+
+**Priority**: HIGH - This affects core parsing compatibility with the reference implementation.

@@ -459,6 +459,10 @@ fn is_empty_line(line: String) -> Bool {
   string.length(string.trim(line)) == 0
 }
 
+// TODO: BUG - This function only counts spaces, not tabs
+// The OCaml reference implementation handles both spaces and tabs for indentation
+// See: https://github.com/chshersh/ccl - parser treats `char ' ' <|> char '\t'` as equivalent
+// Test case `tab_only_indentation` in ccl-test-suite.json will fail until this is fixed
 fn count_leading_spaces(line: String) -> Int {
   count_leading_spaces_helper(string.to_graphemes(line), 0)
 }
@@ -467,6 +471,7 @@ fn count_leading_spaces_helper(graphemes: List(String), count: Int) -> Int {
   case graphemes {
     [] -> count
     [" ", ..rest] -> count_leading_spaces_helper(rest, count + 1)
+    // MISSING: ["\t", ..rest] -> count_leading_spaces_helper(rest, count + 1)
     _ -> count
   }
 }
