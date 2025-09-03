@@ -247,6 +247,31 @@ mixed =
 
 Your application handles type conversion per item.
 
+### Q: How does CCL handle duplicate keys?
+**A:** CCL uses a **two-level strategy** for duplicate keys:
+
+**Core Parsing Level:** Preserves all duplicate entries in order - no merging occurs.
+
+```ccl
+user = name: alice  
+user = age: 25
+```
+**Flat Result:** Two separate entries: `[("user", "name: alice"), ("user", "age: 25")]`
+
+**Object Construction Level:** Applies deep merge for nested objects and accumulation for lists.
+
+**Nested Result:** Single merged object: `{ user: { name: "alice", age: "25" } }`
+
+**Empty Key Lists:** Empty keys accumulate into arrays:
+```ccl
+ports =
+  = 8000
+  = 8001
+```
+**Result:** `{ ports: { "": ["8000", "8001"] } }`
+
+**Why Two Levels?** This preserves CCL's mathematical properties (composition, associativity) at the core level while providing intuitive merging behavior for application use.
+
 ---
 
 ## Comparison with Other Formats

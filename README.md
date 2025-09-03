@@ -54,15 +54,15 @@ Parse CCL text and access nested values using dot notation:
 ```gleam
 import ccl
 
-// Parse CCL text into flat key-value pairs
+// Parse CCL text demonstrating duplicate key handling
 let ccl_text = "
+// Duplicate keys merge at object level
 database =
   host = localhost
+database =
   port = 5432
-  credentials =
-    username = admin
-    password = secret123
-
+  
+// Empty keys accumulate into lists  
 server =
   ports =
     = 8000
@@ -72,20 +72,31 @@ server =
 
 case ccl.parse(ccl_text) {
   Ok(flat_entries) -> {
-    // Build nested CCL object
-    let ccl_obj = ccl.make_objects(flat_entries)
+    // Flat level: preserves duplicates as separate entries
+    // [Entry("database", "host = localhost"), Entry("database", "port = 5432")]
     
-    // Use the new unified get() API - returns values in their natural form
+    let ccl_obj = ccl.make_objects(flat_entries)
+    // Object level: merges duplicate keys into single structure
+    // database: { host: "localhost", port: "5432" }
+    // server: { ports: { "": ["8000", "8001", "8002"] } }
+    
+    // Access merged object fields
     case ccl.get(ccl_obj, "database.host") {
-      Ok(ccl.CclString(host)) -> io.println("Host: " <> host)
+      Ok(ccl.CclString(host)) -> io.println("Host: " <> host)  // "localhost"
       _ -> io.println("Host not found")
     }
     
+    case ccl.get(ccl_obj, "database.port") {
+      Ok(ccl.CclString(port)) -> io.println("Port: " <> port)  // "5432"  
+      _ -> io.println("Port not found")
+    }
+    
+    // Access list from empty keys
     case ccl.get(ccl_obj, "server.ports") {
       Ok(ccl.CclList(ports)) -> {
-        io.println("Ports: " <> string.join(ports, ", "))
+        io.println("Ports: " <> string.join(ports, ", "))  // "8000, 8001, 8002"
       }
-      _ -> io.println("Ports not found")  
+      _ -> io.println("Ports not found")
     }
   }
   Error(err) -> io.println("Parse error: " <> err.reason)

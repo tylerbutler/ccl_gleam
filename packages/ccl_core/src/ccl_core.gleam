@@ -50,6 +50,17 @@ pub fn parse(text: String) -> Result(List(Entry), ParseError) {
 }
 
 /// Convert flat key-value pairs into nested CCL structure using fixpoint algorithm
+/// 
+/// Duplicate keys are handled through deep merging:
+/// - Nested objects: Fields are combined into single object
+/// - Empty keys: Values are accumulated into lists
+/// - Order preserved: Latest values take precedence in conflicts
+/// 
+/// Example:
+/// ```gleam
+/// // Input: [Entry("user", "name = alice"), Entry("user", "age = 25")]
+/// // Output: CCL structure with merged user object containing both name and age
+/// ```
 pub fn make_objects(entries: List(Entry)) -> CCL {
   // Group entries by key, allowing multiple values per key
   let grouped = group_entries_by_key(entries, dict.new())
@@ -139,7 +150,20 @@ pub fn single_key_val(key: String, value: String) -> CCL {
   CCL(outer_dict)
 }
 
-/// Merge two CCL structures recursively
+/// Merge two CCL structures recursively using deep merge strategy
+/// 
+/// Merge behavior:
+/// - Nested objects: Recursively merge field by field
+/// - Conflicts: Second CCL takes precedence 
+/// - Lists: Concatenate values maintaining order
+/// - Empty structures: Preserve non-empty structure
+/// 
+/// Example:
+/// ```gleam
+/// // ccl1: { user: { name: "alice" } }
+/// // ccl2: { user: { age: "25" } }  
+/// // Result: { user: { name: "alice", age: "25" } }
+/// ```
 pub fn merge_ccl(ccl1: CCL, ccl2: CCL) -> CCL {
   case ccl1, ccl2 {
     CCL(map1), CCL(map2) -> {

@@ -206,6 +206,61 @@ CCL({
 | **Duplicates** | Kept as separate entries | Merged into single structure |
 | **Nesting** | Values remain as strings | Values parsed recursively |
 
+### Duplicate Key Merging Strategy
+
+CCL handles duplicate keys differently at different abstraction levels:
+
+#### Core Level (Flat Parsing)
+- **Behavior**: Preserves all entries in order (maintains semigroup/monoid properties)
+- **Implementation**: `group_entries_by_key()` accumulates values in latest-first order
+- **Example**: `user = alice\nuser = bob` → Two separate entries preserved
+
+#### Higher Level (Object Construction) 
+- **Nested Objects**: Deep merge strategy - combines fields from duplicate keys recursively
+- **List Structures**: Accumulation - collects values with empty keys into arrays
+- **Implementation**: `merge_ccl()` performs recursive deep merge of CCL structures
+
+**Deep Merge Example:**
+```ccl
+user =
+  name = alice
+user =
+  age = 25
+```
+**Result**: Single merged object with both fields:
+```gleam
+CCL({
+  "user": CCL({
+    "": CCL({
+      "name": CCL({}),  // Terminal: "alice"
+      "age": CCL({})    // Terminal: "25"
+    })
+  })
+})
+```
+
+**List Accumulation Example:**
+```ccl
+ports =
+  = 8000
+  = 8001
+  = 8002
+```
+**Result**: Array structure using empty keys:
+```gleam
+CCL({
+  "ports": CCL({
+    "": CCL({
+      "8000": CCL({}),  // First element
+      "8001": CCL({}),  // Second element  
+      "8002": CCL({})   // Third element
+    })
+  })
+})
+```
+
+**Key Insight**: Empty keys (`""`) act as array indices, enabling list-like structures while maintaining CCL's uniform key-value model.
+
 ### Example Output Comparison
 
 **`parse` output (flat):**
