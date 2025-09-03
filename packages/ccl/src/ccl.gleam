@@ -388,7 +388,21 @@ fn parse_int(value: String, path: String) -> Result(Int, String) {
   let trimmed = string.trim(value)
   case int.parse(trimmed) {
     Ok(n) -> Ok(n)
-    Error(_) -> Error("Cannot parse '" <> value <> "' as integer at path '" <> path <> "'")
+    Error(_) -> {
+      let suggestion = case trimmed {
+        "" -> "Hint: Empty values cannot be integers. Use get_value() for strings or provide a default."
+        _ -> {
+          case string.contains(trimmed, ".") {
+            True -> "Hint: '" <> trimmed <> "' contains a decimal. Use get_float() or remove the decimal point."
+            False -> case string.contains(trimmed, ",") {
+              True -> "Hint: Remove commas from numbers (use 1234 not 1,234)."
+              False -> "Hint: Expected a whole number like 42, -7, or 0."
+            }
+          }
+        }
+      }
+      Error("Cannot parse '" <> value <> "' as integer at path '" <> path <> "'.\n" <> suggestion)
+    }
   }
 }
 
@@ -397,7 +411,21 @@ fn parse_float(value: String, path: String) -> Result(Float, String) {
   let trimmed = string.trim(value)
   case float.parse(trimmed) {
     Ok(f) -> Ok(f)
-    Error(_) -> Error("Cannot parse '" <> value <> "' as float at path '" <> path <> "'")
+    Error(_) -> {
+      let suggestion = case trimmed {
+        "" -> "Hint: Empty values cannot be floats. Use get_value() for strings or provide a default."
+        _ -> {
+          case string.contains(trimmed, ",") {
+            True -> "Hint: Remove commas from numbers (use 1234.56 not 1,234.56)."
+            False -> case string.starts_with(trimmed, ".") {
+              True -> "Hint: Add leading zero (use '0" <> trimmed <> "' instead of '" <> trimmed <> "')."
+              False -> "Hint: Expected a decimal number like 3.14, -2.5, or 0.0."
+            }
+          }
+        }
+      }
+      Error("Cannot parse '" <> value <> "' as float at path '" <> path <> "'.\n" <> suggestion)
+    }
   }
 }
 
@@ -407,7 +435,20 @@ fn parse_bool(value: String, path: String) -> Result(Bool, String) {
   case trimmed {
     "true" | "yes" | "on" | "1" -> Ok(True)
     "false" | "no" | "off" | "0" -> Ok(False)
-    _ -> Error("Cannot parse '" <> value <> "' as boolean at path '" <> path <> "'")
+    _ -> {
+      let suggestion = case trimmed {
+        "" -> "Hint: Empty values cannot be booleans. Use get_value() for strings."
+        "y" | "n" -> "Hint: Use full words: 'yes' or 'no'."
+        "t" | "f" -> "Hint: Use full words: 'true' or 'false'."
+        _ -> {
+          case string.contains(trimmed, "enabled") || string.contains(trimmed, "disabled") {
+            True -> "Hint: Use 'true'/'false', 'yes'/'no', 'on'/'off', or '1'/'0'."
+            False -> "Hint: Valid values are 'true', 'false', 'yes', 'no', 'on', 'off', '1', or '0'."
+          }
+        }
+      }
+      Error("Cannot parse '" <> value <> "' as boolean at path '" <> path <> "'.\n" <> suggestion)
+    }
   }
 }
 

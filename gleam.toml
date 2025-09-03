@@ -21,3 +21,4 @@ ccl = { path = "packages/ccl" }
 
 [dev-dependencies]
 gleeunit = ">= 1.0.0 and < 2.0.0"
+gleamy_bench = ">= 0.6.0 and < 1.0.0"
