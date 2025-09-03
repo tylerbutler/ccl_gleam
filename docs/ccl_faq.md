@@ -253,10 +253,12 @@ Your application handles type conversion per item.
 **Core Parsing Level:** Preserves all duplicate entries in order - no merging occurs.
 
 ```ccl
-user = name: alice  
-user = age: 25
+user =
+  name = alice  
+user =
+  age = 25
 ```
-**Flat Result:** Two separate entries: `[("user", "name: alice"), ("user", "age: 25")]`
+**Flat Result:** Two separate entries: `[("user", "\n  name = alice"), ("user", "\n  age = 25")]`
 
 **Object Construction Level:** Applies deep merge for nested objects and accumulation for lists.
 
