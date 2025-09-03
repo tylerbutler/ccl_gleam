@@ -88,3 +88,40 @@ ci: format-check check test
 
 # Run full CI pipeline for all packages
 ci-all: format-check build-all test-all
+
+# === BENCHMARK TASKS ===
+
+# Run all benchmarks
+bench: bench-statistical bench-comparison bench-memory bench-demo
+
+# Run statistical performance benchmarks
+bench-statistical:
+	@echo "🔥 Running CCL Statistical Benchmarks..."
+	@gleam run --module ccl_statistical_benchmark
+
+# Run performance comparison with baselines
+bench-comparison:
+	@echo "⚡ Running CCL Performance Comparison..."
+	@gleam run --module ccl_json_comparison
+
+# Run memory usage analysis
+bench-memory:
+	@echo "🧠 Running CCL Memory Analysis..."
+	@gleam run --module ccl_memory_profiler
+
+# Run simple benchmark demo
+bench-demo:
+	@echo "📊 Running CCL Benchmark Demo..."
+	@gleam run --module ccl_benchmark_demo
+
+# Run quick performance check (statistical only)
+bench-quick: bench-statistical
+
+# Run comprehensive performance analysis
+bench-full: build bench-statistical bench-comparison bench-memory
+	@echo ""
+	@echo "✅ Full performance analysis completed!"
+	@echo "📝 See docs/performance_analysis.md for detailed results"
+
+# Clean and run all benchmarks (for clean measurement)
+bench-clean: clean build bench-full

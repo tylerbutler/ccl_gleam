@@ -60,7 +60,8 @@
       "Bash(just build-all:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(gleam deps:*)"
     ],
     "deny": [],
     "ask": []

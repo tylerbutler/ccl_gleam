@@ -5,7 +5,6 @@ import gleam/io
 import gleam/int
 import gleam/list
 import gleam/string
-import gleam/result
 import ccl_core
 import ccl
 
