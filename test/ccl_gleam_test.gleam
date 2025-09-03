@@ -99,6 +99,177 @@ pub fn ccl_error_test_suite_test() {
   })
 }
 
+// Algebraic property test cases
+pub fn ccl_algebraic_test_suite_test() {
+  let algebraic_test_cases = test_suite_types.get_algebraic_test_cases()
+  
+  io.println(
+    "Loaded " <> string.inspect(list.length(algebraic_test_cases)) <> " algebraic test cases",
+  )
+  
+  let results = list.map(algebraic_test_cases, run_algebraic_test)
+  
+  let passed = list.count(results, fn(r) { r == True })
+  let failed = list.count(results, fn(r) { r == False })
+  let total = list.length(results)
+  
+  io.println("\n=== Algebraic Test Summary ===")
+  io.println("Total tests: " <> string.inspect(total))
+  io.println("Passed: " <> string.inspect(passed))
+  io.println("Failed: " <> string.inspect(failed))
+  
+  // Only fail at the end if there were failures
+  case failed > 0 {
+    True -> should.fail()
+    False -> Nil
+  }
+}
+
+// Helper function to run a single algebraic test
+fn run_algebraic_test(test_case: test_suite_types.AlgebraicTestCase) -> Bool {
+  case test_case {
+    test_suite_types.MonoidIdentityTest(name, description, _property, input1, input2, expected_combined, _tags) -> {
+      io.println("Running algebraic test: " <> name <> " - " <> description)
+      
+      case ccl_core.parse(input1), ccl_core.parse(input2) {
+        Ok(entries1), Ok(entries2) -> {
+          let combined = list.append(entries1, entries2)
+          case combined == expected_combined {
+            True -> {
+              io.println("  ✓ PASS")
+              True
+            }
+            False -> {
+              io.println("  ✗ FAIL")
+              io.println("    Expected: " <> string.inspect(expected_combined))
+              io.println("    Got:      " <> string.inspect(combined))
+              False
+            }
+          }
+        }
+        Error(err1), _ -> {
+          io.println("  ✗ PARSE ERROR (input1): " <> string.inspect(err1))
+          False
+        }
+        _, Error(err2) -> {
+          io.println("  ✗ PARSE ERROR (input2): " <> string.inspect(err2))
+          False
+        }
+      }
+    }
+    
+    test_suite_types.SemigroupAssocTest(name, description, _property, input1, input2, input3, expected_left, expected_right, _tags) -> {
+      io.println("Running algebraic test: " <> name <> " - " <> description)
+      
+      case ccl_core.parse(input1), ccl_core.parse(input2), ccl_core.parse(input3) {
+        Ok(entries1), Ok(entries2), Ok(entries3) -> {
+          // Test (a + b) + c
+          let left_assoc = list.append(list.append(entries1, entries2), entries3)
+          // Test a + (b + c)  
+          let right_assoc = list.append(entries1, list.append(entries2, entries3))
+          
+          case left_assoc == expected_left && right_assoc == expected_right && left_assoc == right_assoc {
+            True -> {
+              io.println("  ✓ PASS")
+              True
+            }
+            False -> {
+              io.println("  ✗ FAIL")
+              io.println("    Expected left:  " <> string.inspect(expected_left))
+              io.println("    Got left:      " <> string.inspect(left_assoc))
+              io.println("    Expected right: " <> string.inspect(expected_right))
+              io.println("    Got right:     " <> string.inspect(right_assoc))
+              False
+            }
+          }
+        }
+        Error(err), _, _ -> {
+          io.println("  ✗ PARSE ERROR: " <> string.inspect(err))
+          False
+        }
+        _, Error(err), _ -> {
+          io.println("  ✗ PARSE ERROR: " <> string.inspect(err))
+          False
+        }
+        _, _, Error(err) -> {
+          io.println("  ✗ PARSE ERROR: " <> string.inspect(err))
+          False
+        }
+      }
+    }
+    
+    test_suite_types.CompositionTest(name, description, _property, input1, input2, expected_combined, _tags) -> {
+      io.println("Running algebraic test: " <> name <> " - " <> description)
+      
+      case ccl_core.parse(input1), ccl_core.parse(input2) {
+        Ok(entries1), Ok(entries2) -> {
+          let combined = list.append(entries1, entries2)
+          case combined == expected_combined {
+            True -> {
+              io.println("  ✓ PASS")
+              True
+            }
+            False -> {
+              io.println("  ✗ FAIL")
+              io.println("    Expected: " <> string.inspect(expected_combined))
+              io.println("    Got:      " <> string.inspect(combined))
+              False
+            }
+          }
+        }
+        Error(err1), _ -> {
+          io.println("  ✗ PARSE ERROR (input1): " <> string.inspect(err1))
+          False
+        }
+        _, Error(err2) -> {
+          io.println("  ✗ PARSE ERROR (input2): " <> string.inspect(err2))
+          False
+        }
+      }
+    }
+    
+    test_suite_types.ConcatenationTest(name, description, _property, input1, input2, expected_text, expected_combined, _tags) -> {
+      io.println("Running algebraic test: " <> name <> " - " <> description)
+      
+      // Test both text concatenation and entry concatenation
+      let text_concat = input1 <> "\n" <> input2
+      let text_concat_matches = text_concat == expected_text
+      
+      case ccl_core.parse(input1), ccl_core.parse(input2), ccl_core.parse(text_concat) {
+        Ok(entries1), Ok(entries2), Ok(concat_entries) -> {
+          let manual_combined = list.append(entries1, entries2)
+          case text_concat_matches && manual_combined == expected_combined && concat_entries == expected_combined {
+            True -> {
+              io.println("  ✓ PASS")
+              True
+            }
+            False -> {
+              io.println("  ✗ FAIL")
+              io.println("    Text concat match: " <> string.inspect(text_concat_matches))
+              io.println("    Expected combined: " <> string.inspect(expected_combined))
+              io.println("    Manual combined:   " <> string.inspect(manual_combined))
+              io.println("    Concat parsed:     " <> string.inspect(concat_entries))
+              False
+            }
+          }
+        }
+        Error(err), _, _ -> {
+          io.println("  ✗ PARSE ERROR: " <> string.inspect(err))
+          False
+        }
+        _, Error(err), _ -> {
+          io.println("  ✗ PARSE ERROR: " <> string.inspect(err))
+          False
+        }
+        _, _, Error(err) -> {
+          io.println("  ✗ PARSE ERROR: " <> string.inspect(err))
+          False
+        }
+      }
+    }
+  }
+}
+
 // === TYPED PARSING TESTS ===
 
 /// Test typed parsing functionality using JSON test cases - fully JSON-driven

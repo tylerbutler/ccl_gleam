@@ -3,6 +3,7 @@ import gleam/dict
 import gleam/dynamic/decode
 import gleam/io
 import gleam/json
+import gleam/string
 import simplifile
 
 pub type TestCase {
@@ -71,7 +72,61 @@ pub fn get_error_test_cases() -> List(ErrorTestCase) {
   }
 }
 
+pub fn get_algebraic_test_cases() -> List(AlgebraicTestCase) {
+  case load_test_suite() {
+    Ok(test_suite) -> test_suite.algebraic_tests
+    Error(_) -> []
+  }
+}
+
 // This function now loads from separate JSON file instead of main test suite
+
+// Algebraic property test case types
+pub type AlgebraicTestCase {
+  // For monoid identity tests (2 inputs)
+  MonoidIdentityTest(
+    name: String,
+    description: String,
+    property: String,
+    input1: String,
+    input2: String,
+    expected_combined: List(ccl_core.Entry),
+    tags: List(String),
+  )
+  // For semigroup associativity tests (3 inputs)  
+  SemigroupAssocTest(
+    name: String,
+    description: String,
+    property: String,
+    input1: String,
+    input2: String,
+    input3: String,
+    expected_left_assoc: List(ccl_core.Entry),
+    expected_right_assoc: List(ccl_core.Entry),
+    tags: List(String),
+  )
+  // For general composition tests (2 inputs)
+  CompositionTest(
+    name: String,
+    description: String,
+    property: String,
+    input1: String,
+    input2: String,
+    expected_combined: List(ccl_core.Entry),
+    tags: List(String),
+  )
+  // For text concatenation tests
+  ConcatenationTest(
+    name: String,
+    description: String,
+    property: String,
+    input1: String,
+    input2: String,
+    expected_text_concat: String,
+    expected_combined: List(ccl_core.Entry),
+    tags: List(String),
+  )
+}
 
 // JSON test suite structure decoder
 type TestSuite {
@@ -79,6 +134,7 @@ type TestSuite {
     tests: List(TestCase), 
     error_tests: List(ErrorTestCase),
     typed_parsing_tests: List(TypedTestCase),
+    algebraic_tests: List(AlgebraicTestCase),
   )
 }
 
@@ -92,16 +148,20 @@ fn load_test_suite() -> Result(TestSuite, String) {
           "error_tests",
           decode.list(error_test_case_decoder()),
         )
+        use algebraic_tests <- decode.field(
+          "algebraic_tests",
+          decode.list(algebraic_test_decoder()),
+        )
         // For now, just return empty list for typed parsing tests
         // Will implement full decoder later
         let typed_parsing_tests = []
-        decode.success(TestSuite(tests:, error_tests:, typed_parsing_tests:))
+        decode.success(TestSuite(tests:, error_tests:, typed_parsing_tests:, algebraic_tests:))
       }
 
       case json.parse(content, test_suite_decoder) {
         Ok(parsed) -> Ok(parsed)
-        Error(_err) -> {
-          io.println("JSON parse error occurred")
+        Error(err) -> {
+          io.println("JSON parse error occurred: " <> string.inspect(err))
           Error("Failed to parse JSON")
         }
       }
@@ -242,6 +302,45 @@ fn typed_value_decoder() -> decode.Decoder(TypedValue) {
     _ -> {
       // For unknown type, just return a StringVal as fallback
       decode.success(StringVal("unknown"))
+    }
+  }
+}
+
+// Decoder for algebraic test cases
+fn algebraic_test_decoder() -> decode.Decoder(AlgebraicTestCase) {
+  use property <- decode.field("property", decode.string)
+  use name <- decode.field("name", decode.string)
+  use description <- decode.field("description", decode.string)
+  use tags <- decode.field("tags", decode.list(decode.string))
+  
+  case property {
+    "monoid_identity_left" | "monoid_identity_right" | "monoid_identity_reflexive" -> {
+      use input1 <- decode.field("input1", decode.string)
+      use input2 <- decode.field("input2", decode.string)
+      use expected_combined <- decode.field("expected_combined", decode.list(entry_decoder()))
+      decode.success(MonoidIdentityTest(name:, description:, property:, input1:, input2:, expected_combined:, tags:))
+    }
+    "semigroup_associativity" | "nested_associativity" -> {
+      use input1 <- decode.field("input1", decode.string)
+      use input2 <- decode.field("input2", decode.string)
+      use input3 <- decode.field("input3", decode.string)
+      use expected_left_assoc <- decode.field("expected_left_assoc", decode.list(entry_decoder()))
+      use expected_right_assoc <- decode.field("expected_right_assoc", decode.list(entry_decoder()))
+      decode.success(SemigroupAssocTest(name:, description:, property:, input1:, input2:, input3:, expected_left_assoc:, expected_right_assoc:, tags:))
+    }
+    "concatenation_equivalence" -> {
+      use input1 <- decode.field("input1", decode.string)
+      use input2 <- decode.field("input2", decode.string)
+      use expected_text_concat <- decode.field("expected_text_concat", decode.string)
+      use expected_combined <- decode.field("expected_combined", decode.list(entry_decoder()))
+      decode.success(ConcatenationTest(name:, description:, property:, input1:, input2:, expected_text_concat:, expected_combined:, tags:))
+    }
+    _ -> {
+      // Default to composition test for other properties
+      use input1 <- decode.field("input1", decode.string)
+      use input2 <- decode.field("input2", decode.string)
+      use expected_combined <- decode.field("expected_combined", decode.list(entry_decoder()))
+      decode.success(CompositionTest(name:, description:, property:, input1:, input2:, expected_combined:, tags:))
     }
   }
 }
