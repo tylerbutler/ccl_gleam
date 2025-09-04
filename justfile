@@ -121,7 +121,7 @@ bench-quick: bench-statistical
 bench-full: build bench-statistical bench-comparison bench-memory
 	@echo ""
 	@echo "✅ Full performance analysis completed!"
-	@echo "📝 See docs/performance_analysis.md for detailed results"
+	@echo "📝 See plans/performance_analysis.md for detailed results"
 
 # Clean and run all benchmarks (for clean measurement)
 bench-clean: clean build bench-full
