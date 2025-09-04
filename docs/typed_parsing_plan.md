@@ -1,8 +1,8 @@
-# Typed Parsing Plan for CCL
+# Typed Parsing - IMPLEMENTED ✅
 
 ## Overview
 
-This plan adds type-aware parsing as an optional layer on top of the core CCL string-based functionality. Core CCL remains unchanged (everything as strings), with type inference provided by new functions that parse strings into typed values.
+Type-aware parsing is **fully implemented** as an optional layer on top of the core CCL string-based functionality. Core CCL remains unchanged (everything as strings), with type inference provided by new functions that parse strings into typed values.
 
 ## Architecture
 
@@ -37,24 +37,21 @@ pub type ParseOptions {
 }
 ```
 
-### API Functions
+### Implemented API Functions ✅
 ```gleam
-// Options presets
-pub fn basic_options() -> ParseOptions     // no parsing (all False)
-pub fn smart_options() -> ParseOptions     // all parsing enabled (all True)
+// Available in packages/ccl/src/ccl.gleam
 
-// Primary typed access (uses smart_options() as default)
+// Options presets
+pub fn basic_options() -> ParseOptions     // no parsing (all False)  
+pub fn smart_options() -> ParseOptions    // all parsing enabled (all True)
+
+// Primary typed access
 pub fn get_int(ccl: CCL, path: String) -> Result(Int, String)
 pub fn get_float(ccl: CCL, path: String) -> Result(Float, String)
 pub fn get_bool(ccl: CCL, path: String) -> Result(Bool, String)
 
-// With custom options when needed  
-pub fn get_int_with_options(ccl: CCL, path: String, options: ParseOptions) -> Result(Int, String)
-pub fn get_float_with_options(ccl: CCL, path: String, options: ParseOptions) -> Result(Float, String)
-pub fn get_bool_with_options(ccl: CCL, path: String, options: ParseOptions) -> Result(Bool, String)
-
-// Generic typed access
-pub fn get_typed_value(ccl: CCL, path: String) -> Result(ValueType, String)          // uses smart_options()
+// Generic typed access with automatic type inference
+pub fn get_typed_value(ccl: CCL, path: String) -> Result(ValueType, String)
 pub fn get_typed_value_with_options(ccl: CCL, path: String, options: ParseOptions) -> Result(ValueType, String)
 ```
 

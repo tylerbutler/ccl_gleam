@@ -1,8 +1,8 @@
-# CCL Pretty-Printer Implementation Plan
+# CCL Pretty-Printer - PARTIALLY IMPLEMENTED ⚠️
 
 ## Overview
 
-This document outlines the implementation plan for a CCL pretty-printer that enables round-trip testing and homomorphism property verification for the CCL parser.
+A CCL pretty-printer is **partially implemented** but needs enhancement to meet the full requirements for round-trip testing and canonical CCL formatting.
 
 ## Goals
 
@@ -11,12 +11,28 @@ This document outlines the implementation plan for a CCL pretty-printer that ena
 3. **Canonical Formatting**: Provide consistent CCL output format
 4. **Developer Tools**: Support config file normalization and formatting
 
-## Design Requirements
+## Current Implementation Status
 
-### Core Functionality
+### What's Implemented ✅
+```gleam
+// Available in packages/ccl/src/ccl.gleam
+pub fn pretty_print_ccl(ccl: CCL) -> String
+```
 
-- **Input**: `CCL` nested structure or `List(Entry)` flat entries
-- **Output**: Canonical CCL text representation
+The current implementation provides:
+- **JSON-like debug output** - Shows nested structure with indentation
+- **Key visualization** - Empty keys shown as `<empty>`
+- **Recursive formatting** - Handles nested structures
+
+### What's Missing ❌
+- **CCL format output** - Currently outputs debug format, not canonical CCL
+- **Round-trip capability** - Output can't be parsed back to CCL
+- **Entry-based input** - Only accepts `CCL` objects, not `List(Entry)`
+- **Canonical formatting rules** - Doesn't follow CCL syntax conventions
+
+### Required Enhancements
+- **Input**: `CCL` nested structure **and** `List(Entry)` flat entries
+- **Output**: Canonical CCL text representation (not debug JSON)
 - **Invertibility**: `parse(pretty_print(ccl)) == ccl` (up to normalization)
 - **Consistency**: Same logical structure always produces same text output
 

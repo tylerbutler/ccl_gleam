@@ -1,8 +1,8 @@
-# Comment Layer Plan for CCL
+# Comment Layer - IMPLEMENTED ✅
 
 ## Overview
 
-Add a simple optional comment filtering layer to CCL using key-based exclusion. Comments are treated as regular key-value pairs that can be filtered out using a single, flexible function.
+The comment filtering layer is **fully implemented** in CCL. Comments are treated as regular key-value pairs that can be filtered out using the `filter_keys()` function.
 
 ## Comment Syntax
 
@@ -14,15 +14,15 @@ Following the CCL specification, comments use special keys:
   - `//= C-style comment`
   - `comment = Any custom key`
 
-## Implementation
+## Current Implementation ✅
 
-### Single Filter Function
+### Available Function
 ```gleam
-// One function, always takes a list of keys to exclude
-pub fn filter_keys(entries: List(Entry), exclude_keys: List(String)) -> List(Entry) {
-  list.filter(entries, fn(entry) { !list.contains(exclude_keys, entry.key) })
-}
+// Implemented in packages/ccl/src/ccl.gleam
+pub fn filter_keys(entries: List(Entry), exclude_keys: List(String)) -> List(Entry)
 ```
+
+The function filters out entries whose keys match any key in the exclude list.
 
 ### Usage Examples
 ```gleam
@@ -49,12 +49,17 @@ let ccl = entries_to_ccl(no_comments)
 4. **Optional**: Works as a filter layer on top of existing parsing
 5. **Non-breaking**: Doesn't change existing CCL functionality
 
-## Integration
+## Test Coverage ✅
 
-- Add `filter_keys` function to `ccl.gleam`
-- Works with existing `Entry(key: String, value: String)` structure
-- Fits into parsing pipeline: `parse -> filter -> convert to CCL`
-- No changes needed to core CCL parsing or data structures
+The JSON test suite includes comment filtering tests:
+
+**Comment Tests:**
+- `comment_extension` - Tests `/= This is a comment` syntax
+- `comment_syntax_slash_equals` - Tests slash-equals comment format  
+- `comment_preservation_composition` - Tests comments during composition
+- `realistic_stress_test` - Includes comments in complex scenarios
+
+All comment functionality is **implemented and tested**!
 
 ## Benefits
 

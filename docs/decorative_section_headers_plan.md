@@ -1,8 +1,8 @@
-# Decorative Section Headers Plan
+# Decorative Section Headers - NOT YET IMPLEMENTED ⏳
 
 ## Overview
 
-Add support for organizing CCL entries using decorative section headers. This feature provides visual organization and programmatic grouping of configuration entries without changing the parsing logic or data structures.
+Support for organizing CCL entries using decorative section headers is **planned but not yet implemented**. This feature would provide visual organization and programmatic grouping of configuration entries.
 
 ## Decorative Section Header Syntax
 
@@ -27,9 +27,19 @@ step = loop
 - **No structural changes** - Headers are just regular entries that can be filtered
 - **Flexible patterns** - Users choose their own header syntax
 
-## API Design
+## Current Status
 
-### Core Data Types
+### Test Coverage
+The test suite includes one basic test for section-like syntax:
+- `section_style_syntax` - Tests `== Section 2 ==` parsing as empty key
+
+### Implementation Status
+- ❌ **SectionGroup** type not implemented
+- ❌ **HeaderPattern** type not implemented  
+- ❌ **group_by_sections()** function not implemented
+- ❌ Section filtering and grouping APIs missing
+
+### Proposed API Design
 ```gleam
 pub type SectionGroup {
   SectionGroup(header: Option(String), entries: List(Entry))
