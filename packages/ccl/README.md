@@ -53,8 +53,6 @@ case ccl.get(ccl_obj, "server.ports") {
 
 ## Key Features
 
-### Key Features
-
 - **Unified `get()` API** - Single function that returns values in their natural form
 - **Smart type detection** - Automatically handles strings, lists, and nested objects
 - **Enhanced list handling** - Works with both single values and multi-value lists

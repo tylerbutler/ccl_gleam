@@ -54,50 +54,42 @@ Parse CCL text and access nested values using dot notation:
 ```gleam
 import ccl
 
-// Parse CCL text demonstrating duplicate key handling
+let config = "database.host = localhost\ndatabase.port = 5432"
+case ccl.parse(config) {
+  Ok(entries) -> {
+    let objects = ccl.make_objects(entries)
+    case ccl.get(objects, "database.host") {
+      Ok(ccl.CclString(host)) -> io.println("Host: " <> host)
+      _ -> io.println("Host not found") 
+    }
+  }
+  Error(err) -> io.println("Parse error: " <> err.reason)
+}
+```
+
+### Real-World Example
+
+CCL handles duplicate keys by merging them into structured objects:
+
+```gleam
+import ccl
+
 let ccl_text = "
-// Duplicate keys merge at object level
 database =
   host = localhost
 database =
   port = 5432
-  
-// Empty keys accumulate into lists  
 server =
   ports =
     = 8000
     = 8001
-    = 8002
 "
 
 case ccl.parse(ccl_text) {
   Ok(flat_entries) -> {
-    // Flat level: preserves duplicates as separate entries
-    // [Entry("database", "host = localhost"), Entry("database", "port = 5432")]
-    
     let ccl_obj = ccl.make_objects(flat_entries)
-    // Object level: merges duplicate keys into single structure
-    // database: { host: "localhost", port: "5432" }
-    // server: { ports: { "": ["8000", "8001", "8002"] } }
-    
-    // Access merged object fields
-    case ccl.get(ccl_obj, "database.host") {
-      Ok(ccl.CclString(host)) -> io.println("Host: " <> host)  // "localhost"
-      _ -> io.println("Host not found")
-    }
-    
-    case ccl.get(ccl_obj, "database.port") {
-      Ok(ccl.CclString(port)) -> io.println("Port: " <> port)  // "5432"  
-      _ -> io.println("Port not found")
-    }
-    
-    // Access list from empty keys
-    case ccl.get(ccl_obj, "server.ports") {
-      Ok(ccl.CclList(ports)) -> {
-        io.println("Ports: " <> string.join(ports, ", "))  // "8000, 8001, 8002"
-      }
-      _ -> io.println("Ports not found")
-    }
+    // database.host = "localhost", database.port = "5432"
+    // server.ports = ["8000", "8001"]
   }
   Error(err) -> io.println("Parse error: " <> err.reason)
 }
@@ -105,11 +97,27 @@ case ccl.parse(ccl_text) {
 
 ### Package Selection Guide
 
-Choose the right package for your needs:
+Choose the right package for your specific use case:
 
-- **`ccl`** - Full-featured library with unified access API (recommended for most applications)
-- **`ccl_core`** - Minimal library for basic parsing (libraries, minimal dependencies)
-- **`ccl_test_loader`** - Testing utilities for cross-language compatibility (development only)
+#### 🎯 **Use `ccl` if you need:**
+- **Application development** - Building apps that consume CCL configuration
+- **Type-safe parsing** - `get_int()`, `get_bool()`, `get_float()` with error handling
+- **Smart accessors** - Unified `get()` API that handles strings, lists, and objects
+- **Better error messages** - Actionable guidance instead of generic parsing errors
+- **Enhanced list handling** - Flexible handling of both single values and lists
+
+#### ⚡ **Use `ccl_core` if you need:**
+- **Library development** - Building your own CCL abstractions or tools
+- **Minimal dependencies** - Zero external dependencies beyond Gleam stdlib
+- **Custom parsing logic** - Direct access to parsing internals and entry structures
+- **Performance-critical applications** - Minimal overhead for basic parsing
+
+#### 🧪 **Use `ccl_test_loader` if you need:**
+- **Testing CCL implementations** - Cross-language compatibility testing
+- **Development utilities** - JSON-based test suite loading
+- **Implementation validation** - Ensuring compliance with CCL specification
+
+**Quick Decision:** Use `ccl` for applications, `ccl_core` for libraries.
 
 ## Installation
 
@@ -120,7 +128,15 @@ gleam add ccl_core  # Minimal core library
 
 ## Documentation
 
-- **[CCL Specification](https://chshersh.com/blog/2025-01-06-the-most-elegant-configuration-language.html)** - Language reference
-- **[API Documentation](https://hexdocs.pm/ccl/)** - Full library docs
-- **[Core API Documentation](https://hexdocs.pm/ccl_core/)** - Minimal library docs
+### 📖 Learning Guides
+- **[Getting Started](docs/getting-started.md)** - Quick introduction and first examples
+- **[Advanced Patterns](docs/advanced-patterns.md)** - Complex configurations and best practices  
+- **[Gleam Features](docs/gleam-features.md)** - Type-safe parsing and advanced error handling
+- **[Migration Guide](docs/migration-guide.md)** - Convert from JSON, YAML, TOML, environment variables
+
+### 📚 Reference
+- **[CCL Specification](https://chshersh.com/blog/2025-01-06-the-most-elegant-configuration-language.html)** - Official language reference
+- **[Glossary](docs/glossary.md)** - Technical terms and concepts
+- **[API Documentation](https://hexdocs.pm/ccl/)** - Full library API reference
+- **[Core API Documentation](https://hexdocs.pm/ccl_core/)** - Minimal library API reference
 

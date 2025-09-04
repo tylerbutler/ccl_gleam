@@ -1,26 +1,39 @@
-# CCL (Categorical Configuration Language) Examples
+# CCL Examples - Comprehensive Reference
 
-Complete examples demonstrating the core CCL language and Gleam implementation features.
+**📚 This comprehensive reference has been reorganized into focused guides:**
 
-This guide is organized into two main parts:
-- **Part I: Core CCL Language** - Universal language features portable across all implementations
-- **Part II: Gleam CCL Implementation** - Gleam-specific enhancements and utilities
+## Quick Navigation
 
-## Table of Contents
+### 🚀 Getting Started
+**New to CCL?** Start here for a gentle introduction:
+- **[Getting Started with CCL](getting-started.md)** - Basic syntax, first Gleam program, simple examples
 
-### Part I: Core CCL Language
-- [Basic CCL Syntax](#basic-ccl-syntax)
-- [Core Language Features](#core-language-features)
-- [Lists and Arrays](#lists-and-arrays)
-- [Nested Configuration](#nested-configuration)
-- [Comments and Documentation](#comments-and-documentation)
-- [Migration Examples](#migration-examples)
+### 🏗️ Building Complex Configurations  
+**Ready for advanced patterns?** Learn complex configuration structures:
+- **[Advanced CCL Patterns](advanced-patterns.md)** - Nested structures, environment configs, documentation
 
-### Part II: Gleam CCL Implementation
-- [Gleam API Usage](#gleam-api-usage)
-- [Type-Safe Parsing](#type-safe-parsing)
-- [Error Handling](#error-handling)
-- [Advanced Gleam Patterns](#advanced-gleam-patterns)
+### ⚡ Gleam-Specific Features
+**Want type safety and advanced error handling?** Explore Gleam enhancements:
+- **[Gleam Features Guide](gleam-features.md)** - Type-safe parsing, smart accessors, configuration composition
+
+### 🔄 Migrating from Other Formats
+**Moving from JSON, YAML, or environment variables?** Get migration guidance:
+- **[Migration Guide](migration-guide.md)** - Convert from JSON, YAML, TOML, environment variables
+
+---
+
+## Why the Split?
+
+This original 1,200+ line file was overwhelming for users. The new focused guides provide:
+
+- **Faster Learning** - Start simple, progress to advanced
+- **Better Navigation** - Find exactly what you need
+- **Clearer Organization** - Separate language concepts from implementation details
+- **Practical Focus** - Each guide solves specific problems
+
+## Original Content
+
+The sections below contain the complete original examples for reference, but we recommend using the focused guides above for better learning experience.
 
 ---
 

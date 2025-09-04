@@ -5,6 +5,22 @@
 
 Minimal CCL parsing library with zero external dependencies. For enhanced features, see the [`ccl`](https://hex.pm/packages/ccl) package.
 
+## When to Use CCL Core
+
+**Choose `ccl_core` when you need:**
+
+- **Library Development** - Building CCL-based tools, parsers, or abstractions
+- **Minimal Dependencies** - Zero external dependencies beyond Gleam stdlib
+- **Custom Logic** - Direct access to parsing internals and entry structures  
+- **Performance Critical** - Minimal overhead for basic CCL operations
+- **Embedding** - Including CCL parsing in larger systems with strict dependency constraints
+
+**Choose the full `ccl` package when you need:**
+- Application development with enhanced usability features
+- Type-safe parsing with `get_int()`, `get_bool()`, `get_float()`
+- Better error messages and smart list handling
+- Unified `get()` API for different value types
+
 ## Installation
 
 Add `ccl_core` to your Gleam project:
