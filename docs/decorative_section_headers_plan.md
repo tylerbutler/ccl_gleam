@@ -6,18 +6,35 @@ Support for organizing CCL entries using decorative section headers is **planned
 
 ## Decorative Section Header Syntax
 
-Following the CCL specification, decorative headers use special key patterns:
+Following the CCL specification, decorative headers use special key patterns. These can work with both flat and nested configurations:
 
+### With Flat Configuration
 ```ccl
 === Section: Data ===
-str = 1000
-flags = 8
+data.str = 1000
+data.flags = 8
 
 === Section: Code ===  
-step = read
-step = eval
-step = print
-step = loop
+code.step.0 = read
+code.step.1 = eval
+code.step.2 = print
+code.step.3 = loop
+```
+
+### With Indented Nested Sections
+```ccl
+=== Section: Data ===
+data =
+  str = 1000
+  flags = 8
+
+=== Section: Code ===
+code =
+  steps =
+    = read
+    = eval
+    = print
+    = loop
 ```
 
 ## Design Philosophy
@@ -182,32 +199,102 @@ content
 
 ## Common Header Patterns
 
-### CCL Style
+### CCL Style with Nested Sections
 ```ccl
 === Database Configuration ===
+database =
+  host = localhost
+  port = 5432
+  name = myapp
+
 === Server Settings ===
+server =
+  host = 0.0.0.0
+  port = 8080
+  ssl =
+    enabled = true
+    cert = /path/to/cert.pem
+
 === Logging Options ===
+logging =
+  level = info
+  file = /var/log/app.log
 ```
 
-### INI Style
+### INI Style with Indented Content
 ```ccl
 [database]
-[server]  
+database =
+  host = localhost
+  port = 5432
+
+[server]
+server =
+  host = 0.0.0.0
+  port = 8080
+
 [logging]
+logging =
+  level = info
+  file = /var/log/app.log
 ```
 
-### Comment Style
+### Comment Style with Nested Sections
 ```ccl
 # --- Database Configuration ---
+database =
+  primary =
+    host = db1.example.com
+    port = 5432
+  replica =
+    host = db2.example.com
+    port = 5432
+
 # --- Server Settings ---
+server =
+  host = 0.0.0.0
+  port = 8080
+  middleware =
+    = cors
+    = auth
+    = logging
+
 # --- Logging Options ---
+logging =
+  level = info
+  outputs =
+    = console
+    = file
 ```
 
-### Custom Decorative
+### Custom Decorative with Indented Sections
 ```ccl
 /**** DATABASE SETTINGS ****/
+database =
+  connection =
+    host = localhost
+    port = 5432
+    pool_size = 20
+
 /**** SERVER CONFIG ****/
+server =
+  bind =
+    host = 0.0.0.0
+    port = 8080
+  features =
+    = ssl
+    = compression
+    = caching
+
 /**** LOGGING SETUP ****/
+logging =
+  level = info
+  destinations =
+    file =
+      path = /var/log/app.log
+      rotate = true
+    console =
+      format = json
 ```
 
 ## Testing Requirements

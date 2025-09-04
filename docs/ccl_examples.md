@@ -71,47 +71,75 @@ welcome_message = Welcome to our application!
 
 ## Core Language Features
 
-### Real-World Configuration Example
+### Real-World Configuration Example (Indented)
 
-CCL handles complex configuration with nested keys and various data types:
+CCL handles complex configuration using nested sections and various data types:
 
 ```ccl
-# Web server configuration
-server_name = production-api
-bind_address = 0.0.0.0
-port = 8080
-ssl = true
-ssl_cert = /path/to/certificate.pem
-ssl_key = /path/to/private-key.pem
+/= Web server configuration
+server =
+  name = production-api
+  bind_address = 0.0.0.0
+  port = 8080
+  
+  ssl =
+    enabled = true
+    cert = /path/to/certificate.pem
+    key = /path/to/private-key.pem
 
-# Logging configuration  
-log_level = info
-log_file = /var/log/app.log
-access_log = /var/log/access.log
+/= Logging configuration
+logging =
+  level = info
+  files =
+    app_log = /var/log/app.log
+    access_log = /var/log/access.log
 
-# Security settings
-csrf_protection = on
-rate_limiting = true
-max_requests_per_minute = 1000
+/= Security settings
+security =
+  csrf_protection = on
+  rate_limiting = true
+  max_requests_per_minute = 1000
 
-# Cache configuration
-cache_enabled = true
-cache_ttl = 300
+/= Cache configuration
+cache =
+  enabled = true
+  ttl = 300
 ```
 
 **Language Features:**
 - All values are strings at the language level: `8080`, `true`, `on`
 - No distinction between string, number, or boolean types in core CCL
 - Applications interpret string values as needed
-- Comments using `#` are just regular keys in core CCL
-```
+- Indented sections create logical groupings
+- Comments use `/=` for visual organization
 
-### Dot Notation for Hierarchical Keys
+### Hierarchical Organization (Indented)
 
-CCL supports hierarchical organization using dots in key names:
+CCL supports hierarchical organization using nested sections:
 
 ```ccl
-# Database configuration
+/= Database configuration
+database =
+  host = localhost
+  port = 5432
+  name = myapp_production
+  username = dbuser
+  password = secure_password123
+  ssl = true
+  pool_size = 20
+  timeout = 30.5
+
+/= Redis configuration
+redis =
+  host = redis.example.com
+  port = 6379
+  database = 0
+  password = redis_password
+```
+
+**Alternative: Dot Notation for Flat Keys**
+```ccl
+# Database configuration (flat dot notation)
 database.host = localhost
 database.port = 5432
 database.name = myapp_production
@@ -121,19 +149,18 @@ database.ssl = true
 database.pool_size = 20
 database.timeout = 30.5
 
-# Redis configuration
+# Redis configuration (flat dot notation)
 redis.host = redis.example.com
 redis.port = 6379
 redis.database = 0
 redis.password = redis_password
 ```
 
-**Language Features:**
-- Dots in keys create logical hierarchy: `database.host` vs `database.port`
-- No special nesting syntax - just key naming convention
-- All keys are flat strings at the language level
-- Hierarchy is interpretative, not structural
-```
+**Comparing Approaches:**
+- **Indented sections:** Less verbose, better readability, requires `ccl.make_objects()` processing
+- **Dot notation:** More explicit, works with raw entries, longer key names
+- **Both approaches** result in the same accessible data structure after processing
+- **Recommendation:** Use indented sections for complex configurations, dot notation for simple flat structures
 
 ### Empty Values
 
@@ -161,19 +188,36 @@ multiline_with_empty = First line
 
 ## Lists and Arrays
 
-### Simple Lists
+### Simple Lists (Indented)
 
 CCL represents lists using empty keys (`=`) with indented values:
 
 ```ccl
-# List using empty keys
+/= Network configuration
+network =
+  allowed_hosts =
+    = localhost
+    = 127.0.0.1
+    = example.com
+    = api.example.com
+  
+  ports =
+    = 80
+    = 443
+    = 8080
+    = 3000
+```
+
+**Alternative: Flat List Structure**
+```ccl
+# List using empty keys (flat structure)
 allowed_hosts =
   = localhost
   = 127.0.0.1
   = example.com
   = api.example.com
 
-# Port list
+# Port list (flat structure)
 ports =
   = 80
   = 443
@@ -186,6 +230,7 @@ ports =
 - List items use indented `= value` syntax
 - List items are ordered as they appear in the file
 - Each list item value follows the same rules as regular values
+- Lists can be nested within sections for better organization
 
 ### Array-Style Lists
 
@@ -207,12 +252,38 @@ database_urls.1 = postgres://db2.example.com/myapp
 - No special array syntax - just naming convention
 - Applications must interpret numeric suffixes as array indices
 
-### Complex List Structures
+### Complex List Structures (Indented)
 
-Combining lists with hierarchical keys for complex data:
+Combining lists with nested sections for complex data:
 
 ```ccl
-# Feature flags with metadata
+/= Feature configuration
+features =
+  enabled =
+    = user_registration
+    = email_notifications  
+    = advanced_search
+  
+  beta =
+    = beta_dashboard
+
+feature_config =
+  user_registration =
+    enabled = true
+    rollout_percentage = 100
+  
+  email_notifications =
+    enabled = true
+    rollout_percentage = 80
+  
+  beta_dashboard =
+    enabled = false
+    rollout_percentage = 5
+```
+
+**Alternative: Flat Structure with Dot Notation**
+```ccl
+# Feature flags with metadata (flat structure)
 features =
   = user_registration
   = email_notifications  
@@ -227,19 +298,60 @@ feature_config.beta_dashboard.rollout_percentage = 5
 ```
 
 **Language Features:**
-- Lists can reference keys used elsewhere in the configuration
-- Hierarchical keys can be built from list values
-- No cross-references or linking in core CCL - just key naming patterns
+- Lists can be organized within nested sections
+- Hierarchical structure makes relationships clearer
+- Both indented and dot notation approaches work
+- Indented sections provide better visual organization
 - Applications interpret relationships between keys
 
 ## Nested Configuration
 
-### Hierarchical Configuration
+### Indented Nested Sections
 
-Building complex configuration hierarchies with dot notation:
+CCL supports true structural nesting using indentation syntax:
 
 ```ccl
-# Application configuration with nested sections
+/= Application configuration with indented nested sections
+app =
+  name = MyApplication
+  version = 2.1.0
+  debug = false
+  
+  server =
+    host = 0.0.0.0
+    port = 8080
+    
+    ssl =
+      enabled = true
+      cert_file = /etc/ssl/cert.pem
+      key_file = /etc/ssl/private.key
+  
+  database =
+    primary =
+      host = db1.example.com
+      port = 5432
+      name = myapp_prod
+    
+    replica =
+      host = db2.example.com
+      port = 5432
+      name = myapp_prod
+```
+
+**Language Features:**
+- True structural nesting using indentation
+- Empty values (`app =`) indicate nested sections
+- Indented key-value pairs belong to the parent section
+- Nested sections can contain other nested sections
+- Indentation level determines hierarchy depth
+- **Note:** Indented nested sections require `ccl.make_objects()` to process the hierarchical structure
+
+### Hierarchical Configuration (Dot Notation)
+
+Alternative approach using dot notation for flat key representation:
+
+```ccl
+# Application configuration with dot notation
 app.name = MyApplication
 app.version = 2.1.0
 app.debug = false
@@ -261,13 +373,51 @@ app.database.replica.name = myapp_prod
 
 **Language Features:**
 - Deep hierarchies created through dot notation: `app.server.ssl.enabled`
-- Each dotted key is independent - no structural nesting in core CCL
+- Each dotted key is independent - no structural nesting
 - Hierarchy is purely naming convention, not syntax
 - All keys remain flat strings at the language level
+- **Advantage:** Works directly with parsed entries, no `make_objects()` required
 
-### Environment-Specific Configuration
+### Environment-Specific Configuration (Indented)
 
-Using prefixes to organize environment-specific settings:
+Using indented sections to organize environment-specific settings:
+
+```ccl
+/= Base configuration
+app_name = MyApp
+version = 1.0.0
+
+/= Development environment
+development =
+  debug = true
+  log_level = debug
+  
+  database =
+    host = localhost
+    port = 5432
+  
+  cache =
+    enabled = false
+
+/= Production environment
+production =
+  debug = false
+  log_level = warning
+  
+  database =
+    host = prod-db.example.com
+    port = 5432
+  
+  cache =
+    enabled = true
+    
+    redis =
+      host = redis-cluster.example.com
+```
+
+### Environment-Specific Configuration (Dot Notation)
+
+Alternative flat approach using prefixes:
 
 ```ccl
 # Base configuration
@@ -291,6 +441,7 @@ production.cache.redis.host = redis-cluster.example.com
 ```
 
 **Language Features:**
+- Both indented sections and dot notation create hierarchy
 - Environment prefixes: `development.`, `production.`
 - Global keys without prefixes serve as defaults
 - Applications choose which prefixed keys to prioritize
@@ -300,104 +451,153 @@ production.cache.redis.host = redis-cluster.example.com
 
 ### Using Special Keys for Comments
 
-CCL uses special key names for documentation and comments:
+CCL uses special key names for documentation and comments. The standard comment key is `/`, but any key can be used as a comment:
 
 ```ccl
 /= Application Configuration
 /= Version: 2.1.0
 /= Last updated: 2024-01-15
 
-# Basic application settings
 app_name = MyApplication
+/= The display name for the application
+
 version = 2.1.0
 
 /= Security Configuration
 /= These settings control authentication and authorization
 security.jwt.secret = your-super-secret-key-here
 security.jwt.expiration = 3600
+#= Expiration time in seconds
 security.password.min_length = 8
 security.password.require_special_chars = true
 
-#= Database Configuration  
-#= Primary database connection settings
+//= Database Configuration (alternative comment style)
+//= Primary database connection settings
 database.host = localhost
 database.port = 5432
 
-//= Redis Configuration
-//= Used for caching and session storage
+/= Redis Configuration
 redis.host = localhost
 redis.port = 6379
 redis.database = 0
+/= Redis database number (0-15)
 ```
 
 **Language Features:**
-- Comment keys: `/=`, `#=`, `//=`, etc.
+- Standard comment key: `/=` (most common)
+- Alternative comment keys: `#=`, `//=`, etc. (any key works)
 - Comments are regular key-value pairs in core CCL
+- Comments can appear before, after, or between configuration values
 - No special comment syntax - just naming convention
 - Applications filter comment keys as needed
 - Values after comment keys can be multiline
 
-### Inline Documentation Pattern
+### Flexible Documentation Patterns (Indented)
 
-Common pattern for documenting individual configuration values:
+Comments can appear anywhere in the configuration - before, after, or between values:
 
 ```ccl
+/= API Configuration Section
+api =
+  /= Rate limit: requests per minute per IP address
+  rate_limit = 100
+  
+  /= Connection timeout in seconds
+  timeout = 30.0
+
+/= Database Configuration
+database =
+  /= Maximum number of database connections in the pool
+  pool_size = 20
+  
+  /= Query timeout in seconds - adjust based on your query complexity
+  query_timeout = 10
+  /= This setting affects performance significantly
+```
+
+**Alternative: Flat Structure with Comments**
+```ccl
+/= API Configuration Section
 api.rate_limit = 100
 /= Rate limit: requests per minute per IP address
 
-api.timeout = 30.0
 /= Connection timeout in seconds
+api.timeout = 30.0
 
 database.pool_size = 20
 #= Maximum number of database connections in the pool
 
-database.query_timeout = 10
 #= Query timeout in seconds - adjust based on your query complexity
+database.query_timeout = 10
+/= This setting affects performance significantly
 ```
 
 **Language Features:**
-- Documentation keys placed after the values they describe
+- Comments can be placed before, after, or between configuration values
 - No association between regular keys and comment keys in core CCL
 - Positional documentation is purely conventional
 - Applications may use position to link docs to values
+- Flexible placement allows for both section headers and inline documentation
 
 ## Gleam API Usage
 
 ### Basic Parsing and Access
 
 ```ccl
-# Basic configuration
-app_name = MyApplication
-version = 1.2.3
-debug = true
-port = 8080
+/= Basic application configuration
+app =
+  name = MyApplication
+  version = 1.2.3
+  debug = true
+  port = 8080
 ```
 
 ```gleam
 // Parse CCL text into entry list, then create accessible object
 let config = ccl.parse(ccl_text)
   |> result.unwrap([])
-  |> ccl.make_objects()
+  |> ccl.make_objects()  // Required for nested structure access
 
-// Access values as strings (core CCL behavior)
-let app_name = ccl.get_value(config, "app_name") // Ok("MyApplication")
-let version = ccl.get_value(config, "version")   // Ok("1.2.3")
+// Access nested values using dot notation (works with indented structure)
+let app_name = ccl.get_value(config, "app.name") // Ok("MyApplication")
+let version = ccl.get_value(config, "app.version")   // Ok("1.2.3")
 
 // Gleam enhancement: Type-aware parsing
-let port = ccl.get_int(config, "port")           // Ok(8080)
-let debug = ccl.get_bool(config, "debug")        // Ok(True)
+let port = ccl.get_int(config, "app.port")           // Ok(8080)
+let debug = ccl.get_bool(config, "app.debug")        // Ok(True)
+
+// Alternative: Skip make_objects() for flat dot notation
+let entries = ccl.parse(flat_dot_ccl_text) |> result.unwrap([])
+// Direct access to entries without hierarchical processing
 ```
 
 **Gleam Enhancements:**
 - `ccl.parse()` - Parses CCL text to entry list
-- `ccl.make_objects()` - Builds queryable object from entries  
+- `ccl.make_objects()` - **Required** for nested sections, processes hierarchical structure
 - `ccl.get_value()` - Gets raw string value (core CCL)
 - `ccl.get_int()`, `ccl.get_bool()`, `ccl.get_float()` - Type-safe parsing
+- **Processing choice:** Use `make_objects()` for nested sections, skip for simple flat structures
 
 ### Working with Configuration Objects
 
 ```ccl
-# Hierarchical configuration
+/= Service configuration
+services =
+  database =
+    host = localhost
+    port = 5432
+    name = myapp_production
+    username = dbuser
+    password = secure_password123
+  
+  redis =
+    host = redis.example.com
+    port = 6379
+```
+
+**Alternative: Flat Structure**
+```ccl
+# Hierarchical configuration (dot notation)
 database.host = localhost
 database.port = 5432
 database.name = myapp_production
@@ -420,11 +620,12 @@ pub type DatabaseConfig {
 
 pub fn load_database_config(ccl: ccl.CCL) -> Result(DatabaseConfig, String) {
   // Gleam enhancement: use chaining for clean error handling
-  use host <- result.try(ccl.get_value(ccl, "database.host"))
-  use port <- result.try(ccl.get_int(ccl, "database.port"))
-  use name <- result.try(ccl.get_value(ccl, "database.name"))
-  use username <- result.try(ccl.get_value(ccl, "database.username"))
-  use password <- result.try(ccl.get_value(ccl, "database.password"))
+  // Works with both indented (services.database.host) and flat (database.host) structures
+  use host <- result.try(ccl.get_value(ccl, "services.database.host"))
+  use port <- result.try(ccl.get_int(ccl, "services.database.port"))
+  use name <- result.try(ccl.get_value(ccl, "services.database.name"))
+  use username <- result.try(ccl.get_value(ccl, "services.database.username"))
+  use password <- result.try(ccl.get_value(ccl, "services.database.password"))
   
   Ok(DatabaseConfig(
     host: host,
@@ -444,7 +645,22 @@ pub fn load_database_config(ccl: ccl.CCL) -> Result(DatabaseConfig, String) {
 ### Working with Lists
 
 ```ccl
-# Lists in CCL
+/= Network configuration with lists
+network =
+  allowed_hosts =
+    = localhost
+    = 127.0.0.1
+    = example.com
+  
+  ports =
+    = 80
+    = 443
+    = 8080
+```
+
+**Alternative: Flat List Structure**
+```ccl
+# Lists in CCL (flat structure)
 allowed_hosts =
   = localhost
   = 127.0.0.1
@@ -458,14 +674,19 @@ ports =
 
 ```gleam
 // Gleam enhancement: List extraction with type conversion
-let hosts = ccl.get_list(config, "allowed_hosts")
+// Works with nested structure: "network.allowed_hosts"
+let hosts = ccl.get_list(config, "network.allowed_hosts")
 // Ok(["localhost", "127.0.0.1", "example.com"])
 
 // Parse list values as specific types
-let ports = ccl.get_list(config, "ports")
+let ports = ccl.get_list(config, "network.ports")
   |> result.map(list.map(_, int.parse))
   |> result.map(result.values)
 // Ok([80, 443, 8080])
+
+// For flat structure, use direct keys:
+let flat_hosts = ccl.get_list(config, "allowed_hosts") // Flat structure
+let flat_ports = ccl.get_list(config, "ports")         // Flat structure
 
 // Alternative: Array-style access  
 let primary_server = ccl.get_value(config, "servers.0")    
