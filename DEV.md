@@ -327,6 +327,97 @@ The CCL structure `CCL(dict.Dict(String, CCL))` creates a recursive map where:
 - Empty keys (`""`) are used for list-style structures
 - The structure matches the OCaml reference implementation's `type t = Fix of t Map.t`
 
+#### Detailed Structure Analysis
+
+**Design Principles:**
+
+1. **Uniform Representation**: Everything is a map, even terminal values
+2. **Empty Key Convention**: Terminal values use `""` (empty string) as a key
+3. **Recursive Nesting**: Maps can contain other maps arbitrarily deep
+
+**Terminal Value Encoding:**
+
+Simple values like `simple = value` become:
+```gleam
+CCL({
+  "simple": CCL({
+    "": CCL({
+      "value": CCL({})  // Empty map = terminal
+    })
+  })
+})
+```
+
+The access path is: `"simple" → "" → "value" → {}`
+
+**Nested Object Encoding:**
+
+Nested structures like:
+```ccl
+user =
+  name = alice
+  age = 25
+```
+
+Become:
+```gleam
+CCL({
+  "user": CCL({
+    "name": CCL({
+      "": CCL({
+        "alice": CCL({})  // Terminal: alice
+      })
+    }),
+    "age": CCL({
+      "": CCL({
+        "25": CCL({})     // Terminal: 25
+      })
+    })
+  })
+})
+```
+
+**List/Array Encoding:**
+
+List structures using empty keys:
+```ccl
+ports =
+  = 8000
+  = 8001
+  = 8002
+```
+
+Become:
+```gleam
+CCL({
+  "ports": CCL({
+    "": CCL({
+      "8000": CCL({}),  // First element
+      "8001": CCL({}),  // Second element  
+      "8002": CCL({})   // Third element
+    })
+  })
+})
+```
+
+**Why This Structure:**
+
+1. **Mathematical Foundation**: Matches OCaml's `type t = Fix of t Map.t` (fixed-point of maps)
+2. **Uniform Access**: Every lookup follows the same pattern regardless of nesting level
+3. **Compositionality**: Easy to merge structures using map operations
+4. **Type Safety**: No special cases - everything follows the same recursive pattern
+
+**Navigation Pattern:**
+
+To access `user.name`:
+1. Start with root CCL
+2. Look up `"user"` → get CCL
+3. Look up `"name"` → get CCL  
+4. Look up `""` → get CCL
+5. Keys in final map are the actual values (`"alice"`)
+
+The empty key `""` acts as a **value container** - it separates the navigation structure from the actual terminal values.
+
 ### Testing Strategy
 
 The implementation includes comprehensive test coverage:
@@ -368,35 +459,77 @@ CCL's mathematical foundation requires testing monoid and semigroup properties:
 
 This two-step process separates syntax parsing from semantic object construction, making both easier to understand and test independently while maintaining full compatibility with the CCL specification and reference implementation.
 
+## Frequently Asked Questions
+
+### Q: Why does the CCL structure use empty keys (`""`)?
+
+**A:** This is a common point of confusion when examining the internal CCL structure. The empty key `""` serves as a **"value container marker"**.
+
+**The Problem:** CCL's internal structure is uniform - everything must be a map (`CCL(dict.Dict(String, CCL))`). But terminal values like `"alice"` aren't maps, they're just strings.
+
+**The Solution:** The empty key `""` means **"this is where the actual value lives"**.
+
+```gleam
+// name = alice becomes:
+CCL({
+  "name": CCL({           // Navigate to "name" 
+    "": CCL({             // Empty key = "here's the value"
+      "alice": CCL({})    // The actual value "alice"
+    })
+  })
+})
+```
+
+**Think of it as three layers:**
+1. **Navigation layer**: `"name"` - tells you which field
+2. **Value container layer**: `""` - says "the value is in here" 
+3. **Value layer**: `"alice"` - the actual terminal value
+
+**Why not just store strings directly?** The structure could theoretically be `Dict(String, String | CCL)` but that would:
+- Break uniformity (sometimes string, sometimes CCL)
+- Make merging complex (different types to handle) 
+- Lose mathematical elegance (no longer a pure recursive map)
+
+**Key insight:** When you see `"": CCL({"alice": CCL({})})`, read it as:
+- `""` = "here are the values"
+- `"alice"` = the actual value
+- `CCL({})` = end of recursion
+
+**Important:** Users never interact with this directly - the API functions handle all the complexity of navigating these structures.
+
+### Q: Do I need to understand the internal CCL structure?
+
+**A:** No! The complex recursive structure is an implementation detail. Users work with the clean public API:
+
+```gleam
+// Simple user workflow:
+case ccl.parse(ccl_text) {
+  Ok(entries) -> {
+    let nested = ccl.make_objects(entries)
+    ccl.pretty_print_ccl(nested)
+  }
+  Error(err) -> // handle error
+}
+```
+
+The internal representation enables powerful features like merging and pretty-printing, but you just call the provided functions.
+
 ## Known Issues & TODOs
 
-### 🚨 CRITICAL BUG: Tab Indentation Not Supported
+### ✅ FIXED: Tab Indentation Support
 
-**Issue**: The current implementation only counts spaces for indentation tracking, but the OCaml reference implementation supports both spaces and tabs.
+**Status**: RESOLVED - Tab indentation is now fully supported.
 
-**Impact**: 
-- Test case `tab_only_indentation` in the JSON test suite fails
-- CCL files using tabs for indentation will be parsed incorrectly
-- Incompatible with OCaml reference implementation
-
-**Root Cause**: 
-- Function `count_leading_spaces_helper()` in `ccl_core.gleam:470-477` only handles `" "` characters
-- Missing case for `"\t"` characters
-
-**OCaml Reference**: 
-- Uses `char ' ' <|> char '\t'` treating spaces and tabs as equivalent indentation units
-- Each space or tab counts as one unit of indentation
-
-**Fix Required**:
+**Fix Applied**: Function `count_leading_spaces_helper()` now correctly handles both spaces and tabs:
 ```gleam
 fn count_leading_spaces_helper(graphemes: List(String), count: Int) -> Int {
   case graphemes {
     [] -> count
     [" ", ..rest] -> count_leading_spaces_helper(rest, count + 1)  // Space
-    ["\t", ..rest] -> count_leading_spaces_helper(rest, count + 1)  // Tab - MISSING
+    ["\t", ..rest] -> count_leading_spaces_helper(rest, count + 1)  // Tab ✅ FIXED
     _ -> count
   }
 }
 ```
 
-**Priority**: HIGH - This affects core parsing compatibility with the reference implementation.
+**Compatibility**: Now fully compatible with OCaml reference implementation for indentation handling.
