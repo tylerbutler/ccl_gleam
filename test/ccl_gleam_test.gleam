@@ -175,8 +175,8 @@ fn run_algebraic_test(test_case: test_suite_types.AlgebraicTestCase) -> Bool {
       input1,
       input2,
       input3,
-      expected_left,
-      expected_right,
+      expected_left_assoc,
+      expected_right_assoc,
       _tags,
     ) -> {
       io.println("Running algebraic test: " <> name <> " - " <> description)
@@ -195,8 +195,8 @@ fn run_algebraic_test(test_case: test_suite_types.AlgebraicTestCase) -> Bool {
             list.append(entries1, list.append(entries2, entries3))
 
           case
-            left_assoc == expected_left
-            && right_assoc == expected_right
+            left_assoc == expected_left_assoc
+            && right_assoc == expected_right_assoc
             && left_assoc == right_assoc
           {
             True -> {
@@ -206,11 +206,11 @@ fn run_algebraic_test(test_case: test_suite_types.AlgebraicTestCase) -> Bool {
             False -> {
               io.println("  ✗ FAIL")
               io.println(
-                "    Expected left:  " <> string.inspect(expected_left),
+                "    Expected left:  " <> string.inspect(expected_left_assoc),
               )
               io.println("    Got left:      " <> string.inspect(left_assoc))
               io.println(
-                "    Expected right: " <> string.inspect(expected_right),
+                "    Expected right: " <> string.inspect(expected_right_assoc),
               )
               io.println("    Got right:     " <> string.inspect(right_assoc))
               False

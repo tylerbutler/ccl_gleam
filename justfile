@@ -36,8 +36,13 @@ format-check:
 cleam:
 	gleam run -m cleam
 
-# Run all linting checks
-lint: check format-check cleam
+# Audit dependencies for security issues (displays progress spinner)
+audit:
+	@echo "Running dependency security audit (this may take a while)..."
+	@mise exec -- gleam run -m go_over -- --format minimal
+
+# Run all linting checks (cleam temporarily disabled due to parsing issues)
+lint: check format-check
 
 # Fix formatting and run checks
 fix: format check

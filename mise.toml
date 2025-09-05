@@ -2,3 +2,4 @@
 erlang = "28"
 gleam = "latest"
 just = "latest"
+rebar = "latest"
