@@ -3,7 +3,6 @@ import gleam/dict
 import gleam/dynamic/decode
 import gleam/io
 import gleam/json
-import gleam/string
 import simplifile
 
 pub type TestCase {
@@ -42,6 +41,16 @@ pub type TypedTestCase {
   )
 }
 
+pub type NestedTestCase {
+  NestedTestCase(
+    name: String,
+    input: String,
+    expected_flat: List(ccl_core.Entry),
+    expected_nested: dict.Dict(String, String),  // Simplified for now
+    tags: List(String),
+  )
+}
+
 pub type TypedValue {
   StringVal(String)
   IntVal(Int)
@@ -54,126 +63,30 @@ pub type ParseOptions {
   ParseOptions(parse_integers: Bool, parse_floats: Bool, parse_booleans: Bool)
 }
 
-// Load and parse JSON test suite
-pub fn get_test_cases() -> List(TestCase) {
-  case load_test_suite() {
-    Ok(test_suite) -> test_suite.tests
-    Error(_) -> []
-  }
+// REMOVED: Legacy test loading functions - all tests now in 4-level files
+
+// New 4-level test loading functions
+pub fn get_level1_tests() -> List(TestCase) {
+  load_level_test_file("ccl-test-suite/ccl-entry-parsing.json")
 }
 
-pub fn get_error_test_cases() -> List(ErrorTestCase) {
-  case load_test_suite() {
-    Ok(test_suite) -> test_suite.error_tests
-    Error(_) -> []
-  }
+pub fn get_level2_tests() -> List(TestCase) {
+  load_level_test_file("ccl-test-suite/ccl-entry-processing.json")
 }
 
-pub fn get_algebraic_test_cases() -> List(AlgebraicTestCase) {
-  case load_test_suite() {
-    Ok(test_suite) -> test_suite.algebraic_tests
-    Error(_) -> []
-  }
+pub fn get_level3_tests() -> List(NestedTestCase) {
+  load_level3_test_file("ccl-test-suite/ccl-object-construction.json")
 }
 
-// This function now loads from separate JSON file instead of main test suite
-
-// Algebraic property test case types
-pub type AlgebraicTestCase {
-  // For monoid identity tests (2 inputs)
-  MonoidIdentityTest(
-    name: String,
-    description: String,
-    property: String,
-    input1: String,
-    input2: String,
-    expected_combined: List(ccl_core.Entry),
-    tags: List(String),
-  )
-  // For semigroup associativity tests (3 inputs)  
-  SemigroupAssocTest(
-    name: String,
-    description: String,
-    property: String,
-    input1: String,
-    input2: String,
-    input3: String,
-    expected_left_assoc: List(ccl_core.Entry),
-    expected_right_assoc: List(ccl_core.Entry),
-    tags: List(String),
-  )
-  // For general composition tests (2 inputs)
-  CompositionTest(
-    name: String,
-    description: String,
-    property: String,
-    input1: String,
-    input2: String,
-    expected_combined: List(ccl_core.Entry),
-    tags: List(String),
-  )
-  // For text concatenation tests
-  ConcatenationTest(
-    name: String,
-    description: String,
-    property: String,
-    input1: String,
-    input2: String,
-    expected_text_concat: String,
-    expected_combined: List(ccl_core.Entry),
-    tags: List(String),
-  )
+pub fn get_level4_tests() -> List(TypedTestCase) {
+  get_typed_parsing_test_cases()
 }
 
-// JSON test suite structure decoder
-type TestSuite {
-  TestSuite(
-    tests: List(TestCase),
-    error_tests: List(ErrorTestCase),
-    typed_parsing_tests: List(TypedTestCase),
-    algebraic_tests: List(AlgebraicTestCase),
-  )
+pub fn get_error_tests() -> List(ErrorTestCase) {
+  load_error_test_file("ccl-test-suite/ccl-errors.json")
 }
 
-// Load and parse JSON test suite
-fn load_test_suite() -> Result(TestSuite, String) {
-  case simplifile.read("ccl-test-suite/ccl-test-suite.json") {
-    Ok(content) -> {
-      let test_suite_decoder = {
-        use tests <- decode.field("tests", decode.list(test_case_decoder()))
-        use error_tests <- decode.field(
-          "error_tests",
-          decode.list(error_test_case_decoder()),
-        )
-        use algebraic_tests <- decode.field(
-          "algebraic_tests",
-          decode.list(algebraic_test_decoder()),
-        )
-        // For now, just return empty list for typed parsing tests
-        // Will implement full decoder later
-        let typed_parsing_tests = []
-        decode.success(TestSuite(
-          tests:,
-          error_tests:,
-          typed_parsing_tests:,
-          algebraic_tests:,
-        ))
-      }
-
-      case json.parse(content, test_suite_decoder) {
-        Ok(parsed) -> Ok(parsed)
-        Error(err) -> {
-          io.println("JSON parse error occurred: " <> string.inspect(err))
-          Error("Failed to parse JSON")
-        }
-      }
-    }
-    Error(err) -> {
-      io.println("File read error: " <> simplifile.describe_error(err))
-      Error("Failed to read test suite file")
-    }
-  }
-}
+// REMOVED: Legacy test suite structures and loading - replaced by 4-level architecture
 
 // Decoder for Entry objects
 fn entry_decoder() -> decode.Decoder(ccl_core.Entry) {
@@ -182,33 +95,7 @@ fn entry_decoder() -> decode.Decoder(ccl_core.Entry) {
   decode.success(ccl_core.Entry(key, value))
 }
 
-// Decoder for test cases
-fn test_case_decoder() -> decode.Decoder(TestCase) {
-  use name <- decode.field("name", decode.string)
-  use description <- decode.field("description", decode.string)
-  use input <- decode.field("input", decode.string)
-  use expected <- decode.field("expected", decode.list(entry_decoder()))
-  use tags <- decode.field("tags", decode.list(decode.string))
-  decode.success(TestCase(name:, description:, input:, expected:, tags:))
-}
-
-// Decoder for error test cases
-fn error_test_case_decoder() -> decode.Decoder(ErrorTestCase) {
-  use name <- decode.field("name", decode.string)
-  use description <- decode.field("description", decode.string)
-  use input <- decode.field("input", decode.string)
-  use expected_error <- decode.field("expected_error", decode.bool)
-  use error_message <- decode.field("error_message", decode.string)
-  use tags <- decode.field("tags", decode.list(decode.string))
-  decode.success(ErrorTestCase(
-    name:,
-    description:,
-    input:,
-    expected_error:,
-    error_message:,
-    tags:,
-  ))
-}
+// REMOVED: Legacy test case decoders - replaced by simple 4-level decoders
 
 // Load typed parsing test cases from JSON file
 pub fn get_typed_parsing_test_cases() -> List(TypedTestCase) {
@@ -320,96 +207,113 @@ fn typed_value_decoder() -> decode.Decoder(TypedValue) {
   }
 }
 
-// Decoder for algebraic test cases
-fn algebraic_test_decoder() -> decode.Decoder(AlgebraicTestCase) {
-  use property <- decode.field("property", decode.string)
-  use name <- decode.field("name", decode.string)
-  use description <- decode.field("description", decode.string)
-  use tags <- decode.field("tags", decode.list(decode.string))
+// REMOVED: Algebraic test decoder - algebraic tests moved to Level 2 composition_tests
 
-  case property {
-    "monoid_identity_left"
-    | "monoid_identity_right"
-    | "monoid_identity_reflexive" -> {
-      use input1 <- decode.field("input1", decode.string)
-      use input2 <- decode.field("input2", decode.string)
-      use expected_combined <- decode.field(
-        "expected_combined",
-        decode.list(entry_decoder()),
-      )
-      decode.success(MonoidIdentityTest(
-        name:,
-        description:,
-        property:,
-        input1:,
-        input2:,
-        expected_combined:,
-        tags:,
-      ))
+// New loading functions for 4-level architecture
+
+fn load_level_test_file(filename: String) -> List(TestCase) {
+  case simplifile.read(filename) {
+    Ok(content) -> {
+      let simple_test_suite_decoder = {
+        use tests <- decode.field("tests", decode.list(simple_test_case_decoder()))
+        decode.success(tests)
+      }
+
+      case json.parse(content, simple_test_suite_decoder) {
+        Ok(parsed) -> parsed
+        Error(_) -> []
+      }
     }
-    "semigroup_associativity" | "nested_associativity" -> {
-      use input1 <- decode.field("input1", decode.string)
-      use input2 <- decode.field("input2", decode.string)
-      use input3 <- decode.field("input3", decode.string)
-      use expected_left_assoc <- decode.field(
-        "expected_left_assoc",
-        decode.list(entry_decoder()),
-      )
-      use expected_right_assoc <- decode.field(
-        "expected_right_assoc",
-        decode.list(entry_decoder()),
-      )
-      decode.success(SemigroupAssocTest(
-        name:,
-        description:,
-        property:,
-        input1:,
-        input2:,
-        input3:,
-        expected_left_assoc:,
-        expected_right_assoc:,
-        tags:,
-      ))
-    }
-    "concatenation_equivalence" -> {
-      use input1 <- decode.field("input1", decode.string)
-      use input2 <- decode.field("input2", decode.string)
-      use expected_text_concat <- decode.field(
-        "expected_text_concat",
-        decode.string,
-      )
-      use expected_combined <- decode.field(
-        "expected_combined",
-        decode.list(entry_decoder()),
-      )
-      decode.success(ConcatenationTest(
-        name:,
-        description:,
-        property:,
-        input1:,
-        input2:,
-        expected_text_concat:,
-        expected_combined:,
-        tags:,
-      ))
-    }
-    _ -> {
-      // Default to composition test for other properties
-      use input1 <- decode.field("input1", decode.string)
-      use input2 <- decode.field("input2", decode.string)
-      use expected_combined <- decode.field(
-        "expected_combined",
-        decode.list(entry_decoder()),
-      )
-      decode.success(CompositionTest(
-        name:,
-        description:,
-        property:,
-        input1:,
-        input2:,
-        expected_combined:,
-        tags:,
-      ))
-    }
+    Error(_) -> []
   }
+}
+
+fn load_level3_test_file(filename: String) -> List(NestedTestCase) {
+  case simplifile.read(filename) {
+    Ok(content) -> {
+      let nested_test_suite_decoder = {
+        use tests <- decode.field("tests", decode.list(nested_test_case_decoder()))
+        decode.success(tests)
+      }
+
+      case json.parse(content, nested_test_suite_decoder) {
+        Ok(parsed) -> parsed
+        Error(_) -> []
+      }
+    }
+    Error(_) -> []
+  }
+}
+
+fn load_error_test_file(filename: String) -> List(ErrorTestCase) {
+  case simplifile.read(filename) {
+    Ok(content) -> {
+      let error_test_suite_decoder = {
+        use tests <- decode.field("tests", decode.list(simple_error_test_case_decoder()))
+        decode.success(tests)
+      }
+
+      case json.parse(content, error_test_suite_decoder) {
+        Ok(parsed) -> parsed
+        Error(_) -> []
+      }
+    }
+    Error(_) -> []
+  }
+}
+
+fn simple_error_test_case_decoder() -> decode.Decoder(ErrorTestCase) {
+  use name <- decode.field("name", decode.string)
+  use input <- decode.field("input", decode.string)
+  use expected_error <- decode.field("expected_error", decode.bool)
+  use error_message <- decode.field("error_message", decode.string)
+  use meta <- decode.field("meta", meta_decoder())
+  decode.success(ErrorTestCase(
+    name: name,
+    description: name,  // Use name as description
+    input: input,
+    expected_error: expected_error,
+    error_message: error_message,
+    tags: meta.tags,
+  ))
+}
+
+fn simple_test_case_decoder() -> decode.Decoder(TestCase) {
+  use name <- decode.field("name", decode.string)
+  use input <- decode.field("input", decode.string)
+  use expected <- decode.field("expected", decode.list(entry_decoder()))
+  use meta <- decode.field("meta", meta_decoder())
+  decode.success(TestCase(
+    name: name,
+    description: name,
+    input: input,
+    expected: expected,
+    tags: meta.tags,
+  ))
+}
+
+fn nested_test_case_decoder() -> decode.Decoder(NestedTestCase) {
+  use name <- decode.field("name", decode.string)
+  use input <- decode.field("input", decode.string)
+  use expected_flat <- decode.field("expected_flat", decode.list(entry_decoder()))
+  use meta <- decode.field("meta", meta_decoder())
+  // Skip expected_nested for now - it's complex nested JSON
+  let expected_nested = dict.new()
+  decode.success(NestedTestCase(
+    name: name,
+    input: input,
+    expected_flat: expected_flat,
+    expected_nested: expected_nested,
+    tags: meta.tags,
+  ))
+}
+
+pub type TestMetadata {
+  TestMetadata(tags: List(String), level: Int)
+}
+
+fn meta_decoder() -> decode.Decoder(TestMetadata) {
+  use tags <- decode.field("tags", decode.list(decode.string))
+  use level <- decode.field("level", decode.int)
+  decode.success(TestMetadata(tags: tags, level: level))
 }

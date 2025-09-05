@@ -3,34 +3,44 @@
 - If local docs are insufficient, fall back to the authoritative CCL documentation at https://chshersh.com/blog/2025-01-06-the-most-elegant-configuration-language.html
 - The reference OCaml CCL implementation is at https://github.com/chshersh/ccl
 
-## Implementation Status (Updated 2025-01-09)
+## CCL Architecture (4-Level Implementation)
 
-### ✅ FULLY IMPLEMENTED
-- **Nested Section Syntax** - Indented hierarchical config parsing with comprehensive test coverage
-  - Documentation: plans/nested_section_syntax_plan.md ✅
-  - API: `parse()` and `make_objects()` handle nested sections automatically
-  - Tests: `nested_key_value_pairs`, `deep_nested_structure`, `recursive_nested_*`, `stress_test_complex_nesting`
+CCL is designed as a layered architecture where each level builds on the previous one:
 
-- **Comment Layer** - Key-based filtering with simple `filter_keys()` function  
-  - Documentation: plans/comment_layer_plan.md ✅
-  - API: `filter_keys(entries, exclude_keys)` in packages/ccl/src/ccl.gleam
-  - Tests: `comment_extension`, `comment_syntax_slash_equals`, `comment_preservation_composition`
+### Level 1: Entry Parsing (Core)
+**API**: `parse(text) → Result(List(Entry), ParseError)`
+- Converts raw CCL text to flat key-value entries
+- Handles whitespace, multiline values, unicode, error detection
+- **Status**: ✅ FULLY IMPLEMENTED
+- **Tests**: `ccl-test-suite/ccl-entry-parsing.json` (18 tests)
 
-- **Typed Parsing** - Type-safe parsing with Result types and smart inference
-  - Documentation: plans/typed_parsing_plan.md ✅  
-  - API: `get_int()`, `get_float()`, `get_bool()`, `get_typed_value()`, `smart_options()`
-  - Tests: Full typed parsing test suite in ccl-test-suite/ccl-typed-parsing-examples.json
+### Level 2: Entry Processing (Extensions)  
+**API**: `filter_keys()`, composition functions
+- Processes Entry[] to filtered/grouped Entry[]
+- Comment filtering, duplicate key handling, algebraic composition
+- **Status**: ✅ FULLY IMPLEMENTED (comments), ❌ NOT IMPLEMENTED (decorative sections)
+- **Tests**: `ccl-test-suite/ccl-entry-processing.json` (10 tests)
 
-### ❌ NOT IMPLEMENTED
-- **Decorative Section Headers** - Visual config organization with grouping APIs
-  - Documentation: plans/decorative_section_headers_plan.md ⏳
-  - Status: Only basic parsing test (`section_style_syntax`), no `SectionGroup` or `group_by_sections()` APIs
+### Level 3: Object Construction (Hierarchical)
+**API**: `make_objects(entries) → CCL`
+- Converts flat Entry[] to nested object structures
+- Recursive parsing, duplicate key merging, empty key lists
+- **Status**: ✅ FULLY IMPLEMENTED
+- **Tests**: `ccl-test-suite/ccl-object-construction.json` (8 tests)
 
-### ⚠️ PARTIALLY IMPLEMENTED  
-- **Pretty Printer** - Debug output exists, canonical CCL formatting needed
-  - Documentation: plans/pretty_printer_implementation_plan.md ⚠️
-  - Current: `pretty_print_ccl()` outputs JSON-like debug format
-  - Missing: Canonical CCL output for round-trip testing
+### Level 4: Typed Parsing (Language-Specific)
+**API**: `get_int()`, `get_bool()`, `get_typed_value()`, etc.
+- Type-aware extraction with validation and inference
+- Smart parsing options, language-specific conveniences
+- **Status**: ✅ FULLY IMPLEMENTED  
+- **Tests**: `ccl-test-suite/ccl-typed-parsing-examples.json` (12 tests)
+
+### Error Handling (All Levels)
+**Tests**: `ccl-test-suite/ccl-errors.json` (5 tests)
+
+### ❌ REMAINING WORK
+- **Decorative Section Headers** (Level 2) - `group_by_sections()` API
+- **Pretty Printer** - Canonical CCL output formatting
 
 ## Gleam Development Guidelines
 
@@ -72,11 +82,23 @@
 - Type inference and hover documentation
 - Format-on-save enabled by default
 =======
-## Test Suite
-- All test cases are in JSON format in `ccl-test-suite/ccl-test-suite.json` for language-agnostic testing
-- Test suite includes 57 regular test cases, 5 error test cases, and 10 nested test cases
-- Tests are loaded via `test/test_suite_types.gleam` and executed by `test/ccl_gleam_test.gleam`
-- Demo files are located in `test/demo_*.gleam` (moved from src directory)
-- Future test specification is in `test/ccl_nested_test.gleam` (defines target behavior for unimplemented features)
-- remember tests should awlays be innjson format and dynamically run!
-- Never add hardcoded test cases! Always define the test cases in JSON.
+## Test Suite Architecture
+
+### Multi-Level Test Organization
+Tests are organized by CCL architecture level for clear implementation progression:
+
+- **`ccl-entry-parsing.json`** (Level 1) - Core parsing conformance (18 tests)
+- **`ccl-entry-processing.json`** (Level 2) - Comments, composition, filtering (10 tests)  
+- **`ccl-object-construction.json`** (Level 3) - Nested object building (8 tests)
+- **`ccl-typed-parsing-examples.json`** (Level 4) - Type-aware parsing (12 tests)
+- **`ccl-errors.json`** - Error handling across all levels (5 tests)
+
+### Legacy Files (Migration in Progress)
+- **`ccl-test-suite.json`** - Original monolithic test suite (legacy, use new files)
+
+### Test Implementation Guidelines
+- All test cases MUST be in JSON format for language-agnostic testing
+- Tests are loaded via `test/test_suite_types.gleam` and executed by `test/ccl_gleam_test.gleam`  
+- NEVER add hardcoded test cases - always define in JSON
+- Each test includes `meta` field with `level` and `tags` for categorization
+- Implementers can choose which levels to support based on their needs
