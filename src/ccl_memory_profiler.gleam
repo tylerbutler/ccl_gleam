@@ -1,31 +1,31 @@
 // CCL Memory Profiling Integration
 // Uses BEAM VM introspection to analyze memory usage patterns
 
-import gleam/io
-import gleam/int
-import gleam/string
-import gleam/list
-import ccl_core
 import ccl
+import ccl_core
+import gleam/int
+import gleam/io
+import gleam/list
+import gleam/string
 
 pub fn main() {
   io.println("🧠 CCL Memory Usage Analysis")
   io.println("============================")
   io.println("")
-  
+
   // Run memory analysis for different config sizes
   analyze_memory_usage()
-  
+
   io.println("")
-  
+
   // Analyze memory patterns during parsing
   analyze_parsing_memory()
-  
+
   io.println("")
-  
+
   // Analyze object construction memory usage
   analyze_construction_memory()
-  
+
   io.println("")
   io.println("📊 Memory Analysis Summary:")
   io.println("- CCL parsing memory scales linearly with input size")
@@ -37,43 +37,51 @@ pub fn main() {
 pub fn analyze_memory_usage() {
   io.println("📈 Memory Usage by Config Size")
   io.println("------------------------------")
-  
+
   let configs = [
     #("Small Config", generate_small_config()),
     #("Medium Config", generate_medium_config()),
     #("Large Config", generate_large_config()),
   ]
-  
+
   list.map(configs, fn(config_data) {
     let #(name, config_text) = config_data
     let size_bytes = string.byte_size(config_text)
-    
+
     // Measure memory before parsing
     let memory_before = get_process_memory()
-    
+
     // Parse the config
     case ccl_core.parse(config_text) {
       Ok(entries) -> {
         let memory_after_parse = get_process_memory()
-        
+
         // Construct objects
         let ccl_object = ccl_core.make_objects(entries)
         let memory_after_objects = get_process_memory()
-        
+
         // Calculate memory usage
         let parse_memory = memory_after_parse - memory_before
         let object_memory = memory_after_objects - memory_after_parse
         let total_memory = memory_after_objects - memory_before
-        
+
         io.println("📊 " <> name <> ":")
         io.println("   Input size: " <> int.to_string(size_bytes) <> " bytes")
         io.println("   Entries: " <> int.to_string(list.length(entries)))
-        io.println("   Parse memory: " <> int.to_string(parse_memory) <> " words")
-        io.println("   Object memory: " <> int.to_string(object_memory) <> " words")
-        io.println("   Total memory: " <> int.to_string(total_memory) <> " words")
-        io.println("   Memory ratio: " <> format_ratio(total_memory, size_bytes))
+        io.println(
+          "   Parse memory: " <> int.to_string(parse_memory) <> " words",
+        )
+        io.println(
+          "   Object memory: " <> int.to_string(object_memory) <> " words",
+        )
+        io.println(
+          "   Total memory: " <> int.to_string(total_memory) <> " words",
+        )
+        io.println(
+          "   Memory ratio: " <> format_ratio(total_memory, size_bytes),
+        )
         io.println("")
-        
+
         ccl_object
       }
       Error(_) -> {
@@ -82,46 +90,67 @@ pub fn analyze_memory_usage() {
       }
     }
   })
-  
+
   Nil
 }
 
 pub fn analyze_parsing_memory() {
   io.println("⚡ Memory Usage During Parsing Steps")
   io.println("------------------------------------")
-  
+
   let test_config = generate_medium_config()
   let initial_memory = get_process_memory()
-  
+
   io.println("🔄 Step-by-step memory analysis:")
   io.println("   Initial memory: " <> int.to_string(initial_memory) <> " words")
-  
+
   // Step 1: Parse to entries
   case ccl_core.parse(test_config) {
     Ok(entries) -> {
       let parse_memory = get_process_memory()
       let entry_count = list.length(entries)
-      
-      io.println("   After parsing: " <> int.to_string(parse_memory) <> " words")
-      io.println("   Parse overhead: " <> int.to_string(parse_memory - initial_memory) <> " words")
-      io.println("   Memory per entry: " <> format_memory_per_entry(parse_memory - initial_memory, entry_count))
-      
+
+      io.println(
+        "   After parsing: " <> int.to_string(parse_memory) <> " words",
+      )
+      io.println(
+        "   Parse overhead: "
+        <> int.to_string(parse_memory - initial_memory)
+        <> " words",
+      )
+      io.println(
+        "   Memory per entry: "
+        <> format_memory_per_entry(parse_memory - initial_memory, entry_count),
+      )
+
       // Step 2: Construct objects
       let ccl_object = ccl_core.make_objects(entries)
       let object_memory = get_process_memory()
-      
-      io.println("   After objects: " <> int.to_string(object_memory) <> " words")
-      io.println("   Object overhead: " <> int.to_string(object_memory - parse_memory) <> " words")
-      
+
+      io.println(
+        "   After objects: " <> int.to_string(object_memory) <> " words",
+      )
+      io.println(
+        "   Object overhead: "
+        <> int.to_string(object_memory - parse_memory)
+        <> " words",
+      )
+
       // Step 3: Access values (measure caching/access overhead)
       let _ = ccl_core.get_value(ccl_object, "app.name")
       let _ = ccl_core.get_value(ccl_object, "server.port")
       let _ = ccl.get_int(ccl_object, "server.port")
       let access_memory = get_process_memory()
-      
-      io.println("   After access: " <> int.to_string(access_memory) <> " words")
-      io.println("   Access overhead: " <> int.to_string(access_memory - object_memory) <> " words")
-      
+
+      io.println(
+        "   After access: " <> int.to_string(access_memory) <> " words",
+      )
+      io.println(
+        "   Access overhead: "
+        <> int.to_string(access_memory - object_memory)
+        <> " words",
+      )
+
       ccl_object
     }
     Error(_) -> {
@@ -129,42 +158,49 @@ pub fn analyze_parsing_memory() {
       ccl_core.make_objects([])
     }
   }
-  
+
   Nil
 }
 
 pub fn analyze_construction_memory() {
   io.println("🏗️ Object Construction Memory Patterns")
   io.println("--------------------------------------")
-  
+
   let construction_tests = [
     #("Flat 50 entries", generate_flat_entries(50)),
     #("Nested shallow (30x2)", generate_nested_entries(30, 2)),
     #("Nested deep (15x5)", generate_nested_entries(15, 5)),
     #("Mixed structure", generate_mixed_structure()),
   ]
-  
+
   list.map(construction_tests, fn(test_data) {
     let #(name, config_text) = test_data
     let initial_memory = get_process_memory()
-    
+
     case ccl_core.parse(config_text) {
       Ok(entries) -> {
         let parse_memory = get_process_memory()
         let entry_count = list.length(entries)
-        
+
         // Measure object construction memory
         let ccl_object = ccl_core.make_objects(entries)
         let final_memory = get_process_memory()
-        
+
         let construction_memory = final_memory - parse_memory
         let total_memory = final_memory - initial_memory
-        
+
         io.println("🔧 " <> name <> ":")
         io.println("   Entries: " <> int.to_string(entry_count))
-        io.println("   Construction memory: " <> int.to_string(construction_memory) <> " words")
-        io.println("   Memory per entry: " <> format_memory_per_entry(total_memory, entry_count))
-        
+        io.println(
+          "   Construction memory: "
+          <> int.to_string(construction_memory)
+          <> " words",
+        )
+        io.println(
+          "   Memory per entry: "
+          <> format_memory_per_entry(total_memory, entry_count),
+        )
+
         ccl_object
       }
       Error(_) -> {
@@ -173,13 +209,15 @@ pub fn analyze_construction_memory() {
       }
     }
   })
-  
+
   io.println("")
   io.println("💡 Memory Insights:")
   io.println("- Fixpoint algorithm is memory efficient for deep nesting")
-  io.println("- Memory usage correlates with structure complexity, not just size")
+  io.println(
+    "- Memory usage correlates with structure complexity, not just size",
+  )
   io.println("- Object construction memory is predictable and bounded")
-  
+
   Nil
 }
 
@@ -197,7 +235,7 @@ fn get_process_memory() -> Int {
 fn simulate_memory_usage() -> Int {
   // Simulate realistic memory growth patterns
   // Real implementation would use: :erlang.process_info(self(), :memory)
-  let base_memory = 10000
+  let base_memory = 10_000
   let random_variation = case string.byte_size("random") {
     n if n > 5 -> n * 100
     n -> n * 50
@@ -209,7 +247,8 @@ fn format_ratio(memory_words: Int, size_bytes: Int) -> String {
   case size_bytes {
     0 -> "N/A"
     _ -> {
-      let ratio = memory_words * 8 / size_bytes  // Assume 8 bytes per word
+      let ratio = memory_words * 8 / size_bytes
+      // Assume 8 bytes per word
       int.to_string(ratio) <> "x"
     }
   }
@@ -273,17 +312,24 @@ fn generate_large_config() -> String {
 
 fn generate_flat_entries(count: Int) -> String {
   list.range(1, count)
-  |> list.map(fn(i) { "key" <> int.to_string(i) <> " = value" <> int.to_string(i) })
+  |> list.map(fn(i) {
+    "key" <> int.to_string(i) <> " = value" <> int.to_string(i)
+  })
   |> string.join("\n")
 }
 
 fn generate_nested_entries(count: Int, depth: Int) -> String {
   list.range(1, count)
   |> list.map(fn(i) {
-    let nested_key = list.range(1, depth)
+    let nested_key =
+      list.range(1, depth)
       |> list.map(fn(level) { "section" <> int.to_string(level) })
       |> string.join(".")
-    nested_key <> ".key" <> int.to_string(i) <> " = nested_value" <> int.to_string(i)
+    nested_key
+    <> ".key"
+    <> int.to_string(i)
+    <> " = nested_value"
+    <> int.to_string(i)
   })
   |> string.join("\n")
 }

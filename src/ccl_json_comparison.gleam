@@ -1,26 +1,26 @@
 // CCL vs JSON Performance Comparison Benchmark
 // Compares CCL parsing performance against gleam_json
 
-import gleam/io
-import gleam/int
-import gleam/string
-import gleam/result
-import gleam/list
-import gleamy/bench
-import ccl_core
 import ccl
+import ccl_core
+import gleam/int
+import gleam/io
+import gleam/list
+import gleam/result
+import gleam/string
+import gleamy/bench
 
 pub fn main() {
   io.println("⚡ CCL Performance Analysis with Baselines")
   io.println("==========================================")
   io.println("")
-  
+
   run_parsing_comparison()
-  
+
   io.println("")
-  
+
   run_data_access_comparison()
-  
+
   io.println("")
   io.println("📊 Analysis Summary:")
   io.println("- CCL parsing performance vs string processing baseline")
@@ -32,13 +32,22 @@ pub fn main() {
 pub fn run_parsing_comparison() {
   io.println("🔄 Parsing Performance: CCL vs Baseline")
   io.println("---------------------------------------")
-  
+
   let test_data = [
-    bench.Input("small_config", #(generate_ccl_config(), generate_equivalent_json())),
-    bench.Input("medium_config", #(generate_medium_ccl_config(), generate_medium_json())),
-    bench.Input("large_config", #(generate_large_ccl_config(), generate_large_json())),
+    bench.Input("small_config", #(
+      generate_ccl_config(),
+      generate_equivalent_json(),
+    )),
+    bench.Input("medium_config", #(
+      generate_medium_ccl_config(),
+      generate_medium_json(),
+    )),
+    bench.Input("large_config", #(
+      generate_large_ccl_config(),
+      generate_large_json(),
+    )),
   ]
-  
+
   let parsing_functions = [
     bench.Function("ccl_parse", fn(data) {
       let #(ccl_text, _) = data
@@ -53,12 +62,8 @@ pub fn run_parsing_comparison() {
       string.length(ccl_text) + string.length(json_text) > 0
     }),
   ]
-  
-  bench.run(
-    test_data,
-    parsing_functions,
-    [bench.Duration(3000)]
-  )
+
+  bench.run(test_data, parsing_functions, [bench.Duration(3000)])
   |> bench.table([bench.IPS, bench.Min, bench.P(99)])
   |> io.println()
 }
@@ -66,19 +71,20 @@ pub fn run_parsing_comparison() {
 pub fn run_data_access_comparison() {
   io.println("🎯 Data Access Performance: CCL Different Approaches")
   io.println("----------------------------------------------------")
-  
+
   // Pre-parse both formats for access comparison
-  let ccl_config = generate_ccl_config()
+  let ccl_config =
+    generate_ccl_config()
     |> ccl_core.parse()
     |> result.map(ccl_core.make_objects)
     |> result.unwrap(ccl_core.make_objects([]))
-    
+
   let json_data = generate_equivalent_json()
-  
+
   let access_data = [
     bench.Input("config_data", #(ccl_config, json_data)),
   ]
-  
+
   let access_functions = [
     bench.Function("ccl_string_access", fn(data) {
       let #(ccl_config, _) = data
@@ -101,12 +107,8 @@ pub fn run_data_access_comparison() {
       ccl_config
     }),
   ]
-  
-  bench.run(
-    access_data,
-    access_functions,
-    [bench.Duration(3000)]
-  )
+
+  bench.run(access_data, access_functions, [bench.Duration(3000)])
   |> bench.table([bench.IPS, bench.Min, bench.P(99)])
   |> io.println()
 }
@@ -181,15 +183,30 @@ fn generate_large_ccl_config() -> String {
 fn create_service_configs(count: Int) -> String {
   string.join(
     list.map(list.range(1, count), fn(i) {
-      "service" <> int.to_string(i) <> ".name = Service" <> int.to_string(i) <> "
-service" <> int.to_string(i) <> ".port = " <> int.to_string(9000 + i) <> "
-service" <> int.to_string(i) <> ".enabled = " <> case i % 2 {
+      "service"
+      <> int.to_string(i)
+      <> ".name = Service"
+      <> int.to_string(i)
+      <> "
+service"
+      <> int.to_string(i)
+      <> ".port = "
+      <> int.to_string(9000 + i)
+      <> "
+service"
+      <> int.to_string(i)
+      <> ".enabled = "
+      <> case i % 2 {
         0 -> "true"
         _ -> "false"
-      } <> "
-service" <> int.to_string(i) <> ".replicas = " <> int.to_string(i % 5 + 1)
+      }
+      <> "
+service"
+      <> int.to_string(i)
+      <> ".replicas = "
+      <> int.to_string(i % 5 + 1)
     }),
-    "\n"
+    "\n",
   )
 }
 

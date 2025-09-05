@@ -1,22 +1,22 @@
 // Typed Parsing Overhead Benchmarks
 
-import gleamy_bench.{benchmark, Duration}
-import ccl_core
 import ccl
-import gleam/result
+import ccl_core
 import gleam/io
+import gleam/result
+import gleamy_bench.{Duration, benchmark}
 
 pub fn main() {
   io.println("=== CCL Typed Parsing Overhead Benchmarks ===")
   io.println("")
-  
+
   // Compare string-only vs typed parsing performance
   run_type_parsing_overhead_benchmark()
-  
+
   io.println("")
   io.println("=== Type Parsing Feature Comparison ===")
   io.println("")
-  
+
   // Compare different typed parsing features
   run_feature_comparison_benchmark()
 }
@@ -24,85 +24,98 @@ pub fn main() {
 /// Measure overhead of typed parsing vs string-only access
 fn run_type_parsing_overhead_benchmark() {
   let mixed_type_config = generate_mixed_type_config()
-  
+
   let test_configs = [
     #("mixed_types_config", mixed_type_config),
   ]
-  
+
   // Parse config once and reuse for access benchmarks
   let parsed_config = case ccl_core.parse(mixed_type_config) {
     Ok(entries) -> ccl_core.make_objects(entries)
     Error(_) -> ccl_core.empty_ccl()
   }
-  
+
   let config_access_methods = [
     // String-only access (baseline)
     #("string_access_baseline", fn(_) {
-      let _ = ccl_core.get_value(parsed_config, "server.port")        // "8080"
-      let _ = ccl_core.get_value(parsed_config, "server.timeout")     // "30.5"  
-      let _ = ccl_core.get_value(parsed_config, "server.ssl")         // "true"
-      let _ = ccl_core.get_value(parsed_config, "server.host")        // "localhost"
+      let _ = ccl_core.get_value(parsed_config, "server.port")
+      // "8080"
+      let _ = ccl_core.get_value(parsed_config, "server.timeout")
+      // "30.5"  
+      let _ = ccl_core.get_value(parsed_config, "server.ssl")
+      // "true"
+      let _ = ccl_core.get_value(parsed_config, "server.host")
+      // "localhost"
       Ok("completed")
     }),
-    
+
     // Basic typed access
     #("typed_access_basic", fn(_) {
-      let _ = ccl.get_int(parsed_config, "server.port")          // Ok(8080)
-      let _ = ccl.get_float(parsed_config, "server.timeout")     // Ok(30.5)
-      let _ = ccl.get_bool(parsed_config, "server.ssl")          // Ok(True)
-      let _ = ccl.get_value(parsed_config, "server.host")        // Ok("localhost")
+      let _ = ccl.get_int(parsed_config, "server.port")
+      // Ok(8080)
+      let _ = ccl.get_float(parsed_config, "server.timeout")
+      // Ok(30.5)
+      let _ = ccl.get_bool(parsed_config, "server.ssl")
+      // Ok(True)
+      let _ = ccl.get_value(parsed_config, "server.host")
+      // Ok("localhost")
       Ok("completed")
     }),
-    
+
     // Generic typed access
     #("generic_typed_access", fn(_) {
       let _ = ccl.get_typed_value(parsed_config, "server.port")
-      let _ = ccl.get_typed_value(parsed_config, "server.timeout") 
+      let _ = ccl.get_typed_value(parsed_config, "server.timeout")
       let _ = ccl.get_typed_value(parsed_config, "server.ssl")
       let _ = ccl.get_typed_value(parsed_config, "server.host")
       Ok("completed")
     }),
-    
+
     // Typed access with custom options
     #("typed_with_options", fn(_) {
       let options = ccl.smart_options()
-      let _ = ccl.get_typed_value_with_options(parsed_config, "server.port", options)
-      let _ = ccl.get_typed_value_with_options(parsed_config, "server.timeout", options)
-      let _ = ccl.get_typed_value_with_options(parsed_config, "server.ssl", options)
-      let _ = ccl.get_typed_value_with_options(parsed_config, "server.host", options)
+      let _ =
+        ccl.get_typed_value_with_options(parsed_config, "server.port", options)
+      let _ =
+        ccl.get_typed_value_with_options(
+          parsed_config,
+          "server.timeout",
+          options,
+        )
+      let _ =
+        ccl.get_typed_value_with_options(parsed_config, "server.ssl", options)
+      let _ =
+        ccl.get_typed_value_with_options(parsed_config, "server.host", options)
       Ok("completed")
     }),
   ]
-  
-  benchmark(
-    test_configs,
-    config_access_methods,
-    Duration(3000)
-  )
+
+  benchmark(test_configs, config_access_methods, Duration(3000))
 }
 
 /// Compare different typed parsing features
 fn run_feature_comparison_benchmark() {
   let test_config = generate_comprehensive_config()
-  
+
   let parsed_config = case ccl_core.parse(test_config) {
     Ok(entries) -> ccl_core.make_objects(entries)
     Error(_) -> ccl_core.empty_ccl()
   }
-  
+
   let config_inputs = [
-    #("comprehensive_config", "unused"), // We use parsed_config directly
+    #("comprehensive_config", "unused"),
+    // We use parsed_config directly
   ]
-  
+
   let parsing_features = [
     // Core value access
     #("core_string_values", fn(_) {
       let _ = ccl_core.get_value(parsed_config, "app.name")
-      let _ = ccl_core.get_value(parsed_config, "app.version") 
+      let _ = ccl_core.get_value(parsed_config, "app.version")
       let _ = ccl_core.get_value(parsed_config, "database.host")
       Ok("completed")
     }),
-    
+
     // Integer parsing
     #("integer_parsing", fn(_) {
       let _ = ccl.get_int(parsed_config, "server.port")
@@ -110,7 +123,7 @@ fn run_feature_comparison_benchmark() {
       let _ = ccl.get_int(parsed_config, "redis.port")
       Ok("completed")
     }),
-    
+
     // Float parsing
     #("float_parsing", fn(_) {
       let _ = ccl.get_float(parsed_config, "server.timeout")
@@ -118,7 +131,7 @@ fn run_feature_comparison_benchmark() {
       let _ = ccl.get_float(parsed_config, "cache.ttl")
       Ok("completed")
     }),
-    
+
     // Boolean parsing
     #("boolean_parsing", fn(_) {
       let _ = ccl.get_bool(parsed_config, "server.ssl")
@@ -126,14 +139,14 @@ fn run_feature_comparison_benchmark() {
       let _ = ccl.get_bool(parsed_config, "features.debug")
       Ok("completed")
     }),
-    
+
     // List access
     #("list_processing", fn(_) {
       let _ = ccl.get_list(parsed_config, "allowed_hosts")
       let _ = ccl.get_list(parsed_config, "feature_flags")
       Ok("completed")
     }),
-    
+
     // Nested object access
     #("nested_access", fn(_) {
       case ccl_core.get_nested(parsed_config, "server") {
@@ -145,21 +158,17 @@ fn run_feature_comparison_benchmark() {
         Error(_) -> Ok("failed")
       }
     }),
-    
+
     // Error handling overhead (accessing non-existent keys)
     #("error_handling", fn(_) {
       let _ = ccl.get_int(parsed_config, "nonexistent.key")
-      let _ = ccl.get_bool(parsed_config, "another.missing.key") 
+      let _ = ccl.get_bool(parsed_config, "another.missing.key")
       let _ = ccl.get_float(parsed_config, "not.found")
       Ok("completed")
     }),
   ]
-  
-  benchmark(
-    config_inputs,
-    parsing_features,
-    Duration(3000)
-  )
+
+  benchmark(config_inputs, parsing_features, Duration(3000))
 }
 
 // === TEST DATA GENERATORS ===

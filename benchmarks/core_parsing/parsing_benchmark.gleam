@@ -1,10 +1,10 @@
 // Core CCL Parsing Benchmarks
 
-import gleamy_bench.{benchmark, Duration}
-import ccl_core
 import ccl
-import gleam/result
+import ccl_core
 import gleam/io
+import gleam/result
+import gleamy_bench.{Duration, benchmark}
 
 // Import test data generators
 import benchmarks/test_data/generators/ccl_generator
@@ -12,21 +12,21 @@ import benchmarks/test_data/generators/ccl_generator
 pub fn main() {
   io.println("=== CCL Core Parsing Benchmarks ===")
   io.println("")
-  
+
   // Run parsing performance benchmarks
   run_basic_parsing_benchmark()
-  
+
   io.println("")
   io.println("=== File Size Scaling Benchmarks ===")
   io.println("")
-  
+
   // Run file size scaling benchmarks
   run_file_size_benchmarks()
-  
+
   io.println("")
   io.println("=== Real-World Configuration Benchmarks ===")
   io.println("")
-  
+
   // Run realistic configuration benchmarks
   run_realistic_benchmarks()
 }
@@ -38,11 +38,9 @@ fn run_basic_parsing_benchmark() {
     #("small_config", ccl_generator.generate_small_config()),
     #("web_server", ccl_generator.generate_web_server_config()),
   ]
-  
+
   let parsing_functions = [
-    #("parse_only", fn(text) { 
-      ccl_core.parse(text) 
-    }),
+    #("parse_only", fn(text) { ccl_core.parse(text) }),
     #("parse_and_objects", fn(text) {
       ccl_core.parse(text)
       |> result.map(ccl_core.make_objects)
@@ -53,18 +51,19 @@ fn run_basic_parsing_benchmark() {
           let config = ccl_core.make_objects(entries)
           // Simulate accessing a few values
           let _ = ccl_core.get_value(config, "server.port")
-          let _ = ccl_core.get_value(config, "database.host") 
+          let _ = ccl_core.get_value(config, "database.host")
           Ok(config)
         }
         Error(e) -> Error(e)
       }
     }),
   ]
-  
+
   benchmark(
     test_inputs,
     parsing_functions,
-    Duration(3000)  // 3 second test duration per combination
+    Duration(3000),
+    // 3 second test duration per combination
   )
 }
 
@@ -77,21 +76,20 @@ fn run_file_size_benchmarks() {
     #("feature_flags_1k", ccl_generator.generate_feature_flags_config(1000)),
     #("nested_deep", ccl_generator.generate_nested_config(8, 5)),
   ]
-  
+
   let parsing_operations = [
-    #("parse_text_to_entries", fn(text) {
-      ccl_core.parse(text)
-    }),
+    #("parse_text_to_entries", fn(text) { ccl_core.parse(text) }),
     #("build_object_structure", fn(text) {
       ccl_core.parse(text)
-      |> result.map(ccl_core.make_objects) 
+      |> result.map(ccl_core.make_objects)
     }),
   ]
-  
+
   benchmark(
     size_inputs,
-    parsing_operations, 
-    Duration(5000)  // 5 second test duration for larger files
+    parsing_operations,
+    Duration(5000),
+    // 5 second test duration for larger files
   )
 }
 
@@ -103,7 +101,7 @@ fn run_realistic_benchmarks() {
     #("microservice_config", generate_microservice_config()),
     #("database_config", generate_database_config()),
   ]
-  
+
   let access_patterns = [
     #("single_value_lookup", fn(config_text) {
       case ccl_core.parse(config_text) {
@@ -119,7 +117,7 @@ fn run_realistic_benchmarks() {
         Ok(entries) -> {
           let config = ccl_core.make_objects(entries)
           let _ = ccl_core.get_value(config, "server.host")
-          let _ = ccl_core.get_value(config, "server.port") 
+          let _ = ccl_core.get_value(config, "server.port")
           let _ = ccl_core.get_value(config, "database.host")
           let _ = ccl_core.get_value(config, "database.port")
           let _ = ccl_core.get_values(config, "allowed_hosts")
@@ -145,12 +143,8 @@ fn run_realistic_benchmarks() {
       }
     }),
   ]
-  
-  benchmark(
-    config_scenarios,
-    access_patterns,
-    Duration(3000)
-  )
+
+  benchmark(config_scenarios, access_patterns, Duration(3000))
 }
 
 // === TEST DATA GENERATORS ===

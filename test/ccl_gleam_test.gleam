@@ -102,22 +102,24 @@ pub fn ccl_error_test_suite_test() {
 // Algebraic property test cases
 pub fn ccl_algebraic_test_suite_test() {
   let algebraic_test_cases = test_suite_types.get_algebraic_test_cases()
-  
+
   io.println(
-    "Loaded " <> string.inspect(list.length(algebraic_test_cases)) <> " algebraic test cases",
+    "Loaded "
+    <> string.inspect(list.length(algebraic_test_cases))
+    <> " algebraic test cases",
   )
-  
+
   let results = list.map(algebraic_test_cases, run_algebraic_test)
-  
+
   let passed = list.count(results, fn(r) { r == True })
   let failed = list.count(results, fn(r) { r == False })
   let total = list.length(results)
-  
+
   io.println("\n=== Algebraic Test Summary ===")
   io.println("Total tests: " <> string.inspect(total))
   io.println("Passed: " <> string.inspect(passed))
   io.println("Failed: " <> string.inspect(failed))
-  
+
   // Only fail at the end if there were failures
   case failed > 0 {
     True -> should.fail()
@@ -128,9 +130,17 @@ pub fn ccl_algebraic_test_suite_test() {
 // Helper function to run a single algebraic test
 fn run_algebraic_test(test_case: test_suite_types.AlgebraicTestCase) -> Bool {
   case test_case {
-    test_suite_types.MonoidIdentityTest(name, description, _property, input1, input2, expected_combined, _tags) -> {
+    test_suite_types.MonoidIdentityTest(
+      name,
+      description,
+      _property,
+      input1,
+      input2,
+      expected_combined,
+      _tags,
+    ) -> {
       io.println("Running algebraic test: " <> name <> " - " <> description)
-      
+
       case ccl_core.parse(input1), ccl_core.parse(input2) {
         Ok(entries1), Ok(entries2) -> {
           let combined = list.append(entries1, entries2)
@@ -157,27 +167,51 @@ fn run_algebraic_test(test_case: test_suite_types.AlgebraicTestCase) -> Bool {
         }
       }
     }
-    
-    test_suite_types.SemigroupAssocTest(name, description, _property, input1, input2, input3, expected_left, expected_right, _tags) -> {
+
+    test_suite_types.SemigroupAssocTest(
+      name,
+      description,
+      _property,
+      input1,
+      input2,
+      input3,
+      expected_left,
+      expected_right,
+      _tags,
+    ) -> {
       io.println("Running algebraic test: " <> name <> " - " <> description)
-      
-      case ccl_core.parse(input1), ccl_core.parse(input2), ccl_core.parse(input3) {
+
+      case
+        ccl_core.parse(input1),
+        ccl_core.parse(input2),
+        ccl_core.parse(input3)
+      {
         Ok(entries1), Ok(entries2), Ok(entries3) -> {
           // Test (a + b) + c
-          let left_assoc = list.append(list.append(entries1, entries2), entries3)
+          let left_assoc =
+            list.append(list.append(entries1, entries2), entries3)
           // Test a + (b + c)  
-          let right_assoc = list.append(entries1, list.append(entries2, entries3))
-          
-          case left_assoc == expected_left && right_assoc == expected_right && left_assoc == right_assoc {
+          let right_assoc =
+            list.append(entries1, list.append(entries2, entries3))
+
+          case
+            left_assoc == expected_left
+            && right_assoc == expected_right
+            && left_assoc == right_assoc
+          {
             True -> {
               io.println("  ✓ PASS")
               True
             }
             False -> {
               io.println("  ✗ FAIL")
-              io.println("    Expected left:  " <> string.inspect(expected_left))
+              io.println(
+                "    Expected left:  " <> string.inspect(expected_left),
+              )
               io.println("    Got left:      " <> string.inspect(left_assoc))
-              io.println("    Expected right: " <> string.inspect(expected_right))
+              io.println(
+                "    Expected right: " <> string.inspect(expected_right),
+              )
               io.println("    Got right:     " <> string.inspect(right_assoc))
               False
             }
@@ -197,10 +231,18 @@ fn run_algebraic_test(test_case: test_suite_types.AlgebraicTestCase) -> Bool {
         }
       }
     }
-    
-    test_suite_types.CompositionTest(name, description, _property, input1, input2, expected_combined, _tags) -> {
+
+    test_suite_types.CompositionTest(
+      name,
+      description,
+      _property,
+      input1,
+      input2,
+      expected_combined,
+      _tags,
+    ) -> {
       io.println("Running algebraic test: " <> name <> " - " <> description)
-      
+
       case ccl_core.parse(input1), ccl_core.parse(input2) {
         Ok(entries1), Ok(entries2) -> {
           let combined = list.append(entries1, entries2)
@@ -227,28 +269,53 @@ fn run_algebraic_test(test_case: test_suite_types.AlgebraicTestCase) -> Bool {
         }
       }
     }
-    
-    test_suite_types.ConcatenationTest(name, description, _property, input1, input2, expected_text, expected_combined, _tags) -> {
+
+    test_suite_types.ConcatenationTest(
+      name,
+      description,
+      _property,
+      input1,
+      input2,
+      expected_text,
+      expected_combined,
+      _tags,
+    ) -> {
       io.println("Running algebraic test: " <> name <> " - " <> description)
-      
+
       // Test both text concatenation and entry concatenation
       let text_concat = input1 <> "\n" <> input2
       let text_concat_matches = text_concat == expected_text
-      
-      case ccl_core.parse(input1), ccl_core.parse(input2), ccl_core.parse(text_concat) {
+
+      case
+        ccl_core.parse(input1),
+        ccl_core.parse(input2),
+        ccl_core.parse(text_concat)
+      {
         Ok(entries1), Ok(entries2), Ok(concat_entries) -> {
           let manual_combined = list.append(entries1, entries2)
-          case text_concat_matches && manual_combined == expected_combined && concat_entries == expected_combined {
+          case
+            text_concat_matches
+            && manual_combined == expected_combined
+            && concat_entries == expected_combined
+          {
             True -> {
               io.println("  ✓ PASS")
               True
             }
             False -> {
               io.println("  ✗ FAIL")
-              io.println("    Text concat match: " <> string.inspect(text_concat_matches))
-              io.println("    Expected combined: " <> string.inspect(expected_combined))
-              io.println("    Manual combined:   " <> string.inspect(manual_combined))
-              io.println("    Concat parsed:     " <> string.inspect(concat_entries))
+              io.println(
+                "    Text concat match: " <> string.inspect(text_concat_matches),
+              )
+              io.println(
+                "    Expected combined: " <> string.inspect(expected_combined),
+              )
+              io.println(
+                "    Manual combined:   " <> string.inspect(manual_combined),
+              )
+              io.println(
+                "    Concat parsed:     " <> string.inspect(concat_entries),
+              )
               False
             }
           }
@@ -275,53 +342,75 @@ fn run_algebraic_test(test_case: test_suite_types.AlgebraicTestCase) -> Bool {
 /// Test typed parsing functionality using JSON test cases - fully JSON-driven
 pub fn ccl_typed_parsing_test() {
   io.println("\n=== CCL Typed Parsing Tests ===")
-  
+
   // Load test cases from JSON
   let test_cases = test_suite_types.get_typed_parsing_test_cases()
-  
-  io.println("Loaded " <> string.inspect(list.length(test_cases)) <> " typed parsing test cases")
-  
-  let passed = list.count(test_cases, fn(test_case) {
-    io.println("Running typed test: " <> test_case.name <> " - " <> test_case.description)
-    
-    // Convert \\n to actual newlines in input
-    let cleaned_input = string.replace(test_case.input, "\\n", "\n")
-    
-    case ccl_core.parse(cleaned_input) {
-      Ok(entries) -> {
-        let parsed = ccl_core.make_objects(entries)
-        
-        // First verify the flat parsing matches expected
-        case verify_flat_parsing(entries, test_case.expected_flat) {
-          True -> {
-            io.println("  ✓ Flat parsing matches expected")
-            // Now validate typed parsing results from JSON
-            case validate_typed_parsing_from_json(parsed, test_case.expected_typed, test_case.parse_options) {
-              True -> {
-                io.println("  ✓ Typed parsing validation passed")
-                True
-              }
-              False -> {
-                io.println("  ✗ Typed parsing validation failed")
-                False
+
+  io.println(
+    "Loaded "
+    <> string.inspect(list.length(test_cases))
+    <> " typed parsing test cases",
+  )
+
+  let passed =
+    list.count(test_cases, fn(test_case) {
+      io.println(
+        "Running typed test: "
+        <> test_case.name
+        <> " - "
+        <> test_case.description,
+      )
+
+      // Convert \\n to actual newlines in input
+      let cleaned_input = string.replace(test_case.input, "\\n", "\n")
+
+      case ccl_core.parse(cleaned_input) {
+        Ok(entries) -> {
+          let parsed = ccl_core.make_objects(entries)
+
+          // First verify the flat parsing matches expected
+          case verify_flat_parsing(entries, test_case.expected_flat) {
+            True -> {
+              io.println("  ✓ Flat parsing matches expected")
+              // Now validate typed parsing results from JSON
+              case
+                validate_typed_parsing_from_json(
+                  parsed,
+                  test_case.expected_typed,
+                  test_case.parse_options,
+                )
+              {
+                True -> {
+                  io.println("  ✓ Typed parsing validation passed")
+                  True
+                }
+                False -> {
+                  io.println("  ✗ Typed parsing validation failed")
+                  False
+                }
               }
             }
-          }
-          False -> {
-            io.println("  ✗ Flat parsing doesn't match expected")
-            False
+            False -> {
+              io.println("  ✗ Flat parsing doesn't match expected")
+              False
+            }
           }
         }
+        Error(err) -> {
+          io.println("  ✗ PARSE ERROR: " <> string.inspect(err))
+          False
+        }
       }
-      Error(err) -> {
-        io.println("  ✗ PARSE ERROR: " <> string.inspect(err))
-        False
-      }
-    }
-  })
-  
-  io.println("\nTyped parsing tests: " <> string.inspect(passed) <> "/" <> string.inspect(list.length(test_cases)) <> " passed")
-  
+    })
+
+  io.println(
+    "\nTyped parsing tests: "
+    <> string.inspect(passed)
+    <> "/"
+    <> string.inspect(list.length(test_cases))
+    <> " passed",
+  )
+
   // Fail if any typed parsing tests failed
   case passed == list.length(test_cases) {
     False -> should.fail()
@@ -330,7 +419,10 @@ pub fn ccl_typed_parsing_test() {
 }
 
 // Verify flat parsing results match expected from JSON
-fn verify_flat_parsing(actual: List(ccl_core.Entry), expected: List(ccl_core.Entry)) -> Bool {
+fn verify_flat_parsing(
+  actual: List(ccl_core.Entry),
+  expected: List(ccl_core.Entry),
+) -> Bool {
   case actual == expected {
     True -> True
     False -> {
@@ -343,15 +435,19 @@ fn verify_flat_parsing(actual: List(ccl_core.Entry), expected: List(ccl_core.Ent
 }
 
 // JSON-driven validation function that uses the expected_typed data
-fn validate_typed_parsing_from_json(parsed: ccl_core.CCL, expected_typed: List(#(String, test_suite_types.TypedValue)), parse_options: test_suite_types.ParseOptions) -> Bool {
+fn validate_typed_parsing_from_json(
+  parsed: ccl_core.CCL,
+  expected_typed: List(#(String, test_suite_types.TypedValue)),
+  parse_options: test_suite_types.ParseOptions,
+) -> Bool {
   // Convert test_suite_types.ParseOptions to ccl.ParseOptions
-  let ccl_options = ccl.ParseOptions(
-    parse_integers: parse_options.parse_integers,
-    parse_floats: parse_options.parse_floats, 
-    parse_booleans: parse_options.parse_booleans,
-  )
-  
-  
+  let ccl_options =
+    ccl.ParseOptions(
+      parse_integers: parse_options.parse_integers,
+      parse_floats: parse_options.parse_floats,
+      parse_booleans: parse_options.parse_booleans,
+    )
+
   list.all(expected_typed, fn(pair) {
     let #(path, expected_value) = pair
     case expected_value {
@@ -360,17 +456,39 @@ fn validate_typed_parsing_from_json(parsed: ccl_core.CCL, expected_typed: List(#
           Ok(ccl.StringVal(actual_str)) -> {
             case actual_str == expected_str {
               True -> {
-                io.println("  ✓ get_typed_value(" <> path <> ") = StringVal(" <> actual_str <> ")")
+                io.println(
+                  "  ✓ get_typed_value("
+                  <> path
+                  <> ") = StringVal("
+                  <> actual_str
+                  <> ")",
+                )
                 True
               }
               False -> {
-                io.println("  ✗ get_typed_value(" <> path <> ") = StringVal(" <> actual_str <> "), expected StringVal(" <> expected_str <> ")")
+                io.println(
+                  "  ✗ get_typed_value("
+                  <> path
+                  <> ") = StringVal("
+                  <> actual_str
+                  <> "), expected StringVal("
+                  <> expected_str
+                  <> ")",
+                )
                 False
               }
             }
           }
           Ok(other) -> {
-            io.println("  ✗ get_typed_value(" <> path <> ") = " <> string.inspect(other) <> ", expected StringVal(" <> expected_str <> ")")
+            io.println(
+              "  ✗ get_typed_value("
+              <> path
+              <> ") = "
+              <> string.inspect(other)
+              <> ", expected StringVal("
+              <> expected_str
+              <> ")",
+            )
             False
           }
           Error(err) -> {
@@ -384,17 +502,39 @@ fn validate_typed_parsing_from_json(parsed: ccl_core.CCL, expected_typed: List(#
           Ok(ccl.IntVal(actual_int)) -> {
             case actual_int == expected_int {
               True -> {
-                io.println("  ✓ get_typed_value(" <> path <> ") = IntVal(" <> string.inspect(actual_int) <> ")")
+                io.println(
+                  "  ✓ get_typed_value("
+                  <> path
+                  <> ") = IntVal("
+                  <> string.inspect(actual_int)
+                  <> ")",
+                )
                 True
               }
               False -> {
-                io.println("  ✗ get_typed_value(" <> path <> ") = IntVal(" <> string.inspect(actual_int) <> "), expected IntVal(" <> string.inspect(expected_int) <> ")")
+                io.println(
+                  "  ✗ get_typed_value("
+                  <> path
+                  <> ") = IntVal("
+                  <> string.inspect(actual_int)
+                  <> "), expected IntVal("
+                  <> string.inspect(expected_int)
+                  <> ")",
+                )
                 False
               }
             }
           }
           Ok(other) -> {
-            io.println("  ✗ get_typed_value(" <> path <> ") = " <> string.inspect(other) <> ", expected IntVal(" <> string.inspect(expected_int) <> ")")
+            io.println(
+              "  ✗ get_typed_value("
+              <> path
+              <> ") = "
+              <> string.inspect(other)
+              <> ", expected IntVal("
+              <> string.inspect(expected_int)
+              <> ")",
+            )
             False
           }
           Error(err) -> {
@@ -408,17 +548,39 @@ fn validate_typed_parsing_from_json(parsed: ccl_core.CCL, expected_typed: List(#
           Ok(ccl.FloatVal(actual_float)) -> {
             case actual_float == expected_float {
               True -> {
-                io.println("  ✓ get_typed_value(" <> path <> ") = FloatVal(" <> string.inspect(actual_float) <> ")")
+                io.println(
+                  "  ✓ get_typed_value("
+                  <> path
+                  <> ") = FloatVal("
+                  <> string.inspect(actual_float)
+                  <> ")",
+                )
                 True
               }
               False -> {
-                io.println("  ✗ get_typed_value(" <> path <> ") = FloatVal(" <> string.inspect(actual_float) <> "), expected FloatVal(" <> string.inspect(expected_float) <> ")")
+                io.println(
+                  "  ✗ get_typed_value("
+                  <> path
+                  <> ") = FloatVal("
+                  <> string.inspect(actual_float)
+                  <> "), expected FloatVal("
+                  <> string.inspect(expected_float)
+                  <> ")",
+                )
                 False
               }
             }
           }
           Ok(other) -> {
-            io.println("  ✗ get_typed_value(" <> path <> ") = " <> string.inspect(other) <> ", expected FloatVal(" <> string.inspect(expected_float) <> ")")
+            io.println(
+              "  ✗ get_typed_value("
+              <> path
+              <> ") = "
+              <> string.inspect(other)
+              <> ", expected FloatVal("
+              <> string.inspect(expected_float)
+              <> ")",
+            )
             False
           }
           Error(err) -> {
@@ -432,17 +594,39 @@ fn validate_typed_parsing_from_json(parsed: ccl_core.CCL, expected_typed: List(#
           Ok(ccl.BoolVal(actual_bool)) -> {
             case actual_bool == expected_bool {
               True -> {
-                io.println("  ✓ get_typed_value(" <> path <> ") = BoolVal(" <> string.inspect(actual_bool) <> ")")
+                io.println(
+                  "  ✓ get_typed_value("
+                  <> path
+                  <> ") = BoolVal("
+                  <> string.inspect(actual_bool)
+                  <> ")",
+                )
                 True
               }
               False -> {
-                io.println("  ✗ get_typed_value(" <> path <> ") = BoolVal(" <> string.inspect(actual_bool) <> "), expected BoolVal(" <> string.inspect(expected_bool) <> ")")
+                io.println(
+                  "  ✗ get_typed_value("
+                  <> path
+                  <> ") = BoolVal("
+                  <> string.inspect(actual_bool)
+                  <> "), expected BoolVal("
+                  <> string.inspect(expected_bool)
+                  <> ")",
+                )
                 False
               }
             }
           }
           Ok(other) -> {
-            io.println("  ✗ get_typed_value(" <> path <> ") = " <> string.inspect(other) <> ", expected BoolVal(" <> string.inspect(expected_bool) <> ")")
+            io.println(
+              "  ✗ get_typed_value("
+              <> path
+              <> ") = "
+              <> string.inspect(other)
+              <> ", expected BoolVal("
+              <> string.inspect(expected_bool)
+              <> ")",
+            )
             False
           }
           Error(err) -> {
@@ -458,7 +642,13 @@ fn validate_typed_parsing_from_json(parsed: ccl_core.CCL, expected_typed: List(#
             True
           }
           Ok(other) -> {
-            io.println("  ✗ get_typed_value(" <> path <> ") = " <> string.inspect(other) <> ", expected EmptyVal")
+            io.println(
+              "  ✗ get_typed_value("
+              <> path
+              <> ") = "
+              <> string.inspect(other)
+              <> ", expected EmptyVal",
+            )
             False
           }
           Error(err) -> {

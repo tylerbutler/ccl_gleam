@@ -299,7 +299,7 @@ pub fn filter_keys(
 /// Types for typed parsing functionality
 pub type ValueType {
   StringVal(String)
-  IntVal(Int) 
+  IntVal(Int)
   FloatVal(Float)
   BoolVal(Bool)
   EmptyVal
@@ -307,11 +307,7 @@ pub type ValueType {
 
 /// Parse options for controlling type inference behavior
 pub type ParseOptions {
-  ParseOptions(
-    parse_integers: Bool,
-    parse_floats: Bool,
-    parse_booleans: Bool,
-  )
+  ParseOptions(parse_integers: Bool, parse_floats: Bool, parse_booleans: Bool)
 }
 
 /// Smart parsing options - all type parsing enabled
@@ -321,7 +317,11 @@ pub fn smart_options() -> ParseOptions {
 
 /// Basic parsing options - no type inference, all strings
 pub fn basic_options() -> ParseOptions {
-  ParseOptions(parse_integers: False, parse_floats: False, parse_booleans: False)
+  ParseOptions(
+    parse_integers: False,
+    parse_floats: False,
+    parse_booleans: False,
+  )
 }
 
 // === CORE TYPED PARSING FUNCTIONS ===
@@ -368,13 +368,15 @@ pub fn get_typed_value_with_options(
       // Integers win over booleans in overlapping cases (1/0) since booleans have many non-numeric forms
       case options.parse_integers, try_parse_int(str_val) {
         True, Ok(int_val) -> Ok(IntVal(int_val))
-        _, _ -> case options.parse_floats, try_parse_float(str_val) {
-          True, Ok(float_val) -> Ok(FloatVal(float_val))
-          _, _ -> case options.parse_booleans, try_parse_bool(str_val) {
-            True, Ok(bool_val) -> Ok(BoolVal(bool_val))
-            _, _ -> Ok(StringVal(str_val))
+        _, _ ->
+          case options.parse_floats, try_parse_float(str_val) {
+            True, Ok(float_val) -> Ok(FloatVal(float_val))
+            _, _ ->
+              case options.parse_booleans, try_parse_bool(str_val) {
+                True, Ok(bool_val) -> Ok(BoolVal(bool_val))
+                _, _ -> Ok(StringVal(str_val))
+              }
           }
-        }
       }
     }
     Error(err) -> Error(err)
@@ -390,18 +392,30 @@ fn parse_int(value: String, path: String) -> Result(Int, String) {
     Ok(n) -> Ok(n)
     Error(_) -> {
       let suggestion = case trimmed {
-        "" -> "Hint: Empty values cannot be integers. Use get_value() for strings or provide a default."
+        "" ->
+          "Hint: Empty values cannot be integers. Use get_value() for strings or provide a default."
         _ -> {
           case string.contains(trimmed, ".") {
-            True -> "Hint: '" <> trimmed <> "' contains a decimal. Use get_float() or remove the decimal point."
-            False -> case string.contains(trimmed, ",") {
-              True -> "Hint: Remove commas from numbers (use 1234 not 1,234)."
-              False -> "Hint: Expected a whole number like 42, -7, or 0."
-            }
+            True ->
+              "Hint: '"
+              <> trimmed
+              <> "' contains a decimal. Use get_float() or remove the decimal point."
+            False ->
+              case string.contains(trimmed, ",") {
+                True -> "Hint: Remove commas from numbers (use 1234 not 1,234)."
+                False -> "Hint: Expected a whole number like 42, -7, or 0."
+              }
           }
         }
       }
-      Error("Cannot parse '" <> value <> "' as integer at path '" <> path <> "'.\n" <> suggestion)
+      Error(
+        "Cannot parse '"
+        <> value
+        <> "' as integer at path '"
+        <> path
+        <> "'.\n"
+        <> suggestion,
+      )
     }
   }
 }
@@ -413,18 +427,34 @@ fn parse_float(value: String, path: String) -> Result(Float, String) {
     Ok(f) -> Ok(f)
     Error(_) -> {
       let suggestion = case trimmed {
-        "" -> "Hint: Empty values cannot be floats. Use get_value() for strings or provide a default."
+        "" ->
+          "Hint: Empty values cannot be floats. Use get_value() for strings or provide a default."
         _ -> {
           case string.contains(trimmed, ",") {
-            True -> "Hint: Remove commas from numbers (use 1234.56 not 1,234.56)."
-            False -> case string.starts_with(trimmed, ".") {
-              True -> "Hint: Add leading zero (use '0" <> trimmed <> "' instead of '" <> trimmed <> "')."
-              False -> "Hint: Expected a decimal number like 3.14, -2.5, or 0.0."
-            }
+            True ->
+              "Hint: Remove commas from numbers (use 1234.56 not 1,234.56)."
+            False ->
+              case string.starts_with(trimmed, ".") {
+                True ->
+                  "Hint: Add leading zero (use '0"
+                  <> trimmed
+                  <> "' instead of '"
+                  <> trimmed
+                  <> "')."
+                False ->
+                  "Hint: Expected a decimal number like 3.14, -2.5, or 0.0."
+              }
           }
         }
       }
-      Error("Cannot parse '" <> value <> "' as float at path '" <> path <> "'.\n" <> suggestion)
+      Error(
+        "Cannot parse '"
+        <> value
+        <> "' as float at path '"
+        <> path
+        <> "'.\n"
+        <> suggestion,
+      )
     }
   }
 }
@@ -437,17 +467,30 @@ fn parse_bool(value: String, path: String) -> Result(Bool, String) {
     "false" | "no" | "off" | "0" -> Ok(False)
     _ -> {
       let suggestion = case trimmed {
-        "" -> "Hint: Empty values cannot be booleans. Use get_value() for strings."
+        "" ->
+          "Hint: Empty values cannot be booleans. Use get_value() for strings."
         "y" | "n" -> "Hint: Use full words: 'yes' or 'no'."
         "t" | "f" -> "Hint: Use full words: 'true' or 'false'."
         _ -> {
-          case string.contains(trimmed, "enabled") || string.contains(trimmed, "disabled") {
-            True -> "Hint: Use 'true'/'false', 'yes'/'no', 'on'/'off', or '1'/'0'."
-            False -> "Hint: Valid values are 'true', 'false', 'yes', 'no', 'on', 'off', '1', or '0'."
+          case
+            string.contains(trimmed, "enabled")
+            || string.contains(trimmed, "disabled")
+          {
+            True ->
+              "Hint: Use 'true'/'false', 'yes'/'no', 'on'/'off', or '1'/'0'."
+            False ->
+              "Hint: Valid values are 'true', 'false', 'yes', 'no', 'on', 'off', '1', or '0'."
           }
         }
       }
-      Error("Cannot parse '" <> value <> "' as boolean at path '" <> path <> "'.\n" <> suggestion)
+      Error(
+        "Cannot parse '"
+        <> value
+        <> "' as boolean at path '"
+        <> path
+        <> "'.\n"
+        <> suggestion,
+      )
     }
   }
 }
