@@ -46,7 +46,8 @@ pub type NestedTestCase {
     name: String,
     input: String,
     expected_flat: List(ccl_core.Entry),
-    expected_nested: dict.Dict(String, String),  // Simplified for now
+    expected_nested: dict.Dict(String, String),
+    // Simplified for now
     tags: List(String),
   )
 }
@@ -215,7 +216,10 @@ fn load_level_test_file(filename: String) -> List(TestCase) {
   case simplifile.read(filename) {
     Ok(content) -> {
       let simple_test_suite_decoder = {
-        use tests <- decode.field("tests", decode.list(simple_test_case_decoder()))
+        use tests <- decode.field(
+          "tests",
+          decode.list(simple_test_case_decoder()),
+        )
         decode.success(tests)
       }
 
@@ -232,7 +236,10 @@ fn load_level3_test_file(filename: String) -> List(NestedTestCase) {
   case simplifile.read(filename) {
     Ok(content) -> {
       let nested_test_suite_decoder = {
-        use tests <- decode.field("tests", decode.list(nested_test_case_decoder()))
+        use tests <- decode.field(
+          "tests",
+          decode.list(nested_test_case_decoder()),
+        )
         decode.success(tests)
       }
 
@@ -249,7 +256,10 @@ fn load_error_test_file(filename: String) -> List(ErrorTestCase) {
   case simplifile.read(filename) {
     Ok(content) -> {
       let error_test_suite_decoder = {
-        use tests <- decode.field("tests", decode.list(simple_error_test_case_decoder()))
+        use tests <- decode.field(
+          "tests",
+          decode.list(simple_error_test_case_decoder()),
+        )
         decode.success(tests)
       }
 
@@ -270,7 +280,8 @@ fn simple_error_test_case_decoder() -> decode.Decoder(ErrorTestCase) {
   use meta <- decode.field("meta", meta_decoder())
   decode.success(ErrorTestCase(
     name: name,
-    description: name,  // Use name as description
+    description: name,
+    // Use name as description
     input: input,
     expected_error: expected_error,
     error_message: error_message,
@@ -295,7 +306,10 @@ fn simple_test_case_decoder() -> decode.Decoder(TestCase) {
 fn nested_test_case_decoder() -> decode.Decoder(NestedTestCase) {
   use name <- decode.field("name", decode.string)
   use input <- decode.field("input", decode.string)
-  use expected_flat <- decode.field("expected_flat", decode.list(entry_decoder()))
+  use expected_flat <- decode.field(
+    "expected_flat",
+    decode.list(entry_decoder()),
+  )
   use meta <- decode.field("meta", meta_decoder())
   // Skip expected_nested for now - it's complex nested JSON
   let expected_nested = dict.new()

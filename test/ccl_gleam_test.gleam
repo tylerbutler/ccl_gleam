@@ -50,7 +50,9 @@ pub fn ccl_level3_object_construction_test() {
             }
             False -> {
               io.println("  ✗ Flat parsing mismatch")
-              io.println("    Expected: " <> string.inspect(test_case.expected_flat))
+              io.println(
+                "    Expected: " <> string.inspect(test_case.expected_flat),
+              )
               io.println("    Got:      " <> string.inspect(entries))
               False
             }
@@ -67,7 +69,13 @@ pub fn ccl_level3_object_construction_test() {
   let failed = list.count(results, fn(r) { r == False })
   let total = list.length(results)
 
-  io.println("\nLevel 3 Tests: " <> string.inspect(passed) <> "/" <> string.inspect(total) <> " passed")
+  io.println(
+    "\nLevel 3 Tests: "
+    <> string.inspect(passed)
+    <> "/"
+    <> string.inspect(total)
+    <> " passed",
+  )
 
   case failed > 0 {
     True -> should.fail()
@@ -77,11 +85,15 @@ pub fn ccl_level3_object_construction_test() {
 
 /// Level 4: Typed Parsing Tests - Type-aware extraction (existing)
 pub fn ccl_level4_typed_parsing_test() {
-  ccl_typed_parsing_test()  // Use existing implementation
+  ccl_typed_parsing_test()
+  // Use existing implementation
 }
 
 /// Helper function to run basic test cases (Level 1 & 2)
-fn run_basic_test_cases(test_cases: List(test_suite_types.TestCase), level_name: String) -> Nil {
+fn run_basic_test_cases(
+  test_cases: List(test_suite_types.TestCase),
+  level_name: String,
+) -> Nil {
   let results =
     list.map(test_cases, fn(test_case) {
       io.println("Running " <> level_name <> " test: " <> test_case.name)
@@ -112,7 +124,15 @@ fn run_basic_test_cases(test_cases: List(test_suite_types.TestCase), level_name:
   let failed = list.count(results, fn(r) { r == False })
   let total = list.length(results)
 
-  io.println("\n" <> level_name <> " Tests: " <> string.inspect(passed) <> "/" <> string.inspect(total) <> " passed")
+  io.println(
+    "\n"
+    <> level_name
+    <> " Tests: "
+    <> string.inspect(passed)
+    <> "/"
+    <> string.inspect(total)
+    <> " passed",
+  )
 
   case failed > 0 {
     True -> should.fail()
