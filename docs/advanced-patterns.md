@@ -2,7 +2,7 @@
 
 Complex configuration patterns and best practices for CCL.
 
-## Complex Nested Structures
+## Complex Nested Section Structures
 
 ### Multi-Level Nesting
 
@@ -250,7 +250,7 @@ Filter out documentation when processing configuration:
 
 ```gleam
 pub fn filter_comments(config: ccl.CCL) -> ccl.CCL {
-  // Remove common comment keys
+  // Remove special comment keys
   let comment_keys = ["/", "//", "#", "/*", "doc", "comment"]
   ccl.filter_keys(config, comment_keys)
 }

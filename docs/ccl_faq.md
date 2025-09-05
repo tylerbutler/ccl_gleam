@@ -44,7 +44,7 @@ description = A sample application
 ## Dot Notation and Keys
 
 ### Q: Does CCL support dot notation like `database.host = localhost`?
-**A:** **Yes, but not the way you might think.** CCL treats `database.host` as a **literal string key**, not as navigation to a nested `database` object with a `host` field.
+**A:** **Yes, but not the way you might think.** CCL treats `database.host` as a **literal string key** - dots are just characters in the key name, not navigation to nested structure.
 
 **Example:**
 ```ccl
@@ -264,7 +264,7 @@ user =
 
 **Nested Result:** Single merged object: `{ user: { name: "alice", age: "25" } }`
 
-**Empty Key Lists:** Empty keys accumulate into arrays:
+**Empty Key Lists:** Empty keys accumulate into lists:
 ```ccl
 ports =
   = 8000

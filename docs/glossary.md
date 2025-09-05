@@ -25,10 +25,10 @@ ports =
 ```
 
 ### Dot Notation
-A way to access nested values using dots to separate levels: `database.connection.host`. Works for both flat keys and nested objects.
+A way to access nested values using dots to separate levels: `database.connection.host`. Works for both literal dot keys and nested objects.
 
 ### Flat Structure
-CCL configuration using only top-level keys with dots: `database.host = localhost`. No indentation-based nesting.
+CCL configuration using only literal dot keys: `database.host = localhost`. No indentation-based nesting.
 
 ### Nested Structure  
 CCL configuration using indented sections to create hierarchy:
@@ -103,7 +103,7 @@ An error that occurs when configuration values don't meet application requiremen
 The process of converting a dot-separated path like "database.host" into access to the appropriate nested value.
 
 ### Duplicate Key Handling
-CCL's behavior when the same key appears multiple times. At the entry level, duplicates are preserved. After `make_objects()`, duplicates are merged into objects or lists.
+CCL's behavior when the same key appears multiple times. At the entry level (after parsing), duplicates are preserved. After object construction, duplicates are merged into objects or lists.
 
 ### Continuation Line
 A line that continues the value from the previous line, indicated by indentation. Used for multiline values in CCL.
@@ -140,12 +140,12 @@ Utility package for loading JSON-based test suites for cross-language CCL implem
 A design goal of ccl_core to have no external dependencies beyond the Gleam standard library.
 
 ### Entry Point
-The main function or API that applications use to start working with CCL. Usually `parse()` followed by `make_objects()`.
+The main function or API that applications use to start working with CCL. Usually parsing followed by object construction.
 
 ## Common Patterns
 
 ### Load-Parse-Validate Pattern
-The common sequence of loading configuration text, parsing to entries, building objects, and validating required values.
+The common sequence of loading configuration text, parsing to entries, object construction, and validating required values.
 
 ### Environment Resolution
 The pattern of selecting configuration based on environment variables or deployment context.

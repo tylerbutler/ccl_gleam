@@ -60,7 +60,7 @@ case ccl.parse(config) {
 
 ## Nested Configuration
 
-### Using Indented Sections
+### Using Nested Sections
 
 Group related configuration using indentation:
 
@@ -87,7 +87,7 @@ case ccl.get(objects, "database.host") {
 
 ### Alternative: Flat Structure with Dot Notation
 
-You can also use dot notation directly in keys:
+You can also use literal dot keys (where dots are part of the key name):
 
 ```ccl
 database.host = localhost
@@ -97,13 +97,13 @@ server.debug = true
 ```
 
 **Key Differences:**
-- **Nested sections (above)**: Create actual hierarchical structure, require `ccl.make_objects()` for processing
-- **Dot notation**: Keys are literal strings like `"database.host"`, work directly with `ccl.parse()` 
+- **Nested sections (above)**: Create actual hierarchical structure, require object construction for processing
+- **Literal dot keys**: Keys are literal strings like `"database.host"`, work directly with parsed entries 
 - **Result**: Both approaches produce the same accessible structure after processing
 
 **When to use each:**
 - **Nested sections**: Better readability for complex configurations
-- **Dot notation**: Simpler processing, better for flat or simple configurations
+- **Literal dot keys**: Direct parsing, better for flat or simple configurations
 
 ## Lists
 

@@ -150,9 +150,9 @@ redis =
   password = redis_password
 ```
 
-**Alternative: Dot Notation for Flat Keys**
+**Alternative: Literal Dot Keys for Flat Structure**
 ```ccl
-# Database configuration (flat dot notation)
+# Database configuration (literal dot keys)
 database.host = localhost
 database.port = 5432
 database.name = myapp_production
@@ -162,7 +162,7 @@ database.ssl = true
 database.pool_size = 20
 database.timeout = 30.5
 
-# Redis configuration (flat dot notation)
+# Redis configuration (literal dot keys)
 redis.host = redis.example.com
 redis.port = 6379
 redis.database = 0
@@ -170,10 +170,10 @@ redis.password = redis_password
 ```
 
 **Comparing Approaches:**
-- **Indented sections:** Less verbose, better readability, requires `ccl.make_objects()` processing
-- **Dot notation:** More explicit, works with raw entries, longer key names
+- **Nested sections:** Less verbose, better readability, requires object construction processing
+- **Literal dot keys:** More explicit, works with raw entries, longer key names
 - **Both approaches** result in the same accessible data structure after processing
-- **Recommendation:** Use indented sections for complex configurations, dot notation for simple flat structures
+- **Recommendation:** Use nested sections for complex configurations, literal dot keys for simple flat structures
 
 ### Empty Values
 
@@ -245,12 +245,12 @@ ports =
 - Each list item value follows the same rules as regular values
 - Lists can be nested within sections for better organization
 
-### Array-Style Lists
+### Indexed Lists
 
 Alternative list representation using indexed keys:
 
 ```ccl
-# Array-style configuration
+# Indexed list configuration
 servers.0 = web-1.example.com
 servers.1 = web-2.example.com
 servers.2 = web-3.example.com
@@ -262,8 +262,8 @@ database_urls.1 = postgres://db2.example.com/myapp
 **Language Features:**
 - Uses dot notation with numeric suffixes: `.0`, `.1`, `.2`
 - Each indexed entry is a separate key-value pair
-- No special array syntax - just naming convention
-- Applications must interpret numeric suffixes as array indices
+- No special list syntax - just naming convention
+- Applications must interpret numeric suffixes as list indices
 
 ### Complex List Structures (Indented)
 
@@ -319,7 +319,7 @@ feature_config.beta_dashboard.rollout_percentage = 5
 
 ## Nested Configuration
 
-### Indented Nested Sections
+### Nested Sections
 
 CCL supports true structural nesting using indentation syntax:
 
@@ -357,11 +357,11 @@ app =
 - Indented key-value pairs belong to the parent section
 - Nested sections can contain other nested sections
 - Indentation level determines hierarchy depth
-- **Note:** Indented nested sections require `ccl.make_objects()` to process the hierarchical structure
+- **Note:** Nested sections require object construction to process the hierarchical structure
 
-### Hierarchical Configuration (Dot Notation)
+### Hierarchical Configuration (Literal Dot Keys)
 
-Alternative approach using dot notation for flat key representation:
+Alternative approach using literal dot keys for flat representation:
 
 ```ccl
 # Application configuration with dot notation
@@ -385,11 +385,11 @@ app.database.replica.name = myapp_prod
 ```
 
 **Language Features:**
-- Deep hierarchies created through dot notation: `app.server.ssl.enabled`
+- Deep hierarchies created through literal dot keys: `app.server.ssl.enabled`
 - Each dotted key is independent - no structural nesting
 - Hierarchy is purely naming convention, not syntax
 - All keys remain flat strings at the language level
-- **Advantage:** Works directly with parsed entries, no `make_objects()` required
+- **Advantage:** Works directly with parsed entries, no object construction required
 
 ### Environment-Specific Configuration (Indented)
 
@@ -586,10 +586,10 @@ let entries = ccl.parse(flat_dot_ccl_text) |> result.unwrap([])
 
 **Gleam Enhancements:**
 - `ccl.parse()` - Parses CCL text to entry list
-- `ccl.make_objects()` - **Required** for nested sections, processes hierarchical structure
+- `ccl.make_objects()` - **Required** for nested sections, builds hierarchical structure
 - `ccl.get_value()` - Gets raw string value (core CCL)
 - `ccl.get_int()`, `ccl.get_bool()`, `ccl.get_float()` - Type-safe parsing
-- **Processing choice:** Use `make_objects()` for nested sections, skip for simple flat structures
+- **Processing choice:** Use object construction for nested sections, skip for simple flat structures
 
 ### Working with Configuration Objects
 
@@ -921,7 +921,7 @@ database.connections =
 
 **Migration Pattern:**
 - JSON objects become dot-separated keys: `app.name`, `server.ssl.enabled`
-- JSON arrays become CCL lists using `=` syntax
+- JSON arrays become CCL lists using empty key syntax
 - JSON types (`true`, `8080`) become string values in CCL
 - Comments replace JSON's lack of comment support
 
@@ -980,7 +980,7 @@ database.replica.port = 5432
 
 **Migration Pattern:**
 - YAML indentation becomes dot notation: `database.primary.host`
-- YAML lists (`- item`) become CCL lists (`= item`)
+- YAML lists (`- item`) become CCL lists using empty key syntax (`= item`)
 - YAML comments (`#`) become regular keys in CCL (note the difference!)
 - YAML's structural nesting flattens to naming conventions
 
@@ -1241,10 +1241,10 @@ pub fn load_with_environment_overrides(config: ccl.CCL, environment: String) -> 
 
 ### Core CCL Language Best Practices
 1. **Use meaningful key names**: `database.connection_timeout` instead of `db_ct`
-2. **Group related settings**: Use dot notation for hierarchical organization
+2. **Group related settings**: Use literal dot keys for hierarchical organization
 3. **Document with special keys**: Use `/=`, `#=`, `//=` for comments
 4. **Organize with prefixes**: `development.`, `production.` for environments
-5. **Use lists consistently**: Prefer `= value` syntax over array indices
+5. **Use lists consistently**: Prefer empty key syntax (`= value`) over indexed keys
 
 ### Gleam Implementation Best Practices
 1. **Handle errors gracefully**: Provide sensible defaults and clear error messages
