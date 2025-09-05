@@ -42,6 +42,48 @@ CCL is designed as a layered architecture where each level builds on the previou
 - **Decorative Section Headers** (Level 2) - `group_by_sections()` API
 - **Pretty Printer** - Canonical CCL output formatting
 
+## Tree-sitter CCL Parser Status
+
+### Current Implementation (✅ WORKING)
+- **Flat parsing** with basic syntax highlighting for CCL files
+- **Key-value detection** and basic structure recognition
+- **Comment parsing** with CCL `/=` syntax
+- **Multi-line value** support (indented content as uniform blocks)
+
+### Recursive Structure Challenge (🔄 IN PROGRESS)
+**Problem**: CCL's semantic indentation requires context-sensitive parsing that standard tree-sitter grammar rules struggle with.
+
+**Failed Approaches**:
+1. **Precedence-based disambiguation** - Grammar conflicts remained
+2. **Pure recursive grammar** - Left-recursion conflicts 
+3. **Two-phase parsing** - Same fundamental ambiguity issues
+4. **External C++ scanner** - Implementation resulted in infinite loops/hangs
+
+### Comprehensive Implementation Plan (📋 PLANNED)
+**Document**: `tree-sitter-ccl/CCL_PARSER_PLAN.md`
+
+**Strategy**: Debug-first external C++ scanner implementation with:
+- Comprehensive logging and state validation
+- Incremental feature development (NEWLINE → INDENT → DEDENT)
+- Visual debugging with `tree-sitter --debug-graph`
+- Test-driven development with `test/corpus/` files
+
+**Key Debugging Techniques**:
+- `tree-sitter parse --debug` for exhaustive parse logging
+- Scanner state serialization validation
+- "All symbols valid" detection for error branch handling
+- Performance monitoring and GLR parse position jump handling
+
+**Timeline**: 3-week implementation with weekly milestones
+
+### Recommendation
+For immediate CCL development needs, the **current flat parsing** is sufficient for:
+- Syntax highlighting in editors
+- Basic structure recognition for tooling
+- Development workflow support
+
+The **external scanner approach** should be pursued for full semantic parsing when complete recursive CCL structure is required.
+
 ## Gleam Development Guidelines
 
 ### Project Structure
