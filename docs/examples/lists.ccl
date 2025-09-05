@@ -1,0 +1,30 @@
+# List Examples
+
+# Simple lists using empty keys
+allowed_hosts =
+  = localhost
+  = 127.0.0.1
+  = example.com
+  = api.example.com
+
+ports =
+  = 8080
+  = 8001
+  = 8002
+
+# Lists within nested sections
+network =
+  allowed_hosts =
+    = localhost
+    = example.com
+    = api.example.com
+  
+  ports =
+    = 80
+    = 443
+    = 8080
+
+# Alternative: Indexed lists
+servers.0 = web-1.example.com
+servers.1 = web-2.example.com
+servers.2 = web-3.example.com

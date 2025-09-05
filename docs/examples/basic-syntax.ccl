@@ -1,0 +1,24 @@
+# Basic CCL Syntax Examples
+
+# Simple key-value pairs
+app_name = MyApplication
+version = 1.2.3
+debug = true
+port = 8080
+
+# Multiline values
+description = A comprehensive example
+  of a multiline value that spans
+  multiple lines with preserved indentation
+
+welcome_message = Welcome to our application!
+  
+  Please read the documentation carefully
+  before getting started.
+
+# Empty values
+empty_value = 
+
+# Values containing equals signs
+equation = x = y + 5
+url = https://example.com/path?param=value

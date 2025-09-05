@@ -1,0 +1,26 @@
+# Nested Structure Examples
+
+# Using nested sections (indentation-based)
+database =
+  host = localhost
+  port = 5432
+  username = admin
+  password = secret123
+  ssl_enabled = true
+  pool_size = 20
+
+server =
+  host = 0.0.0.0
+  port = 8080
+  timeout = 30.0
+  
+  ssl =
+    enabled = true
+    cert_file = /etc/ssl/cert.pem
+    key_file = /etc/ssl/private.key
+
+# Alternative: Flat structure with dot notation
+# database.host = localhost
+# database.port = 5432
+# server.ssl.enabled = true
+# server.ssl.cert_file = /etc/ssl/cert.pem

@@ -1,0 +1,31 @@
+# Comments and Documentation Examples
+
+/= Application Configuration
+/= Version: 2.1.0
+/= Last updated: 2025-01-15
+
+app_name = MyApplication
+/= The display name for the application
+
+version = 2.1.0
+
+/= Security Configuration
+/= These settings control authentication and authorization
+security =
+  jwt_secret = your-super-secret-key-here
+  /= JWT secret key - MUST be changed in production
+  /= Generate with: openssl rand -base64 32
+  
+  jwt_expiration = 3600
+  /= Token expiration time in seconds (1 hour = 3600)
+  
+  password_policy =
+    min_length = 8
+    require_special_chars = true
+
+#= Alternative comment style
+database =
+  host = localhost
+  port = 5432
+  //= Connection pool settings
+  pool_size = 20

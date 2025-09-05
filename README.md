@@ -7,33 +7,27 @@ A Gleam implementation of the Categorical Configuration Language (CCL), organize
 
 ## Package Organization
 
-This project is organized as a multi-package workspace with the following packages:
+This project is organized as a multi-package workspace:
 
 ### 📦 [ccl_core](packages/ccl_core/) 
 [![Hex Docs](https://img.shields.io/badge/hex-docs-ffaff3)](https://hexdocs.pm/ccl_core/)
 
-**Minimal CCL parsing and access library** - The foundational package containing core CCL parsing logic and basic object construction.
-
-Minimal CCL parsing and object construction with zero external dependencies.
+**Minimal CCL parsing library** - Zero dependencies, core parsing only.
 
 ### 📦 [ccl](packages/ccl/)
 [![Hex Docs](https://img.shields.io/badge/hex-docs-ffaff3)](https://hexdocs.pm/ccl/)
 
-**Full-featured CCL library with smart accessors and type detection** - The complete user-facing library built on ccl_core with enhanced usability features.
-
-Enhanced CCL library with unified access API and smart type detection.
+**Full-featured CCL library** - Type-safe parsing, smart accessors, enhanced usability.
 
 ### 📦 [ccl_test_loader](packages/ccl_test_loader/)
 
-**Test case loader for CCL from JSON files** - Utilities for loading and processing JSON-based test suites for cross-language CCL implementation testing.
-
-Utilities for loading and processing JSON-based test suites for cross-language testing.
+**Test utilities** - JSON test suite loader for cross-language testing.
 
 ## What is CCL?
 
 CCL is a minimal configuration format using key-value pairs with indentation-based nesting:
 
-```
+```ccl
 database =
   host = localhost
   port = 5432
@@ -43,7 +37,7 @@ server =
     = 8001
 ```
 
-For the full specification, see: https://chshersh.com/blog/2025-01-06-the-most-elegant-configuration-language.html
+**[📖 Full CCL specification →](https://chshersh.com/blog/2025-01-06-the-most-elegant-configuration-language.html)**
 
 ## Usage
 
@@ -67,14 +61,12 @@ case ccl.parse(config) {
 }
 ```
 
-### Real-World Example
-
-CCL handles duplicate keys by merging them into structured objects:
+### Advanced Example
 
 ```gleam
 import ccl
 
-let ccl_text = "
+let config = "
 database =
   host = localhost
 database =
@@ -85,11 +77,11 @@ server =
     = 8001
 "
 
-case ccl.parse(ccl_text) {
-  Ok(flat_entries) -> {
-    let ccl_obj = ccl.make_objects(flat_entries)
-    // database.host = "localhost", database.port = "5432"
-    // server.ports = ["8000", "8001"]
+case ccl.parse(config) {
+  Ok(entries) -> {
+    let objects = ccl.make_objects(entries)
+    // Access: ccl.get(objects, "database.host") -> Ok(CclString("localhost"))
+    // Lists: ccl.get(objects, "server.ports") -> Ok(CclList(["8000", "8001"]))
   }
   Error(err) -> io.println("Parse error: " <> err.reason)
 }
@@ -97,27 +89,11 @@ case ccl.parse(ccl_text) {
 
 ### Package Selection Guide
 
-Choose the right package for your specific use case:
-
-#### 🎯 **Use `ccl` if you need:**
-- **Application development** - Building apps that consume CCL configuration
-- **Type-safe parsing** - `get_int()`, `get_bool()`, `get_float()` with error handling
-- **Smart accessors** - Unified `get()` API that handles strings, lists, and objects
-- **Better error messages** - Actionable guidance instead of generic parsing errors
-- **Enhanced list handling** - Flexible handling of both single values and lists
-
-#### ⚡ **Use `ccl_core` if you need:**
-- **Library development** - Building your own CCL abstractions or tools
-- **Minimal dependencies** - Zero external dependencies beyond Gleam stdlib
-- **Custom parsing logic** - Direct access to parsing internals and entry structures
-- **Performance-critical applications** - Minimal overhead for basic parsing
-
-#### 🧪 **Use `ccl_test_loader` if you need:**
-- **Testing CCL implementations** - Cross-language compatibility testing
-- **Development utilities** - JSON-based test suite loading
-- **Implementation validation** - Ensuring compliance with CCL specification
-
 **Quick Decision:** Use `ccl` for applications, `ccl_core` for libraries.
+
+- **`ccl`** - Full-featured with type-safe parsing, smart accessors, enhanced error handling
+- **`ccl_core`** - Minimal dependencies, direct parsing access, performance-focused
+- **`ccl_test_loader`** - Cross-language testing utilities
 
 ## Installation
 
@@ -128,15 +104,13 @@ gleam add ccl_core  # Minimal core library
 
 ## Documentation
 
-### 📖 Learning Guides
-- **[Getting Started](docs/getting-started.md)** - Quick introduction and first examples
-- **[Advanced Patterns](docs/advanced-patterns.md)** - Complex configurations and best practices  
-- **[Gleam Features](docs/gleam-features.md)** - Type-safe parsing and advanced error handling
-- **[Migration Guide](docs/migration-guide.md)** - Convert from JSON, YAML, TOML, environment variables
+### 📖 Learning Path
+1. **[Getting Started](docs/getting-started.md)** - Basic syntax and first Gleam program
+2. **[User Guide](docs/user-guide.md)** - Advanced patterns and type-safe Gleam features  
+3. **[Migration Guide](docs/migration-guide.md)** - Convert from JSON/YAML/TOML/env
 
 ### 📚 Reference
-- **[CCL Specification](https://chshersh.com/blog/2025-01-06-the-most-elegant-configuration-language.html)** - Official language reference
-- **[Glossary](docs/glossary.md)** - Technical terms and concepts
-- **[API Documentation](https://hexdocs.pm/ccl/)** - Full library API reference
-- **[Core API Documentation](https://hexdocs.pm/ccl_core/)** - Minimal library API reference
+- **[FAQ](docs/ccl_faq.md)** - Common questions and gotchas
+- **[Glossary](docs/glossary.md)** - Technical terms
+- **[API Documentation](https://hexdocs.pm/ccl/)** - Complete API reference
 
