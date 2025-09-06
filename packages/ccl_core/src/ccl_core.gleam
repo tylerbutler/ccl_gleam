@@ -47,7 +47,7 @@ pub fn parse(text: String) -> Result(List(Entry), ParseError) {
           let lines = string.split(input, "\n")
           // Remove trailing empty line created by split if input ends with newline
           let cleaned_lines = case list.reverse(lines) {
-            ["", ..rest] -> list.reverse(rest) 
+            ["", ..rest] -> list.reverse(rest)
             _ -> lines
           }
           parse_with_indentation(cleaned_lines)
@@ -570,11 +570,12 @@ fn rstrip_while_helper(
 fn join_and_trim_value_lines(vlines_rev: List(String)) -> String {
   let vlines = list.reverse(vlines_rev)
   let out = string.join(vlines, "\n")
-  
+
   // Special case: preserve single blank line for empty multiline sections
   // This handles cases like "empty_section =\n\nother = value" where the blank line is structural
   case vlines {
-    ["", ""] -> "\n"  // Two empty strings joined with \n represents one blank line to preserve
+    ["", ""] -> "\n"
+    // Two empty strings joined with \n represents one blank line to preserve
     _ -> out |> lstrip_spaces |> rstrip_whitespace
   }
 }
@@ -595,7 +596,7 @@ fn parse_value(text: String) -> Result(List(Entry), ParseError) {
       let lines = string.split(input, "\n")
       // Remove trailing empty line created by split if input ends with newline
       let cleaned_lines = case list.reverse(lines) {
-        ["", ..rest] -> list.reverse(rest) 
+        ["", ..rest] -> list.reverse(rest)
         _ -> lines
       }
       parse_value_with_base_indent(cleaned_lines)

@@ -68,7 +68,8 @@ pub type ParseOptions {
 pub type PrettyPrintTestCase {
   PrettyPrintTestCase(
     name: String,
-    property: String,  // "round_trip", "canonical_format", "deterministic"
+    property: String,
+    // "round_trip", "canonical_format", "deterministic"
     input: String,
     expected_canonical: String,
     tags: List(String),

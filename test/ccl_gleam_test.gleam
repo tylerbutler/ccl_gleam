@@ -16,17 +16,38 @@ pub fn main() {
 fn print_test_overview() {
   io.println("=== CCL Test Suite Overview ===")
   let level1_count = list.length(test_suite_types.get_level1_tests())
-  let level2_count = list.length(test_suite_types.get_level2_tests()) 
+  let level2_count = list.length(test_suite_types.get_level2_tests())
   let level3_count = list.length(test_suite_types.get_level3_tests())
-  let level4_count = list.length(test_suite_types.get_typed_parsing_test_cases())
-  let pretty_printer_count = list.length(test_suite_types.get_pretty_printer_tests())
-  let total_count = level1_count + level2_count + level3_count + level4_count + pretty_printer_count + 1 // +1 for parse_error_type_test
-  
-  io.println("Level 1 (Entry Parsing): " <> string.inspect(level1_count) <> " tests")
-  io.println("Level 2 (Entry Processing): " <> string.inspect(level2_count) <> " tests") 
-  io.println("Level 3 (Object Construction): " <> string.inspect(level3_count) <> " tests")
-  io.println("Level 4 (Typed Parsing): " <> string.inspect(level4_count) <> " tests")
-  io.println("Pretty Printer: " <> string.inspect(pretty_printer_count) <> " tests")
+  let level4_count =
+    list.length(test_suite_types.get_typed_parsing_test_cases())
+  let pretty_printer_count =
+    list.length(test_suite_types.get_pretty_printer_tests())
+  let total_count =
+    level1_count
+    + level2_count
+    + level3_count
+    + level4_count
+    + pretty_printer_count
+    + 1
+  // +1 for parse_error_type_test
+
+  io.println(
+    "Level 1 (Entry Parsing): " <> string.inspect(level1_count) <> " tests",
+  )
+  io.println(
+    "Level 2 (Entry Processing): " <> string.inspect(level2_count) <> " tests",
+  )
+  io.println(
+    "Level 3 (Object Construction): "
+    <> string.inspect(level3_count)
+    <> " tests",
+  )
+  io.println(
+    "Level 4 (Typed Parsing): " <> string.inspect(level4_count) <> " tests",
+  )
+  io.println(
+    "Pretty Printer: " <> string.inspect(pretty_printer_count) <> " tests",
+  )
   io.println("Error Handling: 1 test")
   io.println("Total: " <> string.inspect(total_count) <> " tests")
   io.println("")
@@ -66,7 +87,9 @@ pub fn ccl_level3_object_construction_test() {
             False -> {
               io.println("FAILED: " <> test_case.name)
               io.println("  Input: " <> string.inspect(test_case.input))
-              io.println("  Expected: " <> string.inspect(test_case.expected_flat))
+              io.println(
+                "  Expected: " <> string.inspect(test_case.expected_flat),
+              )
               io.println("  Got: " <> string.inspect(entries))
             }
             True -> Nil
@@ -74,7 +97,12 @@ pub fn ccl_level3_object_construction_test() {
           passed
         }
         Error(err) -> {
-          io.println("FAILED: " <> test_case.name <> " - Parse Error: " <> string.inspect(err))
+          io.println(
+            "FAILED: "
+            <> test_case.name
+            <> " - Parse Error: "
+            <> string.inspect(err),
+          )
           False
         }
       }
@@ -167,7 +195,12 @@ fn run_basic_test_cases(
           passed
         }
         Error(err) -> {
-          io.println("FAILED: " <> test_case.name <> " - Parse Error: " <> string.inspect(err))
+          io.println(
+            "FAILED: "
+            <> test_case.name
+            <> " - Parse Error: "
+            <> string.inspect(err),
+          )
           False
         }
       }
@@ -196,7 +229,7 @@ pub fn ccl_pretty_printer_test() {
   io.println("\n=== PRETTY PRINTER ===")
   let test_cases = test_suite_types.get_pretty_printer_tests()
 
-  let results = 
+  let results =
     list.map(test_cases, fn(test_case) {
       let result = case test_case.property {
         "round_trip" -> run_round_trip_test(test_case)
@@ -210,7 +243,7 @@ pub fn ccl_pretty_printer_test() {
       }
       result
     })
-    
+
   let passed = list.count(results, fn(r) { r == True })
 
   let total = list.length(test_cases)
@@ -235,7 +268,7 @@ fn run_round_trip_test(test_case: test_suite_types.PrettyPrintTestCase) -> Bool 
       let pretty_printed = ccl.pretty_print_entries(entries)
       case ccl_core.parse(pretty_printed) {
         Ok(reparsed_entries) -> {
-          let round_trip_ok = entries == reparsed_entries 
+          let round_trip_ok = entries == reparsed_entries
           let canonical_ok = pretty_printed == test_case.expected_canonical
           let passed = round_trip_ok && canonical_ok
           case passed {
@@ -243,7 +276,9 @@ fn run_round_trip_test(test_case: test_suite_types.PrettyPrintTestCase) -> Bool 
               io.println("  Round-trip OK: " <> string.inspect(round_trip_ok))
               io.println("  Canonical OK: " <> string.inspect(canonical_ok))
               io.println("  Input: " <> string.inspect(test_case.input))
-              io.println("  Expected: " <> string.inspect(test_case.expected_canonical))
+              io.println(
+                "  Expected: " <> string.inspect(test_case.expected_canonical),
+              )
               io.println("  Got: " <> string.inspect(pretty_printed))
             }
             True -> Nil
@@ -263,7 +298,9 @@ fn run_round_trip_test(test_case: test_suite_types.PrettyPrintTestCase) -> Bool 
   }
 }
 
-fn run_canonical_format_test(test_case: test_suite_types.PrettyPrintTestCase) -> Bool {
+fn run_canonical_format_test(
+  test_case: test_suite_types.PrettyPrintTestCase,
+) -> Bool {
   case ccl_core.parse(test_case.input) {
     Ok(entries) -> {
       let pretty_printed = ccl.pretty_print_entries(entries)
@@ -271,7 +308,9 @@ fn run_canonical_format_test(test_case: test_suite_types.PrettyPrintTestCase) ->
       case passed {
         False -> {
           io.println("  Input: " <> string.inspect(test_case.input))
-          io.println("  Expected: " <> string.inspect(test_case.expected_canonical))
+          io.println(
+            "  Expected: " <> string.inspect(test_case.expected_canonical),
+          )
           io.println("  Got: " <> string.inspect(pretty_printed))
         }
         True -> Nil
@@ -285,7 +324,9 @@ fn run_canonical_format_test(test_case: test_suite_types.PrettyPrintTestCase) ->
   }
 }
 
-fn run_deterministic_test(test_case: test_suite_types.PrettyPrintTestCase) -> Bool {
+fn run_deterministic_test(
+  test_case: test_suite_types.PrettyPrintTestCase,
+) -> Bool {
   case ccl_core.parse(test_case.input) {
     Ok(entries) -> {
       let output1 = ccl.pretty_print_entries(entries)
@@ -314,7 +355,6 @@ pub fn parse_error_type_test() {
 // REMOVED: Algebraic test runner - algebraic tests now in Level 2 composition_tests
 
 // === TYPED PARSING TESTS ===
-
 
 // Quiet validation function for concise output
 fn validate_typed_parsing_from_json_quiet(
@@ -366,4 +406,3 @@ fn validate_typed_parsing_from_json_quiet(
     }
   })
 }
-

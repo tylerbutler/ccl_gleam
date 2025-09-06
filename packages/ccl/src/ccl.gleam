@@ -272,17 +272,20 @@ fn format_entry(entry: ccl_core.Entry, indent_level: Int) -> String {
   let ccl_core.Entry(key, value) = entry
   let indent = string.repeat("  ", indent_level)
   let normalized_key = normalize_key(key)
-  
+
   case is_multiline(value) {
     True -> format_multiline_entry(key, value, indent_level)
     False -> {
       let normalized_value = normalize_value(value)
       case normalized_key {
-        "" -> indent <> "= " <> normalized_value  // Empty key (list item)
+        "" -> indent <> "= " <> normalized_value
+        // Empty key (list item)
         _ -> {
           case normalized_value {
-            "" -> indent <> normalized_key <> " ="  // Empty value (no trailing space)
-            _ -> indent <> normalized_key <> " = " <> normalized_value  // Regular key-value
+            "" -> indent <> normalized_key <> " ="
+            // Empty value (no trailing space)
+            _ -> indent <> normalized_key <> " = " <> normalized_value
+            // Regular key-value
           }
         }
       }
@@ -296,14 +299,20 @@ fn is_multiline(value: String) -> Bool {
 }
 
 /// Format a multiline entry preserving exact whitespace structure
-fn format_multiline_entry(key: String, value: String, indent_level: Int) -> String {
+fn format_multiline_entry(
+  key: String,
+  value: String,
+  indent_level: Int,
+) -> String {
   let indent = string.repeat("  ", indent_level)
   let normalized_key = normalize_key(key)
   let formatted_key = case normalized_key {
-    "" -> "="  // Empty key (list item)
-    _ -> normalized_key <> " ="  // Regular key
+    "" -> "="
+    // Empty key (list item)
+    _ -> normalized_key <> " ="
+    // Regular key
   }
-  
+
   // For multiline values, preserve exact content structure
   indent <> formatted_key <> value
 }
@@ -326,15 +335,17 @@ fn format_ccl_recursive(ccl: CCL, indent_level: Int) -> String {
 fn format_ccl_entry(key: String, sub_ccl: CCL, indent_level: Int) -> String {
   let indent = string.repeat("  ", indent_level)
   let formatted_key = normalize_key(key)
-  
+
   case sub_ccl {
     ccl_core.CCL(map) -> {
       case dict.size(map) {
         0 -> {
           // Terminal empty value
           case formatted_key {
-            "" -> indent <> "= "  // Empty key (list item) with empty value
-            _ -> indent <> formatted_key <> " = "  // Regular key with empty value
+            "" -> indent <> "= "
+            // Empty key (list item) with empty value
+            _ -> indent <> formatted_key <> " = "
+            // Regular key with empty value
           }
         }
         _ -> {
@@ -343,12 +354,15 @@ fn format_ccl_entry(key: String, sub_ccl: CCL, indent_level: Int) -> String {
               // Empty key - check if this is a terminal value or nested structure
               let terminal_values = get_all_terminal_values_from_ccl(sub_ccl)
               case terminal_values {
-                [single_value] -> indent <> "= " <> normalize_value(single_value)
-                _ -> format_ccl_recursive(sub_ccl, indent_level)  // Complex nested structure
+                [single_value] ->
+                  indent <> "= " <> normalize_value(single_value)
+                _ -> format_ccl_recursive(sub_ccl, indent_level)
+                // Complex nested structure
               }
             }
             _ -> {
-              let nested_content = format_ccl_recursive(sub_ccl, indent_level + 1)
+              let nested_content =
+                format_ccl_recursive(sub_ccl, indent_level + 1)
               case string.trim(nested_content) {
                 "" -> indent <> formatted_key <> " ="
                 content -> indent <> formatted_key <> " =\n" <> content
@@ -371,8 +385,10 @@ fn get_all_terminal_values_from_ccl(ccl: CCL) -> List(String) {
         case nested_ccl {
           ccl_core.CCL(inner_map) -> {
             case dict.size(inner_map) {
-              0 -> [key]  // Terminal value found
-              _ -> get_all_terminal_values_from_ccl(nested_ccl)  // Keep searching deeper
+              0 -> [key]
+              // Terminal value found
+              _ -> get_all_terminal_values_from_ccl(nested_ccl)
+              // Keep searching deeper
             }
           }
         }
@@ -437,20 +453,24 @@ pub fn group_by_sections(entries: List(Entry)) -> List(SectionGroup) {
   group_entries_recursive(entries, [], None, [])
 }
 
-
 /// Internal recursive helper for grouping entries
 fn group_entries_recursive(
   remaining: List(Entry),
-  current_section: List(Entry), 
+  current_section: List(Entry),
   current_header: Option(String),
-  completed_groups: List(SectionGroup)
+  completed_groups: List(SectionGroup),
 ) -> List(SectionGroup) {
   case remaining {
     [] -> {
       // End of entries - add final section if it has content
       let final_group = case current_section, current_header {
         [], None -> []
-        _, _ -> [SectionGroup(header: current_header, entries: list.reverse(current_section))]
+        _, _ -> [
+          SectionGroup(
+            header: current_header,
+            entries: list.reverse(current_section),
+          ),
+        ]
       }
       list.reverse(completed_groups) |> list.append(final_group)
     }
@@ -460,16 +480,16 @@ fn group_entries_recursive(
           // Found a section header - save current section and start new one
           let completed_section = case current_section, current_header {
             [], None -> []
-            _, _ -> [SectionGroup(header: current_header, entries: list.reverse(current_section))]
+            _, _ -> [
+              SectionGroup(
+                header: current_header,
+                entries: list.reverse(current_section),
+              ),
+            ]
           }
           let new_completed = list.append(completed_groups, completed_section)
-          
-          group_entries_recursive(
-            rest,
-            [],
-            Some(entry.value),
-            new_completed
-          )
+
+          group_entries_recursive(rest, [], Some(entry.value), new_completed)
         }
         False -> {
           // Regular entry - add to current section
@@ -477,7 +497,7 @@ fn group_entries_recursive(
             rest,
             [entry, ..current_section],
             current_header,
-            completed_groups
+            completed_groups,
           )
         }
       }
