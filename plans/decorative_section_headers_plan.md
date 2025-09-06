@@ -2,11 +2,57 @@
 
 ## Overview
 
-Support for organizing CCL entries using decorative section headers is **planned but not yet implemented**. This feature would provide visual organization and programmatic grouping of configuration entries.
+Support for organizing CCL entries using decorative section headers is **planned but not yet implemented**. This feature provides visual organization and programmatic grouping of configuration entries as a **Level 2.5 conceptual layer** between Entry Processing and Object Construction.
+
+## Architectural Position
+
+Decorative section headers introduce a **logical grouping layer** that sits between Level 2 (Entry Processing) and Level 3 (Object Construction):
+
+```
+Level 1: Entry Parsing     → Entry[]                    ✅ IMPLEMENTED
+Level 2: Entry Processing  → Entry[] (filtered/composed) ✅ IMPLEMENTED  
+Level 2.5: Section Grouping → SectionGroup[] (organized) ❌ NOT IMPLEMENTED
+Level 3: Object Construction → CCL (nested objects)      ✅ IMPLEMENTED
+Level 4: Typed Parsing     → typed values               ✅ IMPLEMENTED
+```
+
+### Key Insight
+
+Section headers create **logical groupings** that are **orthogonal** to CCL's hierarchical nesting:
+- **Section grouping**: Database vs Server sections (visual/organizational)
+- **Object nesting**: `database.host`, `server.port` (structural hierarchy)
+
+This enables both simple pipeline processing and powerful section-aware workflows.
 
 ## Decorative Section Header Syntax
 
-Following the CCL specification, decorative headers use special key patterns. These can work with both flat and nested configurations:
+### Section Header Definition (Simplified)
+
+**A section header is any entry with an empty key whose value starts with `=`.**
+
+```ccl
+== Simple Header
+=== Header Level 3 ===
+==== Database Configuration ====
+===== Nested Section =====
+```
+
+**CCL Parsing Behavior**: When CCL encounters a line starting with `=`, it treats the first `=` as the assignment operator:
+- **key**: `""` (empty)
+- **value**: everything after the first `=`
+
+Examples:
+- `== Section ==` → `Entry(key: "", value: "= Section ==")` ✅ **Section header**
+- `=== Config ===` → `Entry(key: "", value: "== Config ===")` ✅ **Section header**  
+- `= apple` → `Entry(key: "", value: "apple")` ❌ **List item** (not section)
+
+### Design Benefits
+- **Simple and general** - Any number of `=` signs supported
+- **Visually clear** - More `=` signs indicate hierarchy/importance
+- **Parser-friendly** - Uses existing CCL parsing rules
+- **Flexible** - Users control their own decorative style
+
+Headers can work with both flat and nested configurations:
 
 ### With Flat Configuration
 ```ccl
@@ -56,17 +102,23 @@ The test suite includes one basic test for section-like syntax:
 - ❌ **group_by_sections()** function not implemented
 - ❌ Section filtering and grouping APIs missing
 
-### Proposed API Design
+### Simplified API Design
 ```gleam
 pub type SectionGroup {
   SectionGroup(header: Option(String), entries: List(Entry))
 }
 
-pub type HeaderPattern {
-  FixedPattern(String)           // "==="
-  PrefixSuffix(String, String)   // "===" and "==="  
-  RegexPattern(String)           // Custom regex
-  Custom(fn(String) -> Bool)     // User-defined detector
+// Core functions - no pattern types needed!
+pub fn group_by_sections(entries: List(Entry)) -> List(SectionGroup)
+pub fn strip_section_headers(entries: List(Entry)) -> List(Entry)  
+pub fn is_section_header(entry: Entry) -> Bool
+```
+
+### Detection Logic
+```gleam
+// Simple detection: empty key + value starts with =
+fn is_section_header(entry: Entry) -> Bool {
+  entry.key == "" && string.starts_with(entry.value, "=")
 }
 ```
 
@@ -123,11 +175,31 @@ pub fn extract_section_name(header: String, pattern: HeaderPattern) -> Option(St
 ### Basic Grouping
 ```gleam
 let entries = parse_ccl_string(content)
-let pattern = FixedPattern("===")
-let groups = group_by_sections(entries, pattern)
+let groups = group_by_sections(entries)  // Automatic detection
 
 // Work with specific section
-let data_entries = get_section_entries(groups, "=== Section: Data ===")
+let data_entries = get_section_entries(groups, "= Section: Data =")
+```
+
+### Hybrid Processing Approach (Recommended)
+```gleam
+// Process different sections independently
+let sections = group_by_sections(entries)
+
+// Extract and process database configuration
+let database_ccl = sections
+  |> get_section_entries("= Database Config =")
+  |> ccl_core.make_objects()
+  
+// Extract and process server configuration  
+let server_ccl = sections
+  |> get_section_entries("= Server Config =")
+  |> ccl_core.make_objects()
+
+// Work with both configurations
+use db_host <- result.try(ccl.get_value(database_ccl, "database.host"))
+use server_port <- result.try(ccl.get_int(server_ccl, "server.port"))
+// ... application logic
 ```
 
 ### Custom Header Patterns
@@ -143,11 +215,24 @@ let custom_pattern = Custom(fn(key) {
 
 ### Pipeline Integration
 ```gleam
-// Clean processing pipeline
+// Option 1: Clean processing pipeline (ignore sections)
 content
 |> parse_ccl_string()
-|> strip_section_headers(FixedPattern("==="))  // Remove visual headers
-|> entries_to_ccl()                            // Convert to CCL
+|> strip_section_headers()              // Remove visual headers
+|> ccl_core.make_objects()              // Convert to CCL
+
+// Option 2: Section-aware processing
+content
+|> parse_ccl_string() 
+|> group_by_sections()                  // Group into sections
+|> process_sections_independently()     // Custom section handling
+
+// Option 3: Hybrid - process specific sections
+content
+|> parse_ccl_string()
+|> group_by_sections()
+|> get_section_entries("= Production Config =")  // Extract one section
+|> ccl_core.make_objects()                       // Process normally
 ```
 
 ## Implementation Strategy
@@ -163,22 +248,34 @@ content
 3. Add subsequent entries to current section
 4. Continue until next header or end of file
 
-### Section Name Extraction
-- **FixedPattern**: Use entire key as section name
-- **PrefixSuffix**: Extract text between prefix and suffix
-- **RegexPattern**: Use regex groups to extract name
-- **Custom**: User provides extraction logic
+### Section Header Detection and Parsing
+
+#### Detection Rules
+1. **Check if keyless**: `entry.key == ""`
+2. **Check starts with equals**: `string.starts_with(entry.value, "=")`
+3. **Raw value**: Store entire `entry.value` as section name
+
+#### Edge Cases and Spacing
+```ccl
+== Header ==        → Entry(key: "", value: "= Header ==")      ✅ Section header
+=== Config          → Entry(key: "", value: "== Config")        ✅ Section header  
+= = spaced          → Entry(key: "", value: " = spaced")        ❌ List item (space before =)
+=  = wide           → Entry(key: "", value: " = wide")          ❌ List item (space before =)
+= item              → Entry(key: "", value: "item")             ❌ List item (no leading =)
+```
+
+**Rule**: Equals signs must be **consecutive at the start** of the value (no spaces) to be detected as section headers.
 
 ## Integration Points
 
 ### With Existing CCL System
 ```gleam
-// Combined with other features
+// Combined with existing Level 2 features
 content
 |> parse_ccl_string()
-|> strip_section_headers(FixedPattern("==="))   // Remove decorative headers  
-|> filter_keys(["/", "#"])                      // Remove comments
-|> entries_to_ccl()                            // Convert to CCL structure
+|> strip_section_headers()     // Remove decorative headers  
+|> filter_keys(["/", "#"])     // Remove comments (existing API)
+|> ccl_core.make_objects()     // Convert to CCL structure
 ```
 
 ### With Nested Sections
@@ -199,9 +296,9 @@ content
 
 ## Common Header Patterns
 
-### CCL Style with Nested Sections
+### Section Headers with Nested Configuration
 ```ccl
-=== Database Configuration ===
+== Database Configuration
 database =
   host = localhost
   port = 5432
@@ -215,33 +312,39 @@ server =
     enabled = true
     cert = /path/to/cert.pem
 
-=== Logging Options ===
+==== Logging Options ====
 logging =
   level = info
   file = /var/log/app.log
 ```
 
-### INI Style with Indented Content
+### Mixed Header Styles
 ```ccl
-[database]
+== Simple Header
 database =
   host = localhost
   port = 5432
 
-[server]
+=== Double Equals Header ===
 server =
   host = 0.0.0.0
   port = 8080
 
-[logging]
+==== Triple Equals Header ====
 logging =
   level = info
   file = /var/log/app.log
+
+===== Quad Header for Nested Config =====
+advanced =
+  security =
+    auth = enabled
+    ssl = required
 ```
 
-### Comment Style with Nested Sections
+### Section Headers vs List Items
 ```ccl
-# --- Database Configuration ---
+== Database Config ==
 database =
   primary =
     host = db1.example.com
@@ -250,7 +353,7 @@ database =
     host = db2.example.com
     port = 5432
 
-# --- Server Settings ---
+=== Server Config ===
 server =
   host = 0.0.0.0
   port = 8080
@@ -259,7 +362,7 @@ server =
     = auth
     = logging
 
-# --- Logging Options ---
+==== Logging Config ====
 logging =
   level = info
   outputs =
@@ -267,16 +370,20 @@ logging =
     = file
 ```
 
-### Custom Decorative with Indented Sections
+**Note**: List items like `= cors` are **not** section headers because their values don't start with `=`.
+
+### Hierarchical Headers with Flexible Trailing Equals
 ```ccl
-/**** DATABASE SETTINGS ****/
+== TOP LEVEL: Application Config
+
+=== Database Settings ===
 database =
   connection =
     host = localhost
     port = 5432
     pool_size = 20
 
-/**** SERVER CONFIG ****/
+=== Server Configuration
 server =
   bind =
     host = 0.0.0.0
@@ -286,7 +393,7 @@ server =
     = compression
     = caching
 
-/**** LOGGING SETUP ****/
+==== Advanced Logging ====
 logging =
   level = info
   destinations =
@@ -295,14 +402,43 @@ logging =
       rotate = true
     console =
       format = json
+
+===== Debug Settings
+debug =
+  verbose = true
+  trace = false
 ```
+
+**Note**: Trailing `=` signs are **optional** - users can choose symmetric (`=== Section ===`) or minimal (`=== Section`) styling.
 
 ## Testing Requirements
 
-- Parse various header patterns correctly
+### Core Functionality Tests
+- Parse keyless values with varying `=` counts correctly
 - Group entries under appropriate sections
-- Handle entries before first section
-- Extract section names accurately
+- Handle entries before first section (orphaned entries)
+- Extract section names accurately from equals patterns
 - Filter headers while preserving other entries
-- Support multiple header styles in same file
-- Handle edge cases (empty sections, malformed headers)
+- Support mixed header levels in same file (=, ==, ===, etc.)
+
+### Edge Cases
+- Empty sections (header with no following entries)
+- Headers at end of file
+- Multiple consecutive headers
+- Headers mixed with comments and regular entries
+- Very long header text
+- Unicode content in headers
+- Spaced equals like `= = foo` (treated as list items, not headers)
+- Mixed spacing patterns within same file
+
+### Integration Tests
+- Works with existing `filter_keys()` for comment removal
+- Integrates with pretty printer output
+- Compatible with all 4 CCL levels
+- Hybrid processing workflows
+- Section-aware configuration management
+
+### Performance Tests
+- Large files with many sections
+- Deep nesting combined with sections
+- Memory usage with section grouping
