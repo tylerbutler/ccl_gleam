@@ -270,10 +270,22 @@ pub fn pretty_print_ccl(ccl: CCL) -> String {
 fn format_entry(entry: ccl_core.Entry, indent_level: Int) -> String {
   let ccl_core.Entry(key, value) = entry
   let indent = string.repeat("  ", indent_level)
+  let normalized_key = normalize_key(key)
   
   case is_multiline(value) {
     True -> format_multiline_entry(key, value, indent_level)
-    False -> indent <> normalize_key(key) <> " = " <> normalize_value(value)
+    False -> {
+      let normalized_value = normalize_value(value)
+      case normalized_key {
+        "" -> indent <> "= " <> normalized_value  // Empty key (list item)
+        _ -> {
+          case normalized_value {
+            "" -> indent <> normalized_key <> " ="  // Empty value (no trailing space)
+            _ -> indent <> normalized_key <> " = " <> normalized_value  // Regular key-value
+          }
+        }
+      }
+    }
   }
 }
 
@@ -282,31 +294,17 @@ fn is_multiline(value: String) -> Bool {
   string.contains(value, "\n")
 }
 
-/// Format a multiline entry with proper continuation indentation
+/// Format a multiline entry preserving exact whitespace structure
 fn format_multiline_entry(key: String, value: String, indent_level: Int) -> String {
   let indent = string.repeat("  ", indent_level)
-  let lines = string.split(value, "\n")
-  let formatted_key = normalize_key(key) <> " ="
-  
-  case lines {
-    [] -> indent <> formatted_key
-    [single_line] -> indent <> formatted_key <> " " <> normalize_value(single_line)
-    [first_line, ..rest_lines] -> {
-      let first_part = case normalize_value(first_line) {
-        "" -> indent <> formatted_key
-        first_val -> indent <> formatted_key <> " " <> first_val
-      }
-      let continuation_indent = string.repeat("  ", indent_level + 1)
-      let formatted_rest = 
-        list.map(rest_lines, fn(line) {
-          case normalize_value(line) {
-            "" -> ""  // Empty lines stay empty
-            val -> continuation_indent <> val
-          }
-        })
-      string.join([first_part, ..formatted_rest], "\n")
-    }
+  let normalized_key = normalize_key(key)
+  let formatted_key = case normalized_key {
+    "" -> "="  // Empty key (list item)
+    _ -> normalized_key <> " ="  // Regular key
   }
+  
+  // For multiline values, preserve exact content structure
+  indent <> formatted_key <> value
 }
 
 /// Format CCL structure recursively
@@ -389,12 +387,12 @@ fn normalize_key(key: String) -> String {
 
 /// Normalize a value according to CCL formatting rules  
 fn normalize_value(value: String) -> String {
-  // Trim leading spaces, preserve trailing tabs as per tab_preservation_in_values test
+  // For single-line values: trim leading spaces, preserve trailing whitespace
+  // For multiline content within values: preserve exact whitespace
   lstrip_spaces(value)
-  // Don't strip trailing whitespace to preserve tabs and trailing spaces as needed
 }
 
-/// Strip leading spaces only (not tabs)
+/// Strip leading spaces only (preserve tabs)
 fn lstrip_spaces(s: String) -> String {
   lstrip_while_char(s, " ")
 }

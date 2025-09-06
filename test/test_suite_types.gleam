@@ -64,6 +64,17 @@ pub type ParseOptions {
   ParseOptions(parse_integers: Bool, parse_floats: Bool, parse_booleans: Bool)
 }
 
+// Types for pretty printer tests
+pub type PrettyPrintTestCase {
+  PrettyPrintTestCase(
+    name: String,
+    property: String,  // "round_trip", "canonical_format", "deterministic"
+    input: String,
+    expected_canonical: String,
+    tags: List(String),
+  )
+}
+
 // REMOVED: Legacy test loading functions - all tests now in 4-level files
 
 // New 4-level test loading functions
@@ -85,6 +96,10 @@ pub fn get_level4_tests() -> List(TypedTestCase) {
 
 pub fn get_error_tests() -> List(ErrorTestCase) {
   load_error_test_file("ccl-test-suite/ccl-errors.json")
+}
+
+pub fn get_pretty_printer_tests() -> List(PrettyPrintTestCase) {
+  load_pretty_printer_test_file("ccl-test-suite/ccl-pretty-printer.json")
 }
 
 // REMOVED: Legacy test suite structures and loading - replaced by 4-level architecture
@@ -330,4 +345,44 @@ fn meta_decoder() -> decode.Decoder(TestMetadata) {
   use tags <- decode.field("tags", decode.list(decode.string))
   use level <- decode.field("level", decode.int)
   decode.success(TestMetadata(tags: tags, level: level))
+}
+
+fn load_pretty_printer_test_file(filename: String) -> List(PrettyPrintTestCase) {
+  case simplifile.read(filename) {
+    Ok(content) -> {
+      let pretty_printer_test_suite_decoder = {
+        use tests <- decode.field(
+          "tests",
+          decode.list(pretty_printer_test_case_decoder()),
+        )
+        decode.success(tests)
+      }
+
+      case json.parse(content, pretty_printer_test_suite_decoder) {
+        Ok(parsed) -> parsed
+        Error(_) -> []
+      }
+    }
+    Error(_) -> []
+  }
+}
+
+fn pretty_printer_test_case_decoder() -> decode.Decoder(PrettyPrintTestCase) {
+  use name <- decode.field("name", decode.string)
+  use property <- decode.field("property", decode.string)
+  use input <- decode.field("input", decode.string)
+  use expected_canonical <- decode.field("expected_canonical", decode.string)
+  use meta <- decode.field("meta", pretty_printer_meta_decoder())
+  decode.success(PrettyPrintTestCase(
+    name: name,
+    property: property,
+    input: input,
+    expected_canonical: expected_canonical,
+    tags: meta,
+  ))
+}
+
+fn pretty_printer_meta_decoder() -> decode.Decoder(List(String)) {
+  use tags <- decode.field("tags", decode.list(decode.string))
+  decode.success(tags)
 }

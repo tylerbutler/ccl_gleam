@@ -19,12 +19,14 @@ fn print_test_overview() {
   let level2_count = list.length(test_suite_types.get_level2_tests()) 
   let level3_count = list.length(test_suite_types.get_level3_tests())
   let level4_count = list.length(test_suite_types.get_typed_parsing_test_cases())
-  let total_count = level1_count + level2_count + level3_count + level4_count + 1 // +1 for parse_error_type_test
+  let pretty_printer_count = list.length(test_suite_types.get_pretty_printer_tests())
+  let total_count = level1_count + level2_count + level3_count + level4_count + pretty_printer_count + 1 // +1 for parse_error_type_test
   
   io.println("Level 1 (Entry Parsing): " <> string.inspect(level1_count) <> " tests")
   io.println("Level 2 (Entry Processing): " <> string.inspect(level2_count) <> " tests") 
   io.println("Level 3 (Object Construction): " <> string.inspect(level3_count) <> " tests")
   io.println("Level 4 (Typed Parsing): " <> string.inspect(level4_count) <> " tests")
+  io.println("Pretty Printer: " <> string.inspect(pretty_printer_count) <> " tests")
   io.println("Error Handling: 1 test")
   io.println("Total: " <> string.inspect(total_count) <> " tests")
   io.println("")
@@ -59,12 +61,22 @@ pub fn ccl_level3_object_construction_test() {
     list.map(test_cases, fn(test_case) {
       case ccl_core.parse(test_case.input) {
         Ok(entries) -> {
-          case entries == test_case.expected_flat {
-            True -> True
-            False -> False
+          let passed = entries == test_case.expected_flat
+          case passed {
+            False -> {
+              io.println("FAILED: " <> test_case.name)
+              io.println("  Input: " <> string.inspect(test_case.input))
+              io.println("  Expected: " <> string.inspect(test_case.expected_flat))
+              io.println("  Got: " <> string.inspect(entries))
+            }
+            True -> Nil
           }
+          passed
         }
-        Error(_) -> False
+        Error(err) -> {
+          io.println("FAILED: " <> test_case.name <> " - Parse Error: " <> string.inspect(err))
+          False
+        }
       }
     })
 
@@ -141,8 +153,23 @@ fn run_basic_test_cases(
   let results =
     list.map(test_cases, fn(test_case) {
       case ccl_core.parse(test_case.input) {
-        Ok(result) -> result == test_case.expected
-        Error(_) -> False
+        Ok(result) -> {
+          let passed = result == test_case.expected
+          case passed {
+            False -> {
+              io.println("FAILED: " <> test_case.name)
+              io.println("  Input: " <> string.inspect(test_case.input))
+              io.println("  Expected: " <> string.inspect(test_case.expected))
+              io.println("  Got: " <> string.inspect(result))
+            }
+            True -> Nil
+          }
+          passed
+        }
+        Error(err) -> {
+          io.println("FAILED: " <> test_case.name <> " - Parse Error: " <> string.inspect(err))
+          False
+        }
       }
     })
 
@@ -161,6 +188,112 @@ fn run_basic_test_cases(
   case passed != total {
     True -> should.fail()
     False -> Nil
+  }
+}
+
+/// Pretty Printer Tests - Round-trip and canonical formatting
+pub fn ccl_pretty_printer_test() {
+  io.println("\n=== PRETTY PRINTER ===")
+  let test_cases = test_suite_types.get_pretty_printer_tests()
+
+  let results = 
+    list.map(test_cases, fn(test_case) {
+      let result = case test_case.property {
+        "round_trip" -> run_round_trip_test(test_case)
+        "canonical_format" -> run_canonical_format_test(test_case)
+        "deterministic" -> run_deterministic_test(test_case)
+        _ -> False
+      }
+      case result {
+        False -> io.println("FAILED: " <> test_case.name)
+        True -> Nil
+      }
+      result
+    })
+    
+  let passed = list.count(results, fn(r) { r == True })
+
+  let total = list.length(test_cases)
+
+  io.println(
+    "Pretty Printer: "
+    <> string.inspect(passed)
+    <> "/"
+    <> string.inspect(total)
+    <> " passed",
+  )
+
+  case passed != total {
+    True -> should.fail()
+    False -> Nil
+  }
+}
+
+fn run_round_trip_test(test_case: test_suite_types.PrettyPrintTestCase) -> Bool {
+  case ccl_core.parse(test_case.input) {
+    Ok(entries) -> {
+      let pretty_printed = ccl.pretty_print_entries(entries)
+      case ccl_core.parse(pretty_printed) {
+        Ok(reparsed_entries) -> {
+          let round_trip_ok = entries == reparsed_entries 
+          let canonical_ok = pretty_printed == test_case.expected_canonical
+          let passed = round_trip_ok && canonical_ok
+          case passed {
+            False -> {
+              io.println("  Round-trip OK: " <> string.inspect(round_trip_ok))
+              io.println("  Canonical OK: " <> string.inspect(canonical_ok))
+              io.println("  Input: " <> string.inspect(test_case.input))
+              io.println("  Expected: " <> string.inspect(test_case.expected_canonical))
+              io.println("  Got: " <> string.inspect(pretty_printed))
+            }
+            True -> Nil
+          }
+          passed
+        }
+        Error(err) -> {
+          io.println("  Reparse error: " <> string.inspect(err))
+          False
+        }
+      }
+    }
+    Error(err) -> {
+      io.println("  Parse error: " <> string.inspect(err))
+      False
+    }
+  }
+}
+
+fn run_canonical_format_test(test_case: test_suite_types.PrettyPrintTestCase) -> Bool {
+  case ccl_core.parse(test_case.input) {
+    Ok(entries) -> {
+      let pretty_printed = ccl.pretty_print_entries(entries)
+      let passed = pretty_printed == test_case.expected_canonical
+      case passed {
+        False -> {
+          io.println("  Input: " <> string.inspect(test_case.input))
+          io.println("  Expected: " <> string.inspect(test_case.expected_canonical))
+          io.println("  Got: " <> string.inspect(pretty_printed))
+        }
+        True -> Nil
+      }
+      passed
+    }
+    Error(err) -> {
+      io.println("  Parse error: " <> string.inspect(err))
+      False
+    }
+  }
+}
+
+fn run_deterministic_test(test_case: test_suite_types.PrettyPrintTestCase) -> Bool {
+  case ccl_core.parse(test_case.input) {
+    Ok(entries) -> {
+      let output1 = ccl.pretty_print_entries(entries)
+      let output2 = ccl.pretty_print_entries(entries)
+      // Same input should always produce same output
+      output1 == output2 && output1 == test_case.expected_canonical
+    }
+    Error(_) -> False
   }
 }
 

@@ -43,7 +43,15 @@ pub fn parse(text: String) -> Result(List(Entry), ParseError) {
       // Handle whitespace-only input as error
       case string.length(string.trim(text)) == 0 {
         True -> Error(ParseError(1, "Input contains only whitespace"))
-        False -> parse_with_indentation(string.split(input, "\n"))
+        False -> {
+          let lines = string.split(input, "\n")
+          // Remove trailing empty line created by split if input ends with newline
+          let cleaned_lines = case list.reverse(lines) {
+            ["", ..rest] -> list.reverse(rest) 
+            _ -> lines
+          }
+          parse_with_indentation(cleaned_lines)
+        }
       }
     }
   }
@@ -521,7 +529,7 @@ fn lstrip_spaces(s: String) -> String {
 }
 
 fn rstrip_whitespace(s: String) -> String {
-  rstrip_while(s, fn(c) { c == " " || c == "\t" || c == "\n" || c == "\r" })
+  rstrip_while(s, fn(c) { c == " " || c == "\t" || c == "\r" || c == "\n" })
 }
 
 fn lstrip_while(s: String, keep: fn(String) -> Bool) -> String {
@@ -562,9 +570,13 @@ fn rstrip_while_helper(
 fn join_and_trim_value_lines(vlines_rev: List(String)) -> String {
   let vlines = list.reverse(vlines_rev)
   let out = string.join(vlines, "\n")
-  out
-  |> lstrip_spaces
-  |> rstrip_whitespace
+  
+  // Special case: preserve single blank line for empty multiline sections
+  // This handles cases like "empty_section =\n\nother = value" where the blank line is structural
+  case vlines {
+    ["", ""] -> "\n"  // Two empty strings joined with \n represents one blank line to preserve
+    _ -> out |> lstrip_spaces |> rstrip_whitespace
+  }
 }
 
 // === FIXPOINT ALGORITHM IMPLEMENTATION ===
@@ -581,7 +593,12 @@ fn parse_value(text: String) -> Result(List(Entry), ParseError) {
     True -> Ok([])
     False -> {
       let lines = string.split(input, "\n")
-      parse_value_with_base_indent(lines)
+      // Remove trailing empty line created by split if input ends with newline
+      let cleaned_lines = case list.reverse(lines) {
+        ["", ..rest] -> list.reverse(rest) 
+        _ -> lines
+      }
+      parse_value_with_base_indent(cleaned_lines)
     }
   }
 }
