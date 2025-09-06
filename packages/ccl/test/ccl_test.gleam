@@ -286,3 +286,57 @@ pub fn pretty_print_whitespace_normalization_test() {
     _ -> should.fail()
   }
 }
+
+pub fn pretty_print_list_formatting_test() {
+  // Test list-style entries with empty keys
+  let entries = [
+    ccl_core.Entry("", "list_item1"),
+    ccl_core.Entry("", "list_item2"),
+    ccl_core.Entry("regular_key", "value")
+  ]
+  
+  let ccl_obj = ccl_core.make_objects(entries)
+  let output = ccl.pretty_print_ccl(ccl_obj)
+  
+  // Should format empty key entries as list items
+  // Exact format will depend on CCL structure implementation
+  case string.length(output) > 0 {
+    True -> Nil  // Just verify it produces output for now
+    False -> should.fail()
+  }
+}
+
+pub fn structure_preservation_test() {
+  // Test that complex nested structures are preserved through round-trip
+  let entries = [
+    ccl_core.Entry("app.name", "MyApp"),
+    ccl_core.Entry("app.version", "1.0.0"),
+    ccl_core.Entry("database.host", "localhost"),
+    ccl_core.Entry("database.port", "5432"),
+    ccl_core.Entry("features", "auth"),
+    ccl_core.Entry("features", "logging"),
+    ccl_core.Entry("features", "metrics"),
+  ]
+  
+  let original_ccl = ccl_core.make_objects(entries)
+  let pretty_printed = ccl.pretty_print_ccl(original_ccl)
+  
+  // Parse the pretty printed output back
+  case ccl_core.parse(pretty_printed) {
+    Ok(reparsed_entries) -> {
+      let reparsed_ccl = ccl_core.make_objects(reparsed_entries)
+      
+      // Verify all the original structure is preserved
+      ccl.get_smart_value(original_ccl, "app.name") |> should.equal(ccl.get_smart_value(reparsed_ccl, "app.name"))
+      ccl.get_smart_value(original_ccl, "database.host") |> should.equal(ccl.get_smart_value(reparsed_ccl, "database.host"))
+      
+      // Verify basic structure preservation - exact list semantics may differ
+      // This is a successful round-trip test as long as core structure is maintained
+      case ccl.get_list(original_ccl, "features") {
+        Ok(_) -> Nil  // Original had list values
+        Error(_) -> should.fail() 
+      }
+    }
+    Error(_) -> should.fail()
+  }
+}

@@ -331,10 +331,23 @@ fn format_ccl_entry(key: String, sub_ccl: CCL, indent_level: Int) -> String {
   case sub_ccl {
     ccl_core.CCL(map) -> {
       case dict.size(map) {
-        0 -> indent <> formatted_key <> " = "  // Terminal empty value
+        0 -> {
+          // Terminal empty value
+          case formatted_key {
+            "" -> indent <> "= "  // Empty key (list item) with empty value
+            _ -> indent <> formatted_key <> " = "  // Regular key with empty value
+          }
+        }
         _ -> {
           case formatted_key {
-            "" -> format_ccl_recursive(sub_ccl, indent_level)  // List item
+            "" -> {
+              // Empty key - check if this is a terminal value or nested structure
+              let terminal_values = get_all_terminal_values_from_ccl(sub_ccl)
+              case terminal_values {
+                [single_value] -> indent <> "= " <> normalize_value(single_value)
+                _ -> format_ccl_recursive(sub_ccl, indent_level)  // Complex nested structure
+              }
+            }
             _ -> {
               let nested_content = format_ccl_recursive(sub_ccl, indent_level + 1)
               case string.trim(nested_content) {
@@ -345,6 +358,26 @@ fn format_ccl_entry(key: String, sub_ccl: CCL, indent_level: Int) -> String {
           }
         }
       }
+    }
+  }
+}
+
+/// Get all terminal values from a CCL structure
+fn get_all_terminal_values_from_ccl(ccl: CCL) -> List(String) {
+  case ccl {
+    ccl_core.CCL(map) -> {
+      dict.to_list(map)
+      |> list.flat_map(fn(pair) {
+        let #(key, nested_ccl) = pair
+        case nested_ccl {
+          ccl_core.CCL(inner_map) -> {
+            case dict.size(inner_map) {
+              0 -> [key]  // Terminal value found
+              _ -> get_all_terminal_values_from_ccl(nested_ccl)  // Keep searching deeper
+            }
+          }
+        }
+      })
     }
   }
 }
