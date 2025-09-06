@@ -46,20 +46,29 @@ CCL is designed as a layered architecture where each level builds on the previou
 
 ### ✅ FULLY IMPLEMENTED AND WORKING
 - **External C++ Scanner**: Complete INDENT/DEDENT token generation with indentation stack
-- **Comment Parsing**: Unified `/=` comment tokens with proper precedence and highlighting
+- **Comment Parsing**: Both single-line (`/= comment`) and multiline comments with indented continuation lines
 - **Basic CCL Parsing**: Keys, values, assignments, multiline keys all working correctly
 - **List Syntax**: Both bare lists (`= item`) and nested lists (`foo = \n  = item1\n  = item2`)
 - **Complex Nesting**: Multiple indentation levels handled with proper DEDENT generation
-- **Syntax Highlighting**: Full color-coded output via `show_highlight.js` script
-- **Comprehensive Testing**: Both `visual_test.ccl` and `edge_cases_test.ccl` parse successfully
+- **Syntax Highlighting**: Full color-coded output via `show_highlight.js` script including multiline comments
+- **Comprehensive Testing**: All test files parse successfully with proper syntax highlighting
 - **No Infinite Loops**: Scanner properly handles EOF and complex indentation patterns
 
-### ⚠️ Known Limitation
-**Nested CCL Structure Granularity**: Content within nested sections (like `host = localhost` inside `config =`) is parsed as plain text (`value_line`) rather than structured CCL entries. This is due to tree-sitter's GLR parsing strategy and precedence resolution in ambiguous contexts.
+### ⚠️ Known Limitations
 
-**Impact**: Affects only the granularity of syntax highlighting within nested content. All functionality works correctly - users can parse, navigate, and work with nested CCL structures normally.
+#### 1. Nested CCL Structure Granularity
+**Issue**: Content within nested sections (like `host = localhost` inside `config =`) is parsed as plain text (`value_line`) rather than structured CCL entries.
 
-**Technical Cause**: Tree-sitter's conflict resolution between `nested_section` and `multiline_value` contexts makes precedence-based disambiguation of `entry` vs `value_line` challenging within nested contexts.
+**Impact**: Affects only the granularity of syntax highlighting within nested content. All functionality works correctly.
+
+**Technical Cause**: Tree-sitter's conflict resolution between `nested_section` and `multiline_value` contexts makes precedence-based disambiguation challenging within nested contexts.
+
+#### 2. Multiline Comments at End-of-File  
+**Issue**: Multiline comments ending the file without trailing content may parse with errors in edge cases.
+
+**Impact**: Minimal - most files have trailing newlines and content after comments.
+
+**Technical Cause**: GLR parser lookahead limitations at EOF. See `DEV.md` for detailed explanation and workarounds.
 
 ### Recommendation
 The current implementation is **production-ready** for:
