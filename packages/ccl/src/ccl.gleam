@@ -250,36 +250,127 @@ fn get_all_paths_helper(ccl: CCL, prefix: String) -> List(String) {
   }
 }
 
-/// Pretty print CCL structure for debugging
-pub fn pretty_print_ccl(ccl: CCL) -> String {
-  pretty_print_ccl_with_indent(ccl, 0)
+// === PRETTY PRINTING API ===
+
+/// Pretty print CCL entries as canonical CCL text
+pub fn pretty_print_entries(entries: List(ccl_core.Entry)) -> String {
+  entries
+  |> list.map(format_entry(_, 0))
+  |> string.join("\n")
 }
 
-fn pretty_print_ccl_with_indent(ccl: CCL, indent: Int) -> String {
+/// Pretty print CCL structure as canonical CCL text
+pub fn pretty_print_ccl(ccl: CCL) -> String {
+  format_ccl_recursive(ccl, 0)
+}
+
+// === INTERNAL PRETTY PRINTING HELPERS ===
+
+/// Format a single entry with proper indentation
+fn format_entry(entry: ccl_core.Entry, indent_level: Int) -> String {
+  let ccl_core.Entry(key, value) = entry
+  let indent = string.repeat("  ", indent_level)
+  
+  case is_multiline(value) {
+    True -> format_multiline_entry(key, value, indent_level)
+    False -> indent <> normalize_key(key) <> " = " <> normalize_value(value)
+  }
+}
+
+/// Check if a value spans multiple lines
+fn is_multiline(value: String) -> Bool {
+  string.contains(value, "\n")
+}
+
+/// Format a multiline entry with proper continuation indentation
+fn format_multiline_entry(key: String, value: String, indent_level: Int) -> String {
+  let indent = string.repeat("  ", indent_level)
+  let lines = string.split(value, "\n")
+  let formatted_key = normalize_key(key) <> " ="
+  
+  case lines {
+    [] -> indent <> formatted_key
+    [single_line] -> indent <> formatted_key <> " " <> normalize_value(single_line)
+    [first_line, ..rest_lines] -> {
+      let first_part = case normalize_value(first_line) {
+        "" -> indent <> formatted_key
+        first_val -> indent <> formatted_key <> " " <> first_val
+      }
+      let continuation_indent = string.repeat("  ", indent_level + 1)
+      let formatted_rest = 
+        list.map(rest_lines, fn(line) {
+          case normalize_value(line) {
+            "" -> ""  // Empty lines stay empty
+            val -> continuation_indent <> val
+          }
+        })
+      string.join([first_part, ..formatted_rest], "\n")
+    }
+  }
+}
+
+/// Format CCL structure recursively
+fn format_ccl_recursive(ccl: CCL, indent_level: Int) -> String {
   case ccl {
     ccl_core.CCL(map) -> {
-      let entries = dict.to_list(map)
-      case entries {
-        [] -> "{}"
+      dict.to_list(map)
+      |> list.map(fn(entry) {
+        let #(key, sub_ccl) = entry
+        format_ccl_entry(key, sub_ccl, indent_level)
+      })
+      |> string.join("\n")
+    }
+  }
+}
+
+/// Format a CCL structure entry (key-value pair where value is nested CCL)
+fn format_ccl_entry(key: String, sub_ccl: CCL, indent_level: Int) -> String {
+  let indent = string.repeat("  ", indent_level)
+  let formatted_key = normalize_key(key)
+  
+  case sub_ccl {
+    ccl_core.CCL(map) -> {
+      case dict.size(map) {
+        0 -> indent <> formatted_key <> " = "  // Terminal empty value
         _ -> {
-          let indent_str = string.repeat(" ", indent)
-          let formatted =
-            list.map(entries, fn(pair) {
-              let #(key, value) = pair
-              let key_display = case key {
-                "" -> "<empty>"
-                _ -> "\"" <> key <> "\""
+          case formatted_key {
+            "" -> format_ccl_recursive(sub_ccl, indent_level)  // List item
+            _ -> {
+              let nested_content = format_ccl_recursive(sub_ccl, indent_level + 1)
+              case string.trim(nested_content) {
+                "" -> indent <> formatted_key <> " ="
+                content -> indent <> formatted_key <> " =\n" <> content
               }
-              indent_str
-              <> "  "
-              <> key_display
-              <> ": "
-              <> pretty_print_ccl_with_indent(value, indent + 2)
-            })
-          "{\n" <> string.join(formatted, ",\n") <> "\n" <> indent_str <> "}"
+            }
+          }
         }
       }
     }
+  }
+}
+
+/// Normalize a key according to CCL formatting rules
+fn normalize_key(key: String) -> String {
+  string.trim(key)
+}
+
+/// Normalize a value according to CCL formatting rules  
+fn normalize_value(value: String) -> String {
+  // Trim leading spaces, preserve trailing tabs as per tab_preservation_in_values test
+  lstrip_spaces(value)
+  // Don't strip trailing whitespace to preserve tabs and trailing spaces as needed
+}
+
+/// Strip leading spaces only (not tabs)
+fn lstrip_spaces(s: String) -> String {
+  lstrip_while_char(s, " ")
+}
+
+/// Helper to strip characters from left
+fn lstrip_while_char(s: String, char: String) -> String {
+  case string.starts_with(s, char) {
+    True -> lstrip_while_char(string.drop_start(s, 1), char)
+    False -> s
   }
 }
 
