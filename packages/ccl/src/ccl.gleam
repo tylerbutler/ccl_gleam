@@ -3,6 +3,7 @@ import gleam/dict
 import gleam/float
 import gleam/int
 import gleam/list
+import gleam/option.{type Option, None, Some}
 import gleam/string
 
 // === CORE API TYPES ===
@@ -414,6 +415,74 @@ pub fn filter_keys(
   exclude_keys: List(String),
 ) -> List(Entry) {
   list.filter(entries, fn(entry) { !list.contains(exclude_keys, entry.key) })
+}
+
+// === SECTION GROUPING (LEVEL 2.5) ===
+
+/// A group of entries organized under a section header
+pub type SectionGroup {
+  SectionGroup(header: Option(String), entries: List(Entry))
+}
+
+/// Check if an entry is a section header
+/// Section headers are keyless values whose value starts with `=`
+pub fn is_section_header(entry: Entry) -> Bool {
+  entry.key == "" && string.starts_with(entry.value, "=")
+}
+
+/// Group entries by section headers
+/// Returns sections with their associated entries
+/// First group has header = None for entries before first section
+pub fn group_by_sections(entries: List(Entry)) -> List(SectionGroup) {
+  group_entries_recursive(entries, [], None, [])
+}
+
+
+/// Internal recursive helper for grouping entries
+fn group_entries_recursive(
+  remaining: List(Entry),
+  current_section: List(Entry), 
+  current_header: Option(String),
+  completed_groups: List(SectionGroup)
+) -> List(SectionGroup) {
+  case remaining {
+    [] -> {
+      // End of entries - add final section if it has content
+      let final_group = case current_section, current_header {
+        [], None -> []
+        _, _ -> [SectionGroup(header: current_header, entries: list.reverse(current_section))]
+      }
+      list.reverse(completed_groups) |> list.append(final_group)
+    }
+    [entry, ..rest] -> {
+      case is_section_header(entry) {
+        True -> {
+          // Found a section header - save current section and start new one
+          let completed_section = case current_section, current_header {
+            [], None -> []
+            _, _ -> [SectionGroup(header: current_header, entries: list.reverse(current_section))]
+          }
+          let new_completed = list.append(completed_groups, completed_section)
+          
+          group_entries_recursive(
+            rest,
+            [],
+            Some(entry.value),
+            new_completed
+          )
+        }
+        False -> {
+          // Regular entry - add to current section
+          group_entries_recursive(
+            rest,
+            [entry, ..current_section],
+            current_header,
+            completed_groups
+          )
+        }
+      }
+    }
+  }
 }
 
 // === TYPED PARSING LAYER ===

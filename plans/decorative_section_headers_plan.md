@@ -102,16 +102,15 @@ The test suite includes one basic test for section-like syntax:
 - ❌ **group_by_sections()** function not implemented
 - ❌ Section filtering and grouping APIs missing
 
-### Simplified API Design
+### Minimal Core API
 ```gleam
 pub type SectionGroup {
   SectionGroup(header: Option(String), entries: List(Entry))
 }
 
-// Core functions - no pattern types needed!
-pub fn group_by_sections(entries: List(Entry)) -> List(SectionGroup)
-pub fn strip_section_headers(entries: List(Entry)) -> List(Entry)  
+// Only two core functions needed!
 pub fn is_section_header(entry: Entry) -> Bool
+pub fn group_by_sections(entries: List(Entry)) -> List(SectionGroup)
 ```
 
 ### Detection Logic
@@ -120,6 +119,143 @@ pub fn is_section_header(entry: Entry) -> Bool
 fn is_section_header(entry: Entry) -> Bool {
   entry.key == "" && string.starts_with(entry.value, "=")
 }
+```
+
+**Important**: Content after the `=` signs is entirely user-defined. Colons (`:`) are a common convention for separating categories from descriptions, but are **not required** by the API. Any text content works:
+
+```ccl
+== Database Settings ==     ✅ Valid section header
+== Production Database ==   ✅ Valid section header  
+== db-config ==            ✅ Valid section header
+== [ENV] Database ==       ✅ Valid section header
+== Database: Production == ✅ Valid section header (colon is just text)
+```
+
+## User-Defined Helper Functions
+
+Users can easily implement common operations using standard Gleam list functions:
+
+### Strip Section Headers
+```gleam
+// Remove all section headers from entry list
+fn strip_section_headers(entries: List(Entry)) -> List(Entry) {
+  list.filter(entries, fn(entry) { !ccl.is_section_header(entry) })
+}
+
+// Usage
+let clean_entries = entries |> strip_section_headers()
+```
+
+### Find Section by Name
+```gleam
+// Get entries from specific section by exact header match
+fn get_section_entries(groups: List(SectionGroup), section_name: String) -> List(Entry) {
+  groups
+  |> list.find(fn(group) {
+    case group.header {
+      Some(header) -> header == section_name
+      None -> False
+    }
+  })
+  |> result.map(fn(group) { group.entries })
+  |> result.unwrap([])
+}
+
+// Usage
+let database_entries = sections |> get_section_entries("= Database Config =")
+```
+
+### Find Section by Category (Flexible Text Matching)
+```gleam
+// Find section by partial string match - works with any text format
+fn find_section_by_category(groups: List(SectionGroup), category: String) -> List(Entry) {
+  groups
+  |> list.find(fn(group) {
+    case group.header {
+      Some(header) -> string.contains(header, category)
+      None -> False
+    }
+  })
+  |> result.map(fn(group) { group.entries })
+  |> result.unwrap([])
+}
+
+// Usage - works with any header format
+let db_entries = sections |> find_section_by_category("Database")  // matches "Database: Production", "Database Settings", etc.
+let env_entries = sections |> find_section_by_category("Production")  // matches "Database: Production", "Production Config", etc.
+```
+
+### Section Header Normalization
+```gleam
+// Clean section names by removing equals and trimming
+fn normalize_section_names(groups: List(SectionGroup)) -> List(SectionGroup) {
+  groups
+  |> list.map(fn(group) {
+    case group.header {
+      Some(raw_header) -> {
+        let clean_name = raw_header
+          |> string.trim()
+          |> string.trim_start("=")
+          |> string.trim_end("=") 
+          |> string.trim()
+        SectionGroup(header: Some(clean_name), entries: group.entries)
+      }
+      None -> group
+    }
+  })
+}
+
+// Usage
+let clean_sections = sections |> normalize_section_names()
+```
+
+### Extract Category from Colon-Separated Headers (Optional Convention)
+```gleam
+// Parse "Database: Production Config" -> "Database" (user convention, not API requirement)
+fn extract_section_categories(groups: List(SectionGroup)) -> List(SectionGroup) {
+  groups
+  |> list.map(fn(group) {
+    case group.header {
+      Some(raw_header) -> {
+        let category = raw_header
+          |> string.trim()
+          |> string.trim_start("=")
+          |> string.trim_end("=")
+          |> string.trim()
+          |> string.split_once(":")
+          |> result.map(fn(pair) { string.trim(pair.0) })
+          |> result.unwrap(raw_header)  // Falls back to original if no colon
+        SectionGroup(header: Some(category), entries: group.entries)
+      }
+      None -> group
+    }
+  })
+}
+
+// Usage - only works if you use colon convention
+let categorized_sections = sections |> extract_section_categories()
+let db_entries = categorized_sections |> get_section_entries("Database")
+
+// Alternative: direct text matching works with any format
+let db_entries = sections |> find_section_by_category("Database")  // More flexible
+```
+
+### Multiple Sections with Same Category
+```gleam
+// Get all sections matching a category
+fn get_all_sections_by_category(groups: List(SectionGroup), category: String) -> List(List(Entry)) {
+  groups
+  |> list.filter(fn(group) {
+    case group.header {
+      Some(header) -> string.contains(header, category)
+      None -> False
+    }
+  })
+  |> list.map(fn(group) { group.entries })
+}
+
+// Usage - handle multiple logging sections
+let all_logging_entries = sections |> get_all_sections_by_category("Logging")
 ```
 
 ### Grouping Functions
@@ -174,26 +310,26 @@ pub fn extract_section_name(header: String, pattern: HeaderPattern) -> Option(St
 
 ### Basic Grouping
 ```gleam
-let entries = parse_ccl_string(content)
-let groups = group_by_sections(entries)  // Automatic detection
+let entries = ccl_core.parse(content) |> result.unwrap([])
+let groups = ccl.group_by_sections(entries)  // Automatic detection
 
-// Work with specific section
-let data_entries = get_section_entries(groups, "= Section: Data =")
+// Work with specific section (user-defined helper)
+let data_entries = groups |> get_section_entries("= Section: Data =")
 ```
 
 ### Hybrid Processing Approach (Recommended)
 ```gleam
 // Process different sections independently
-let sections = group_by_sections(entries)
+let sections = ccl.group_by_sections(entries)
 
-// Extract and process database configuration
+// Extract and process database configuration (user-defined helper)
 let database_ccl = sections
-  |> get_section_entries("= Database Config =")
+  |> find_section_by_category("Database")
   |> ccl_core.make_objects()
   
 // Extract and process server configuration  
 let server_ccl = sections
-  |> get_section_entries("= Server Config =")
+  |> find_section_by_category("Server")
   |> ccl_core.make_objects()
 
 // Work with both configurations
@@ -202,37 +338,58 @@ use server_port <- result.try(ccl.get_int(server_ccl, "server.port"))
 // ... application logic
 ```
 
-### Custom Header Patterns
+### Custom Processing Pipelines
 ```gleam
-// INI-style headers: [Section]
-let ini_pattern = PrefixSuffix("[", "]")
+// Clean and normalize in one pipeline
+fn process_config_sections(content: String) -> Result(Dict(String, CCL), String) {
+  use entries <- result.try(ccl_core.parse(content))
+  
+  let processed_sections = entries
+    |> ccl.group_by_sections()
+    |> extract_section_categories()  // Custom normalization
+    |> list.fold(dict.new(), fn(acc, section) {
+      case section.header {
+        Some(category) -> {
+          let section_ccl = ccl_core.make_objects(section.entries)
+          dict.insert(acc, category, section_ccl)
+        }
+        None -> acc  // Skip headerless sections
+      }
+    })
+  
+  Ok(processed_sections)
+}
 
-// Custom detection
-let custom_pattern = Custom(fn(key) { 
-  string.starts_with(key, "-- ") && string.ends_with(key, " --")
-})
+// Usage
+use config_map <- result.try(process_config_sections(content))
+use database_ccl <- result.try(dict.get(config_map, "Database"))
+use db_host <- result.try(ccl.get_value(database_ccl, "database.host"))
+// ... use configuration
 ```
 
 ### Pipeline Integration
 ```gleam
 // Option 1: Clean processing pipeline (ignore sections)
 content
-|> parse_ccl_string()
-|> strip_section_headers()              // Remove visual headers
+|> ccl_core.parse()
+|> result.unwrap([])
+|> strip_section_headers()              // User-defined helper
 |> ccl_core.make_objects()              // Convert to CCL
 
 // Option 2: Section-aware processing
 content
-|> parse_ccl_string() 
-|> group_by_sections()                  // Group into sections
+|> ccl_core.parse()
+|> result.unwrap([])
+|> ccl.group_by_sections()              // Group into sections
 |> process_sections_independently()     // Custom section handling
 
 // Option 3: Hybrid - process specific sections
 content
-|> parse_ccl_string()
-|> group_by_sections()
-|> get_section_entries("= Production Config =")  // Extract one section
-|> ccl_core.make_objects()                       // Process normally
+|> ccl_core.parse()
+|> result.unwrap([])
+|> ccl.group_by_sections()
+|> find_section_by_category("Production")     // User-defined helper
+|> ccl_core.make_objects()                    // Process normally
 ```
 
 ## Implementation Strategy
@@ -266,15 +423,48 @@ content
 
 **Rule**: Equals signs must be **consecutive at the start** of the value (no spaces) to be detected as section headers.
 
+### Multiline Section Headers
+
+Section headers can contain multiline content following CCL's continuation line rules:
+
+```ccl
+== Section Header =
+  Properly indented continuation    ✅ Best practice
+```
+
+```ccl  
+== Section Header =
+Unindented continuation             ✅ Also valid per CCL spec
+```
+
+**CCL Specification**: Lines without `=` are treated as continuation lines regardless of indentation. Both examples above create valid section headers that will be detected by `is_section_header()`.
+
+### Optional Visual Separation
+
+Empty lines between sections are optional and don't affect parsing or section detection:
+
+```ccl
+== Database Configuration ==
+host = localhost  
+port = 5432
+
+=== Cache Settings ===
+redis_host = localhost
+redis_port = 6379
+```
+
+Both with and without empty lines work identically.
+
 ## Integration Points
 
 ### With Existing CCL System
 ```gleam
 // Combined with existing Level 2 features
 content
-|> parse_ccl_string()
-|> strip_section_headers()     // Remove decorative headers  
-|> filter_keys(["/", "#"])     // Remove comments (existing API)
+|> ccl_core.parse()
+|> result.unwrap([])
+|> strip_section_headers()     // User-defined helper
+|> ccl.filter_keys(["/", "#"]) // Remove comments (existing API)
 |> ccl_core.make_objects()     // Convert to CCL structure
 ```
 
