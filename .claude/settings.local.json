@@ -68,9 +68,16 @@
       "Bash(erl:*)",
       "Bash(git reset:*)",
       "Bash(git rm:*)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Read(//home/tylerbu/code/claude-workspace/ccl-test-data/tests/**)"
     ],
     "deny": [],
     "ask": []
-  }
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "filesystem",
+    "sequential-thinking",
+    "github"
+  ]
 }
