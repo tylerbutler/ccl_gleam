@@ -145,16 +145,46 @@ pub fn ccl_level4_typed_parsing_test() {
           case entries == test_case.expected_flat {
             True -> {
               // Now validate typed parsing results from JSON
-              validate_typed_parsing_from_json_quiet(
-                parsed,
-                test_case.expected_typed,
-                test_case.parse_options,
-              )
+              let result =
+                validate_typed_parsing_from_json_quiet(
+                  parsed,
+                  test_case.expected_typed,
+                  test_case.parse_options,
+                )
+              case result {
+                False -> {
+                  io.println("FAILED: " <> test_case.name)
+                  io.println("  Input: " <> string.inspect(cleaned_input))
+                  io.println(
+                    "  Expected flat: "
+                    <> string.inspect(test_case.expected_flat),
+                  )
+                  io.println("  Got flat: " <> string.inspect(entries))
+                  io.println(
+                    "  Expected typed: "
+                    <> string.inspect(test_case.expected_typed),
+                  )
+                  False
+                }
+                True -> True
+              }
             }
-            False -> False
+            False -> {
+              io.println("FAILED flat parsing: " <> test_case.name)
+              io.println(
+                "  Expected: " <> string.inspect(test_case.expected_flat),
+              )
+              io.println("  Got: " <> string.inspect(entries))
+              False
+            }
           }
         }
-        Error(_) -> False
+        Error(err) -> {
+          io.println(
+            "FAILED parse: " <> test_case.name <> " - " <> string.inspect(err),
+          )
+          False
+        }
       }
     })
 
