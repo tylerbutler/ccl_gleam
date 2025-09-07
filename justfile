@@ -99,22 +99,22 @@ bench: bench-statistical bench-comparison bench-memory bench-demo
 # Run statistical performance benchmarks
 bench-statistical:
 	@echo "🔥 Running CCL Statistical Benchmarks..."
-	@gleam run --module ccl_statistical_benchmark
+	@cd benchmarks && gleam run --module ccl_statistical_benchmark
 
 # Run performance comparison with baselines
 bench-comparison:
 	@echo "⚡ Running CCL Performance Comparison..."
-	@gleam run --module ccl_json_comparison
+	@cd benchmarks && gleam run --module ccl_json_comparison
 
 # Run memory usage analysis
 bench-memory:
 	@echo "🧠 Running CCL Memory Analysis..."
-	@gleam run --module ccl_memory_profiler
+	@cd benchmarks && gleam run --module ccl_memory_profiler
 
 # Run simple benchmark demo
 bench-demo:
 	@echo "📊 Running CCL Benchmark Demo..."
-	@gleam run --module ccl_benchmark_demo
+	@cd benchmarks && gleam run --module ccl_benchmark_demo
 
 # Run quick performance check (statistical only)
 bench-quick: bench-statistical
