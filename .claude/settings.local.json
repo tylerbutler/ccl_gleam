@@ -69,7 +69,10 @@
       "Bash(git reset:*)",
       "Bash(git rm:*)",
       "Bash(rm:*)",
-      "Read(//home/tylerbu/code/claude-workspace/ccl-test-data/tests/**)"
+      "Read(//home/tylerbu/code/claude-workspace/ccl-test-data/tests/**)",
+      "Bash(git branch:*)",
+      "Bash(git reflog:*)",
+      "Bash(git gc:*)"
     ],
     "deny": [],
     "ask": []

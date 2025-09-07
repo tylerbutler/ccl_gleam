@@ -23,9 +23,42 @@ This project is organized as a multi-package workspace:
 
 **Test utilities** - JSON test suite loader for cross-language testing.
 
+## Quick Start
+
+Add to your `gleam.toml`:
+
+```toml
+[dependencies]
+ccl = "1.0.0"
+```
+
+### Basic Usage
+
+```gleam
+import ccl
+
+let config = "
+database.host = localhost
+database.port = 5432
+server.debug = true
+"
+
+case ccl.parse(config) {
+  Ok(entries) -> {
+    let objects = ccl.make_objects(entries)
+    
+    // Type-safe access
+    let host = ccl.get_string(objects, "database.host") // Ok("localhost")
+    let port = ccl.get_int(objects, "database.port")    // Ok(5432)  
+    let debug = ccl.get_bool(objects, "server.debug")   // Ok(True)
+  }
+  Error(err) -> io.println("Parse error: " <> err.reason)
+}
+```
+
 ## What is CCL?
 
-CCL is a minimal configuration format using key-value pairs with indentation-based nesting:
+CCL is a minimal configuration format based on key-value pairs with elegant nesting:
 
 ```ccl
 database =
@@ -104,13 +137,16 @@ gleam add ccl_core  # Minimal core library
 
 ## Documentation
 
-### 📖 Learning Path
-1. **[Getting Started](docs/getting-started.md)** - Basic syntax and first Gleam program
-2. **[User Guide](docs/user-guide.md)** - Advanced patterns and type-safe Gleam features  
-3. **[Migration Guide](docs/migration-guide.md)** - Convert from JSON/YAML/TOML/env
+### 📖 CCL Language Guide
+For comprehensive CCL language documentation, see the central repository:
 
-### 📚 Reference
-- **[FAQ](docs/ccl_faq.md)** - Common questions and gotchas
-- **[Glossary](docs/glossary.md)** - Technical terms
-- **[API Documentation](https://hexdocs.pm/ccl/)** - Complete API reference
+- **[CCL Getting Started](../ccl-test-data/docs/getting-started.md)** - Learn CCL syntax and concepts
+- **[CCL FAQ](../ccl-test-data/docs/ccl_faq.md)** - Common questions and gotchas  
+- **[Format Comparison](../ccl-test-data/docs/format-comparison.md)** - CCL vs JSON, YAML, TOML
+- **[4-Level Architecture](../ccl-test-data/docs/4-level-architecture.md)** - Implementation design
+
+### 🔧 Gleam Implementation Guide
+- **[Gleam API Guide](docs/gleam-api-guide.md)** - Complete Gleam CCL API reference
+- **[Advanced Patterns](docs/gleam-patterns.md)** - Type-safe configuration patterns in Gleam
+- **[API Documentation](https://hexdocs.pm/ccl/)** - Generated API docs
 
