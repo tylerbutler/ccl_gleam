@@ -91,7 +91,7 @@ The nested structure limitation is cosmetic and doesn't affect CCL functionality
   - `packages/ccl_test_loader/` - JSON test suite utilities
 - Tests in each package's `test/` directory using gleeunit framework
 - Target: Erlang VM (BEAM) for production deployment
-- Dependencies: gleam_stdlib, simplifile, gleam_json, cleam (dev)
+- Dependencies: gleam_stdlib, simplifile, gleam_json
 
 ### Build Commands
 - `gleam check` - Type check without building

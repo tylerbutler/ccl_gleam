@@ -1,7 +1,5 @@
 import ccl_core
-import gleam/io
 import gleam/list
-import gleam/string
 import gleeunit
 import gleeunit/should
 

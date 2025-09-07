@@ -368,11 +368,9 @@ fn run_deterministic_test(
   }
 }
 
-// Test to satisfy cleam - ParseError is part of the public API but cleam
-// doesn't recognize types used only in function signatures as "used"
+// Test for error handling - ensures ParseError type is properly used
 pub fn parse_error_type_test() {
-  // This test ensures ParseError type is considered "used" by cleam
-  // even though it's legitimately part of the public API
+  // This test verifies error handling for invalid CCL syntax
   case ccl_core.parse("invalid\nno equals") {
     Error(_) -> should.equal(True, True)
     // Just check that it's an error
