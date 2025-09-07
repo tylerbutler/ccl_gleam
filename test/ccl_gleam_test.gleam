@@ -15,208 +15,55 @@ pub fn main() {
 
 fn print_test_overview() {
   io.println("=== CCL Test Suite Overview ===")
-  let level1_count = list.length(test_suite_types.get_level1_tests())
-  let level2_count = list.length(test_suite_types.get_level2_tests())
-  let level3_count = list.length(test_suite_types.get_level3_tests())
-  let level4_count =
-    list.length(test_suite_types.get_typed_parsing_test_cases())
-  let pretty_printer_count =
-    list.length(test_suite_types.get_pretty_printer_tests())
-  let total_count =
-    level1_count
-    + level2_count
-    + level3_count
-    + level4_count
-    + pretty_printer_count
-    + 1
-  // +1 for parse_error_type_test
+  io.println(test_suite_types.get_test_suite_summary())
+  
+  let regular_tests_count = list.length(test_suite_types.get_regular_tests())
+  let error_tests_count = list.length(test_suite_types.get_all_error_tests())
+  let pretty_printer_count = list.length(test_suite_types.get_pretty_printer_tests())
+  let total_count = regular_tests_count + error_tests_count + pretty_printer_count + 1 // +1 for parse_error_type_test
 
-  io.println(
-    "Level 1 (Entry Parsing): " <> string.inspect(level1_count) <> " tests",
-  )
-  io.println(
-    "Level 2 (Entry Processing): " <> string.inspect(level2_count) <> " tests",
-  )
-  io.println(
-    "Level 3 (Object Construction): "
-    <> string.inspect(level3_count)
-    <> " tests",
-  )
-  io.println(
-    "Level 4 (Typed Parsing): " <> string.inspect(level4_count) <> " tests",
-  )
-  io.println(
-    "Pretty Printer: " <> string.inspect(pretty_printer_count) <> " tests",
-  )
-  io.println("Error Handling: 1 test")
+  io.println("Regular Tests: " <> string.inspect(regular_tests_count) <> " tests")
+  io.println("Error Tests: " <> string.inspect(error_tests_count) <> " tests") 
+  io.println("Pretty Printer: " <> string.inspect(pretty_printer_count) <> " tests")
   io.println("Total: " <> string.inspect(total_count) <> " tests")
   io.println("")
 }
 
 // REMOVED: Legacy test runner - all tests now in 4-level architecture
 
-// NEW 4-LEVEL TEST RUNNER
+// SIMPLIFIED TEST RUNNER
 
-/// Level 1: Entry Parsing Tests - Core CCL parsing functionality
-pub fn ccl_level1_entry_parsing_test() {
-  io.println("\n=== LEVEL 1: Entry Parsing ===")
-  let test_cases = test_suite_types.get_level1_tests()
-
-  run_basic_test_cases(test_cases, "Level 1")
+/// Run all regular tests
+pub fn ccl_regular_tests() {
+  io.println("\n=== REGULAR TESTS ===")
+  let test_cases = test_suite_types.get_regular_tests()
+  run_basic_test_cases(test_cases, "Regular")
 }
 
-/// Level 2: Entry Processing Tests - Comments, filtering, composition
-pub fn ccl_level2_entry_processing_test() {
-  io.println("\n=== LEVEL 2: Entry Processing ===")
-  let test_cases = test_suite_types.get_level2_tests()
-
-  run_basic_test_cases(test_cases, "Level 2")
+/// Run all error tests
+pub fn ccl_error_tests() {
+  io.println("\n=== ERROR TESTS ===")
+  let error_test_cases = test_suite_types.get_all_error_tests()
+  run_error_test_cases(error_test_cases, "Error")
 }
 
-/// Level 3: Object Construction Tests - Nested objects, make_objects()
-pub fn ccl_level3_object_construction_test() {
-  io.println("\n=== LEVEL 3: Object Construction ===")
-  let test_cases = test_suite_types.get_level3_tests()
 
-  let results =
-    list.map(test_cases, fn(test_case) {
-      case ccl_core.parse(test_case.input) {
-        Ok(entries) -> {
-          let passed = entries == test_case.expected_flat
-          case passed {
-            False -> {
-              io.println("FAILED: " <> test_case.name)
-              io.println("  Input: " <> string.inspect(test_case.input))
-              io.println(
-                "  Expected: " <> string.inspect(test_case.expected_flat),
-              )
-              io.println("  Got: " <> string.inspect(entries))
-            }
-            True -> Nil
-          }
-          passed
-        }
-        Error(err) -> {
-          io.println(
-            "FAILED: "
-            <> test_case.name
-            <> " - Parse Error: "
-            <> string.inspect(err),
-          )
-          False
-        }
-      }
-    })
-
-  let passed = list.count(results, fn(r) { r == True })
-  let total = list.length(results)
-
-  io.println(
-    "Level 3: "
-    <> string.inspect(passed)
-    <> "/"
-    <> string.inspect(total)
-    <> " passed",
-  )
-
-  case passed != total {
-    True -> should.fail()
-    False -> Nil
-  }
-}
-
-/// Level 4: Typed Parsing Tests - Type-aware extraction (existing)
-pub fn ccl_level4_typed_parsing_test() {
-  io.println("\n=== LEVEL 4: Typed Parsing ===")
-
-  // Load test cases from JSON
-  let test_cases = test_suite_types.get_typed_parsing_test_cases()
-
-  let passed =
-    list.count(test_cases, fn(test_case) {
-      // Convert \\n to actual newlines in input
-      let cleaned_input = string.replace(test_case.input, "\\n", "\n")
-
-      case ccl_core.parse(cleaned_input) {
-        Ok(entries) -> {
-          let parsed = ccl_core.make_objects(entries)
-
-          // First verify the flat parsing matches expected
-          case entries == test_case.expected_flat {
-            True -> {
-              // Now validate typed parsing results from JSON
-              let result =
-                validate_typed_parsing_from_json_quiet(
-                  parsed,
-                  test_case.expected_typed,
-                  test_case.parse_options,
-                )
-              case result {
-                False -> {
-                  io.println("FAILED: " <> test_case.name)
-                  io.println("  Input: " <> string.inspect(cleaned_input))
-                  io.println(
-                    "  Expected flat: "
-                    <> string.inspect(test_case.expected_flat),
-                  )
-                  io.println("  Got flat: " <> string.inspect(entries))
-                  io.println(
-                    "  Expected typed: "
-                    <> string.inspect(test_case.expected_typed),
-                  )
-                  False
-                }
-                True -> True
-              }
-            }
-            False -> {
-              io.println("FAILED flat parsing: " <> test_case.name)
-              io.println(
-                "  Expected: " <> string.inspect(test_case.expected_flat),
-              )
-              io.println("  Got: " <> string.inspect(entries))
-              False
-            }
-          }
-        }
-        Error(err) -> {
-          io.println(
-            "FAILED parse: " <> test_case.name <> " - " <> string.inspect(err),
-          )
-          False
-        }
-      }
-    })
-
-  io.println(
-    "Level 4: "
-    <> string.inspect(passed)
-    <> "/"
-    <> string.inspect(list.length(test_cases))
-    <> " passed",
-  )
-
-  // Fail if any typed parsing tests failed
-  case passed == list.length(test_cases) {
-    False -> should.fail()
-    True -> Nil
-  }
-}
-
-/// Helper function to run basic test cases (Level 1 & 2)
+/// Helper function to run basic test cases for any category
 fn run_basic_test_cases(
   test_cases: List(test_suite_types.TestCase),
-  level_name: String,
+  category_name: String,
 ) -> Nil {
   let results =
     list.map(test_cases, fn(test_case) {
-      case ccl_core.parse(test_case.input) {
+      // Convert \\n to actual newlines in input
+      let cleaned_input = string.replace(test_case.input, "\\n", "\n")
+      case ccl_core.parse(cleaned_input) {
         Ok(result) -> {
           let passed = result == test_case.expected
           case passed {
             False -> {
               io.println("FAILED: " <> test_case.name)
-              io.println("  Input: " <> string.inspect(test_case.input))
+              io.println("  Input: " <> string.inspect(cleaned_input))
               io.println("  Expected: " <> string.inspect(test_case.expected))
               io.println("  Got: " <> string.inspect(result))
             }
@@ -240,7 +87,7 @@ fn run_basic_test_cases(
   let total = list.length(results)
 
   io.println(
-    level_name
+    category_name
     <> ": "
     <> string.inspect(passed)
     <> "/"
@@ -378,59 +225,47 @@ pub fn parse_error_type_test() {
   }
 }
 
-// REMOVED: Legacy error test runner - now part of get_error_tests() in Level architecture
+/// Helper function to run error test cases
+fn run_error_test_cases(
+  error_test_cases: List(test_suite_types.ErrorTestCase),
+  category_name: String,
+) -> Nil {
+  let results =
+    list.map(error_test_cases, fn(error_test_case) {
+      case ccl_core.parse(error_test_case.input) {
+        Error(_) -> {
+          // Expected error occurred
+          error_test_case.expected_error
+        }
+        Ok(_) -> {
+          // Parse succeeded but error was expected
+          case error_test_case.expected_error {
+            True -> {
+              io.println("FAILED: " <> error_test_case.name)
+              io.println("  Expected error but parse succeeded")
+              io.println("  Input: " <> string.inspect(error_test_case.input))
+              False
+            }
+            False -> True
+          }
+        }
+      }
+    })
 
-// REMOVED: Algebraic test runner - algebraic tests now in Level 2 composition_tests
+  let passed = list.count(results, fn(r) { r == True })
+  let total = list.length(results)
 
-// === TYPED PARSING TESTS ===
+  io.println(
+    category_name
+    <> ": "
+    <> string.inspect(passed)
+    <> "/"
+    <> string.inspect(total)
+    <> " passed",
+  )
 
-// Quiet validation function for concise output
-fn validate_typed_parsing_from_json_quiet(
-  parsed: ccl_core.CCL,
-  expected_typed: List(#(String, test_suite_types.TypedValue)),
-  parse_options: test_suite_types.ParseOptions,
-) -> Bool {
-  // Convert test_suite_types.ParseOptions to ccl.ParseOptions
-  let ccl_options =
-    ccl.ParseOptions(
-      parse_integers: parse_options.parse_integers,
-      parse_floats: parse_options.parse_floats,
-      parse_booleans: parse_options.parse_booleans,
-    )
-
-  list.all(expected_typed, fn(pair) {
-    let #(path, expected_value) = pair
-    case expected_value {
-      test_suite_types.StringVal(expected_str) -> {
-        case ccl.get_typed_value_with_options(parsed, path, ccl_options) {
-          Ok(ccl.StringVal(actual_str)) -> actual_str == expected_str
-          _ -> False
-        }
-      }
-      test_suite_types.IntVal(expected_int) -> {
-        case ccl.get_typed_value_with_options(parsed, path, ccl_options) {
-          Ok(ccl.IntVal(actual_int)) -> actual_int == expected_int
-          _ -> False
-        }
-      }
-      test_suite_types.FloatVal(expected_float) -> {
-        case ccl.get_typed_value_with_options(parsed, path, ccl_options) {
-          Ok(ccl.FloatVal(actual_float)) -> actual_float == expected_float
-          _ -> False
-        }
-      }
-      test_suite_types.BoolVal(expected_bool) -> {
-        case ccl.get_typed_value_with_options(parsed, path, ccl_options) {
-          Ok(ccl.BoolVal(actual_bool)) -> actual_bool == expected_bool
-          _ -> False
-        }
-      }
-      test_suite_types.EmptyVal -> {
-        case ccl.get_typed_value_with_options(parsed, path, ccl_options) {
-          Ok(ccl.EmptyVal) -> True
-          _ -> False
-        }
-      }
-    }
-  })
+  case passed != total {
+    True -> should.fail()
+    False -> Nil
+  }
 }

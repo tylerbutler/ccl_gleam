@@ -28,31 +28,6 @@ pub type ErrorTestCase {
   )
 }
 
-// Types for typed parsing tests
-pub type TypedTestCase {
-  TypedTestCase(
-    name: String,
-    description: String,
-    input: String,
-    expected_flat: List(ccl_core.Entry),
-    expected_typed: List(#(String, TypedValue)),
-    // path -> typed value pairs
-    parse_options: ParseOptions,
-    api_calls: List(String),
-    tags: List(String),
-  )
-}
-
-pub type NestedTestCase {
-  NestedTestCase(
-    name: String,
-    input: String,
-    expected_flat: List(ccl_core.Entry),
-    expected_nested: dict.Dict(String, String),
-    // Simplified for now
-    tags: List(String),
-  )
-}
 
 pub type TypedValue {
   StringVal(String)
@@ -78,16 +53,15 @@ pub type PrettyPrintTestCase {
   )
 }
 
-// REMOVED: Legacy test loading functions - all tests now in 4-level files
-
-// Dynamic test loading functions
+// Test discovery functions - simplified for flat directory structure
 pub fn discover_json_test_files() -> List(String) {
-  case simplifile.read_directory("../ccl-test-data/tests") {
+  let base_path = "../ccl-test-data/tests"
+  case simplifile.read_directory(base_path) {
     Ok(files) ->
       files
       |> list.filter(string.ends_with(_, ".json"))
-      |> list.filter(fn(f) { !string.starts_with(f, "schema") })
-      |> list.map(fn(f) { "../ccl-test-data/tests/" <> f })
+      |> list.filter(fn(f) { !string.starts_with(f, "schema") && !string.starts_with(f, "pretty-print") })
+      |> list.map(fn(f) { base_path <> "/" <> f })
     Error(_) -> []
   }
 }
@@ -99,133 +73,96 @@ pub fn load_and_validate_test_suite(
     Ok(content) -> {
       case json.parse(content, test_suite_decoder()) {
         Ok(suite) -> Ok(suite)
-        Error(_) -> Error("Invalid JSON format: " <> filename)
+        Error(err) -> Error("Invalid JSON format in " <> filename <> ": " <> string.inspect(err))
       }
     }
-    Error(_) -> Error("Could not read file: " <> filename)
+    Error(err) -> Error("Could not read file " <> filename <> ": " <> string.inspect(err))
   }
 }
 
-pub fn get_tests_by_level(level: Int) -> List(TestCase) {
-  discover_json_test_files()
-  |> list.filter_map(fn(file) {
-    case load_and_validate_test_suite(file) {
-      Ok(suite) -> {
-        let filtered =
-          list.filter_map(suite.tests, fn(test_case) {
-            case test_case.meta.level == level && not_error_test(test_case) {
-              True -> convert_to_basic_test_case(test_case)
-              False -> Error(Nil)
-            }
-          })
-        case list.is_empty(filtered) {
-          True -> Error(Nil)
-          False -> Ok(filtered)
-        }
-      }
-      Error(_) -> Error(Nil)
-    }
-  })
-  |> list.flatten
+pub fn load_test_suite_safe(filename: String) -> TestSuite {
+  case load_and_validate_test_suite(filename) {
+    Ok(suite) -> suite
+    Error(_) -> TestSuite(
+      suite: "Empty Suite",
+      version: "1.0",
+      description: None,
+      tests: []
+    )
+  }
 }
 
-pub fn get_level1_tests() -> List(TestCase) {
-  get_tests_by_level(1)
-}
-
-pub fn get_level2_tests() -> List(TestCase) {
-  get_tests_by_level(2)
-}
-
-pub fn get_level3_tests() -> List(NestedTestCase) {
-  discover_json_test_files()
-  |> list.filter_map(fn(file) {
-    case load_and_validate_test_suite(file) {
-      Ok(suite) -> {
-        let level3_tests =
-          list.filter_map(suite.tests, fn(test_case) {
-            case not_error_test(test_case) {
-              True -> convert_to_nested_test_case(test_case)
-              False -> Error(Nil)
-            }
-          })
-        case list.is_empty(level3_tests) {
-          True -> Error(Nil)
-          False -> Ok(level3_tests)
-        }
-      }
-      Error(_) -> Error(Nil)
-    }
-  })
-  |> list.flatten
-}
-
-pub fn get_level4_tests() -> List(TypedTestCase) {
-  discover_json_test_files()
-  |> list.filter_map(fn(file) {
-    case load_and_validate_test_suite(file) {
-      Ok(suite) -> {
-        let level4_tests =
-          list.filter_map(suite.tests, fn(test_case) {
-            case not_error_test(test_case) {
-              True -> convert_to_typed_test_case(test_case)
-              False -> Error(Nil)
-            }
-          })
-        case list.is_empty(level4_tests) {
-          True -> Error(Nil)
-          False -> Ok(level4_tests)
-        }
-      }
-      Error(_) -> Error(Nil)
-    }
-  })
-  |> list.flatten
-}
-
-pub fn get_error_tests() -> List(ErrorTestCase) {
-  discover_json_test_files()
-  |> list.filter_map(fn(file) {
-    case load_and_validate_test_suite(file) {
-      Ok(suite) -> {
-        let error_tests =
-          list.filter_map(suite.tests, convert_to_error_test_case)
-        case list.is_empty(error_tests) {
-          True -> Error(Nil)
-          False -> Ok(error_tests)
-        }
-      }
-      Error(_) -> Error(Nil)
-    }
-  })
-  |> list.flatten
-}
 
 pub fn get_pretty_printer_tests() -> List(PrettyPrintTestCase) {
-  case
-    load_pretty_printer_test_file("../ccl-test-data/tests/pretty-print.json")
-  {
-    tests -> tests
-  }
+  load_pretty_printer_test_file("../ccl-test-data/tests/pretty-print.json")
 }
 
-// Legacy compatibility
-pub fn get_typed_parsing_test_cases() -> List(TypedTestCase) {
-  get_level4_tests()
+pub fn get_tests_by_tags(required_tags: List(String)) -> List(TestCase) {
+  get_all_tests()
+  |> list.filter(fn(test_case) { 
+    list.all(required_tags, fn(tag) { list.contains(test_case.meta.tags, tag) })
+  })
+  |> list.filter(not_error_test)
+  |> list.filter_map(convert_to_basic_test_case)
 }
 
-// REMOVED: Legacy test suite structures and loading - replaced by 4-level architecture
+pub fn get_regular_tests() -> List(TestCase) {
+  get_all_tests()
+  |> list.filter(not_error_test)
+  |> list.filter_map(convert_to_basic_test_case)
+}
 
-// Decoder for Entry objects
+pub fn get_all_error_tests() -> List(ErrorTestCase) {
+  get_all_tests()
+  |> list.filter_map(convert_to_error_test_case)
+}
+
+pub fn get_tests_by_suite_name(suite_name: String) -> List(TestCase) {
+  discover_json_test_files()
+  |> list.filter_map(fn(file) {
+    case load_and_validate_test_suite(file) {
+      Ok(suite) if suite.suite == suite_name -> Ok(suite.tests)
+      _ -> Error(Nil)
+    }
+  })
+  |> list.flatten
+  |> list.filter(not_error_test)
+  |> list.filter_map(convert_to_basic_test_case)
+}
+
+pub fn get_all_available_tests() -> dict.Dict(String, List(UnifiedTestCase)) {
+  discover_json_test_files()
+  |> list.map(fn(file) {
+    let suite = load_test_suite_safe(file)
+    #(suite.suite, suite.tests)
+  })
+  |> dict.from_list
+}
+
+pub fn get_test_suite_summary() -> String {
+  let suites = get_all_available_tests()
+  let total_tests = dict.values(suites)
+    |> list.map(list.length)
+    |> list.fold(0, fn(acc, x) { acc + x })
+  
+  "Found " <> string.inspect(dict.size(suites)) <> " test suites with " <> string.inspect(total_tests) <> " total tests"
+}
+
+fn get_all_tests() -> List(UnifiedTestCase) {
+  discover_json_test_files()
+  |> list.map(load_test_suite_safe)
+  |> list.map(fn(suite) { suite.tests })
+  |> list.flatten
+}
+
+
+// JSON decoders
 fn entry_decoder() -> decode.Decoder(ccl_core.Entry) {
   use key <- decode.field("key", decode.string)
   use value <- decode.field("value", decode.string)
   decode.success(ccl_core.Entry(key, value))
 }
 
-// REMOVED: Legacy test case decoders - replaced by simple 4-level decoders
-
-// REMOVED: Legacy function replaced by dynamic loading
 
 // Decoder for the expected_typed field (dict of path -> typed value)
 fn typed_values_decoder() -> decode.Decoder(List(#(String, TypedValue))) {
@@ -262,9 +199,7 @@ fn typed_value_decoder() -> decode.Decoder(TypedValue) {
   }
 }
 
-// REMOVED: Algebraic test decoder - algebraic tests moved to Level 2 composition_tests
-
-// New loading functions for 4-level architecture
+// Test suite types and decoders
 
 pub type TestMetadata {
   TestMetadata(tags: List(String), level: Int)
@@ -543,61 +478,6 @@ fn convert_to_basic_test_case(
   ))
 }
 
-fn convert_to_nested_test_case(
-  test_case: UnifiedTestCase,
-) -> Result(NestedTestCase, Nil) {
-  case test_case.meta.level == 3 && is_some(test_case.expected_flat) {
-    True ->
-      Ok(NestedTestCase(
-        name: test_case.name,
-        input: test_case.input,
-        expected_flat: case test_case.expected_flat {
-          Some(entries) -> entries
-          None -> []
-        },
-        expected_nested: dict.new(),
-        // Skip complex nested structure for now
-        tags: test_case.meta.tags,
-      ))
-    False -> Error(Nil)
-  }
-}
-
-fn convert_to_typed_test_case(
-  test_case: UnifiedTestCase,
-) -> Result(TypedTestCase, Nil) {
-  case test_case.meta.level == 4 && is_some(test_case.expected_typed) {
-    True ->
-      Ok(TypedTestCase(
-        name: test_case.name,
-        description: test_case.name,
-        input: test_case.input,
-        expected_flat: case test_case.expected_flat {
-          Some(entries) -> entries
-          None -> []
-        },
-        expected_typed: case test_case.expected_typed {
-          Some(typed) -> typed
-          None -> []
-        },
-        parse_options: case test_case.parse_options {
-          Some(opts) -> opts
-          None ->
-            ParseOptions(
-              parse_integers: True,
-              parse_floats: True,
-              parse_booleans: True,
-            )
-        },
-        api_calls: case test_case.api_calls {
-          Some(calls) -> calls
-          None -> []
-        },
-        tags: test_case.meta.tags,
-      ))
-    False -> Error(Nil)
-  }
-}
 
 fn convert_to_error_test_case(
   test_case: UnifiedTestCase,
