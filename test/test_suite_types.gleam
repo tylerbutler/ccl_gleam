@@ -28,7 +28,6 @@ pub type ErrorTestCase {
   )
 }
 
-
 pub type TypedValue {
   StringVal(String)
   IntVal(Int)
@@ -60,7 +59,10 @@ pub fn discover_json_test_files() -> List(String) {
     Ok(files) ->
       files
       |> list.filter(string.ends_with(_, ".json"))
-      |> list.filter(fn(f) { !string.starts_with(f, "schema") && !string.starts_with(f, "pretty-print") })
+      |> list.filter(fn(f) {
+        !string.starts_with(f, "schema")
+        && !string.starts_with(f, "pretty-print")
+      })
       |> list.map(fn(f) { base_path <> "/" <> f })
     Error(_) -> []
   }
@@ -73,25 +75,29 @@ pub fn load_and_validate_test_suite(
     Ok(content) -> {
       case json.parse(content, test_suite_decoder()) {
         Ok(suite) -> Ok(suite)
-        Error(err) -> Error("Invalid JSON format in " <> filename <> ": " <> string.inspect(err))
+        Error(err) ->
+          Error(
+            "Invalid JSON format in " <> filename <> ": " <> string.inspect(err),
+          )
       }
     }
-    Error(err) -> Error("Could not read file " <> filename <> ": " <> string.inspect(err))
+    Error(err) ->
+      Error("Could not read file " <> filename <> ": " <> string.inspect(err))
   }
 }
 
 pub fn load_test_suite_safe(filename: String) -> TestSuite {
   case load_and_validate_test_suite(filename) {
     Ok(suite) -> suite
-    Error(_) -> TestSuite(
-      suite: "Empty Suite",
-      version: "1.0",
-      description: None,
-      tests: []
-    )
+    Error(_) ->
+      TestSuite(
+        suite: "Empty Suite",
+        version: "1.0",
+        description: None,
+        tests: [],
+      )
   }
 }
-
 
 pub fn get_pretty_printer_tests() -> List(PrettyPrintTestCase) {
   load_pretty_printer_test_file("../ccl-test-data/tests/pretty-print.json")
@@ -99,7 +105,7 @@ pub fn get_pretty_printer_tests() -> List(PrettyPrintTestCase) {
 
 pub fn get_tests_by_tags(required_tags: List(String)) -> List(TestCase) {
   get_all_tests()
-  |> list.filter(fn(test_case) { 
+  |> list.filter(fn(test_case) {
     list.all(required_tags, fn(tag) { list.contains(test_case.meta.tags, tag) })
   })
   |> list.filter(not_error_test)
@@ -141,11 +147,16 @@ pub fn get_all_available_tests() -> dict.Dict(String, List(UnifiedTestCase)) {
 
 pub fn get_test_suite_summary() -> String {
   let suites = get_all_available_tests()
-  let total_tests = dict.values(suites)
+  let total_tests =
+    dict.values(suites)
     |> list.map(list.length)
     |> list.fold(0, fn(acc, x) { acc + x })
-  
-  "Found " <> string.inspect(dict.size(suites)) <> " test suites with " <> string.inspect(total_tests) <> " total tests"
+
+  "Found "
+  <> string.inspect(dict.size(suites))
+  <> " test suites with "
+  <> string.inspect(total_tests)
+  <> " total tests"
 }
 
 fn get_all_tests() -> List(UnifiedTestCase) {
@@ -155,14 +166,12 @@ fn get_all_tests() -> List(UnifiedTestCase) {
   |> list.flatten
 }
 
-
 // JSON decoders
 fn entry_decoder() -> decode.Decoder(ccl_core.Entry) {
   use key <- decode.field("key", decode.string)
   use value <- decode.field("value", decode.string)
   decode.success(ccl_core.Entry(key, value))
 }
-
 
 // Decoder for the expected_typed field (dict of path -> typed value)
 fn typed_values_decoder() -> decode.Decoder(List(#(String, TypedValue))) {
@@ -477,7 +486,6 @@ fn convert_to_basic_test_case(
     tags: test_case.meta.tags,
   ))
 }
-
 
 fn convert_to_error_test_case(
   test_case: UnifiedTestCase,

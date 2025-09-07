@@ -16,15 +16,22 @@ pub fn main() {
 fn print_test_overview() {
   io.println("=== CCL Test Suite Overview ===")
   io.println(test_suite_types.get_test_suite_summary())
-  
+
   let regular_tests_count = list.length(test_suite_types.get_regular_tests())
   let error_tests_count = list.length(test_suite_types.get_all_error_tests())
-  let pretty_printer_count = list.length(test_suite_types.get_pretty_printer_tests())
-  let total_count = regular_tests_count + error_tests_count + pretty_printer_count + 1 // +1 for parse_error_type_test
+  let pretty_printer_count =
+    list.length(test_suite_types.get_pretty_printer_tests())
+  let total_count =
+    regular_tests_count + error_tests_count + pretty_printer_count + 1
+  // +1 for parse_error_type_test
 
-  io.println("Regular Tests: " <> string.inspect(regular_tests_count) <> " tests")
-  io.println("Error Tests: " <> string.inspect(error_tests_count) <> " tests") 
-  io.println("Pretty Printer: " <> string.inspect(pretty_printer_count) <> " tests")
+  io.println(
+    "Regular Tests: " <> string.inspect(regular_tests_count) <> " tests",
+  )
+  io.println("Error Tests: " <> string.inspect(error_tests_count) <> " tests")
+  io.println(
+    "Pretty Printer: " <> string.inspect(pretty_printer_count) <> " tests",
+  )
   io.println("Total: " <> string.inspect(total_count) <> " tests")
   io.println("")
 }
@@ -46,7 +53,6 @@ pub fn ccl_error_tests() {
   let error_test_cases = test_suite_types.get_all_error_tests()
   run_error_test_cases(error_test_cases, "Error")
 }
-
 
 /// Helper function to run basic test cases for any category
 fn run_basic_test_cases(
