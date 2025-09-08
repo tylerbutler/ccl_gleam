@@ -5,6 +5,7 @@ target = "erlang"
 
 [dependencies]
 gleam_stdlib = ">= 0.44.0 and < 2.0.0"
+ccl_types = { path = "../ccl_types" }
 ccl_core = { path = "../ccl_core" }
 
 [dev-dependencies]

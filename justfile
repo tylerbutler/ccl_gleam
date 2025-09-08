@@ -1,7 +1,7 @@
 #!/usr/bin/env just --justfile
 
 # Workspace packages
-packages := "ccl_types ccl_core ccl ccl_test_loader"
+packages := "ccl_types ccl_core ccl_test_loader ccl"
 
 # Common aliases for faster development
 alias b := build

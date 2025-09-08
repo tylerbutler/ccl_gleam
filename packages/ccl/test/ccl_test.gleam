@@ -1,5 +1,6 @@
 import ccl
 import ccl_core
+import ccl_types.{Entry}
 import gleam/list
 import gleam/string
 import gleeunit
@@ -11,10 +12,10 @@ pub fn main() {
 
 pub fn node_type_test() {
   let entries = [
-    ccl_core.Entry("single", "value"),
-    ccl_core.Entry("list", "item1"),
-    ccl_core.Entry("list", "item2"),
-    ccl_core.Entry("obj.key", "nested_value"),
+    Entry("single", "value"),
+    Entry("list", "item1"),
+    Entry("list", "item2"),
+    Entry("obj.key", "nested_value"),
   ]
   let ccl_obj = ccl_core.make_objects(entries)
 
@@ -26,10 +27,10 @@ pub fn node_type_test() {
 
 pub fn get_unified_test() {
   let entries = [
-    ccl_core.Entry("single", "value"),
-    ccl_core.Entry("list", "item1"),
-    ccl_core.Entry("list", "item2"),
-    ccl_core.Entry("obj.key", "nested_value"),
+    Entry("single", "value"),
+    Entry("list", "item1"),
+    Entry("list", "item2"),
+    Entry("obj.key", "nested_value"),
   ]
   let ccl_obj = ccl_core.make_objects(entries)
 
@@ -55,9 +56,9 @@ pub fn get_unified_test() {
 
 pub fn smart_accessors_test() {
   let entries = [
-    ccl_core.Entry("single", "value"),
-    ccl_core.Entry("list", "item1"),
-    ccl_core.Entry("list", "item2"),
+    Entry("single", "value"),
+    Entry("list", "item1"),
+    Entry("list", "item2"),
   ]
   let ccl_obj = ccl_core.make_objects(entries)
 
@@ -85,7 +86,7 @@ pub fn smart_accessors_test() {
 }
 
 pub fn pretty_print_test() {
-  let entries = [ccl_core.Entry("key", "value")]
+  let entries = [Entry("key", "value")]
   let ccl_obj = ccl_core.make_objects(entries)
 
   let output = ccl.pretty_print_ccl(ccl_obj)
@@ -98,13 +99,13 @@ pub fn pretty_print_test() {
 
 pub fn filter_keys_test() {
   let entries = [
-    ccl_core.Entry("config", "value1"),
-    ccl_core.Entry("/", "This is a comment"),
-    ccl_core.Entry("setting", "value2"),
-    ccl_core.Entry("#", "Python-style comment"),
-    ccl_core.Entry("//", "C-style comment"),
-    ccl_core.Entry("data", "value3"),
-    ccl_core.Entry("comment", "Custom comment key"),
+    Entry("config", "value1"),
+    Entry("/", "This is a comment"),
+    Entry("setting", "value2"),
+    Entry("#", "Python-style comment"),
+    Entry("//", "C-style comment"),
+    Entry("data", "value3"),
+    Entry("comment", "Custom comment key"),
   ]
 
   // Test filtering single comment style
@@ -135,11 +136,11 @@ pub fn filter_keys_test() {
 pub fn filter_keys_integration_test() {
   // Test the complete parsing pipeline with filtering
   let entries = [
-    ccl_core.Entry("server", "localhost"),
-    ccl_core.Entry("/", "Configuration comment"),
-    ccl_core.Entry("port", "8080"),
-    ccl_core.Entry("#", "Port configuration"),
-    ccl_core.Entry("debug", "true"),
+    Entry("server", "localhost"),
+    Entry("/", "Configuration comment"),
+    Entry("port", "8080"),
+    Entry("#", "Port configuration"),
+    Entry("debug", "true"),
   ]
 
   // Filter out comments and build CCL object
@@ -237,10 +238,10 @@ pub fn round_trip_empty_values_test() {
 pub fn round_trip_ccl_structure_test() {
   // Test CCL structure pretty printing
   let entries = [
-    ccl_core.Entry("server.host", "localhost"),
-    ccl_core.Entry("server.port", "8080"),
-    ccl_core.Entry("database.name", "mydb"),
-    ccl_core.Entry("database.user", "admin"),
+    Entry("server.host", "localhost"),
+    Entry("server.port", "8080"),
+    Entry("database.name", "mydb"),
+    Entry("database.user", "admin"),
   ]
 
   let original_ccl = ccl_core.make_objects(entries)
@@ -269,7 +270,7 @@ pub fn round_trip_ccl_structure_test() {
 
 pub fn pretty_print_canonical_format_test() {
   // Test that pretty printing produces canonical CCL format
-  let entries = [ccl_core.Entry("key", "value")]
+  let entries = [Entry("key", "value")]
   let output = ccl.pretty_print_entries(entries)
 
   // Should produce exactly "key = value"
@@ -279,8 +280,8 @@ pub fn pretty_print_canonical_format_test() {
 pub fn pretty_print_whitespace_normalization_test() {
   // Test whitespace normalization according to plan requirements
   let entries = [
-    ccl_core.Entry("  spaced_key  ", "  spaced_value  "),
-    ccl_core.Entry("normal", "value\t"),
+    Entry("  spaced_key  ", "  spaced_value  "),
+    Entry("normal", "value\t"),
     // Tab should be preserved
   ]
   let output = ccl.pretty_print_entries(entries)
@@ -301,9 +302,9 @@ pub fn pretty_print_whitespace_normalization_test() {
 pub fn pretty_print_list_formatting_test() {
   // Test list-style entries with empty keys
   let entries = [
-    ccl_core.Entry("", "list_item1"),
-    ccl_core.Entry("", "list_item2"),
-    ccl_core.Entry("regular_key", "value"),
+    Entry("", "list_item1"),
+    Entry("", "list_item2"),
+    Entry("regular_key", "value"),
   ]
 
   let ccl_obj = ccl_core.make_objects(entries)
@@ -321,13 +322,13 @@ pub fn pretty_print_list_formatting_test() {
 pub fn structure_preservation_test() {
   // Test that complex nested structures are preserved through round-trip
   let entries = [
-    ccl_core.Entry("app.name", "MyApp"),
-    ccl_core.Entry("app.version", "1.0.0"),
-    ccl_core.Entry("database.host", "localhost"),
-    ccl_core.Entry("database.port", "5432"),
-    ccl_core.Entry("features", "auth"),
-    ccl_core.Entry("features", "logging"),
-    ccl_core.Entry("features", "metrics"),
+    Entry("app.name", "MyApp"),
+    Entry("app.version", "1.0.0"),
+    Entry("database.host", "localhost"),
+    Entry("database.port", "5432"),
+    Entry("features", "auth"),
+    Entry("features", "logging"),
+    Entry("features", "metrics"),
   ]
 
   let original_ccl = ccl_core.make_objects(entries)

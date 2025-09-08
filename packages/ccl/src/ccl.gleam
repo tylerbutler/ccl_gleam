@@ -1,4 +1,5 @@
-import ccl_core.{type CCL, type Entry}
+import ccl_types.{type CCL, type Entry, CCL, Entry}
+import ccl_core
 import gleam/dict
 import gleam/float
 import gleam/int
@@ -44,7 +45,7 @@ pub fn node_type(ccl: CCL, path: String) -> NodeType {
 /// Classify the type of a CCL node
 fn classify_node_type(ccl: CCL) -> NodeType {
   case ccl {
-    ccl_core.CCL(map) -> {
+    CCL(map) -> {
       let entries = dict.to_list(map)
       case entries {
         // Empty map = missing/invalid
@@ -52,13 +53,13 @@ fn classify_node_type(ccl: CCL) -> NodeType {
         // Single entry with empty key = check if it's a terminal value or nested structure
         [#("", inner_ccl)] -> {
           case inner_ccl {
-            ccl_core.CCL(inner_map) -> {
+            CCL(inner_map) -> {
               let inner_entries = dict.to_list(inner_map)
               case inner_entries {
                 // Empty inner map = this is probably not a valid terminal
                 [] -> Missing
                 // Single empty key in inner map = this is a list structure
-                [#("", ccl_core.CCL(_))] -> {
+                [#("", CCL(_))] -> {
                   let terminal_count = list.length(get_all_terminal_values(ccl))
                   case terminal_count {
                     0 -> Missing
@@ -103,7 +104,7 @@ fn classify_node_type(ccl: CCL) -> NodeType {
 fn get_terminal_values_from_map(map: dict.Dict(String, CCL)) -> List(String) {
   dict.to_list(map)
   |> list.filter(fn(pair) {
-    let #(_, ccl_core.CCL(inner_map)) = pair
+    let #(_, CCL(inner_map)) = pair
     dict.size(inner_map) == 0
   })
   |> list.map(fn(pair) { pair.0 })
@@ -115,14 +116,14 @@ fn get_all_terminal_values(ccl: CCL) -> List(String) {
 
 fn get_all_terminal_values_recursive(ccl: CCL) -> List(String) {
   case ccl {
-    ccl_core.CCL(map) -> {
+    CCL(map) -> {
       dict.to_list(map)
       |> list.flat_map(fn(pair) {
-        let #(key, ccl_core.CCL(inner_map)) = pair
+        let #(key, CCL(inner_map)) = pair
         case dict.size(inner_map) == 0 {
           True -> [key]
           // Terminal value found
-          False -> get_all_terminal_values_recursive(ccl_core.CCL(inner_map))
+          False -> get_all_terminal_values_recursive(CCL(inner_map))
           // Keep searching deeper
         }
       })
@@ -219,7 +220,7 @@ pub fn get_all_paths(ccl: CCL) -> List(String) {
 
 fn get_all_paths_helper(ccl: CCL, prefix: String) -> List(String) {
   case ccl {
-    ccl_core.CCL(map) -> {
+    CCL(map) -> {
       dict.to_list(map)
       |> list.flat_map(fn(pair) {
         let #(key, nested_ccl) = pair
@@ -234,7 +235,7 @@ fn get_all_paths_helper(ccl: CCL, prefix: String) -> List(String) {
           _ -> {
             case
               dict.size(case nested_ccl {
-                ccl_core.CCL(inner_map) -> inner_map
+                CCL(inner_map) -> inner_map
               })
             {
               0 -> []
@@ -254,7 +255,7 @@ fn get_all_paths_helper(ccl: CCL, prefix: String) -> List(String) {
 // === PRETTY PRINTING API ===
 
 /// Pretty print CCL entries as canonical CCL text
-pub fn pretty_print_entries(entries: List(ccl_core.Entry)) -> String {
+pub fn pretty_print_entries(entries: List(Entry)) -> String {
   entries
   |> list.map(format_entry(_, 0))
   |> string.join("\n")
@@ -268,8 +269,8 @@ pub fn pretty_print_ccl(ccl: CCL) -> String {
 // === INTERNAL PRETTY PRINTING HELPERS ===
 
 /// Format a single entry with proper indentation
-fn format_entry(entry: ccl_core.Entry, indent_level: Int) -> String {
-  let ccl_core.Entry(key, value) = entry
+fn format_entry(entry: Entry, indent_level: Int) -> String {
+  let Entry(key, value) = entry
   let indent = string.repeat("  ", indent_level)
   let normalized_key = normalize_key(key)
 
@@ -320,7 +321,7 @@ fn format_multiline_entry(
 /// Format CCL structure recursively
 fn format_ccl_recursive(ccl: CCL, indent_level: Int) -> String {
   case ccl {
-    ccl_core.CCL(map) -> {
+    CCL(map) -> {
       dict.to_list(map)
       |> list.map(fn(entry) {
         let #(key, sub_ccl) = entry
@@ -337,7 +338,7 @@ fn format_ccl_entry(key: String, sub_ccl: CCL, indent_level: Int) -> String {
   let formatted_key = normalize_key(key)
 
   case sub_ccl {
-    ccl_core.CCL(map) -> {
+    CCL(map) -> {
       case dict.size(map) {
         0 -> {
           // Terminal empty value
@@ -378,12 +379,12 @@ fn format_ccl_entry(key: String, sub_ccl: CCL, indent_level: Int) -> String {
 /// Get all terminal values from a CCL structure
 fn get_all_terminal_values_from_ccl(ccl: CCL) -> List(String) {
   case ccl {
-    ccl_core.CCL(map) -> {
+    CCL(map) -> {
       dict.to_list(map)
       |> list.flat_map(fn(pair) {
         let #(key, nested_ccl) = pair
         case nested_ccl {
-          ccl_core.CCL(inner_map) -> {
+          CCL(inner_map) -> {
             case dict.size(inner_map) {
               0 -> [key]
               // Terminal value found

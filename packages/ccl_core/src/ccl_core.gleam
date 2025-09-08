@@ -54,9 +54,72 @@ pub fn parse(text: String) -> Result(List(Entry), ParseError) {
 /// // Input: [Entry("user", "name = alice"), Entry("user", "age = 25")]
 /// // Output: CCL structure with merged user object containing both name and age
 /// ```
+/// Expand dotted keys into nested structures while preserving flat access
+/// 
+/// For example: Entry("app.database.host", "localhost") becomes:
+/// - Entry("app.database.host", "localhost")          // For flat access
+/// - Entry("app", "database.host = localhost")        // For nested access  
+/// - Entry("app.database", "host = localhost")        // For deep nested access
+fn expand_dotted_keys(entries: List(Entry)) -> List(Entry) {
+  list.fold(entries, [], fn(acc, entry) {
+    case string.contains(entry.key, ".") {
+      True -> {
+        // Keep original entry for flat access
+        let flat_entry = entry
+        // Create all nested entries for hierarchical access
+        let nested_entries = create_all_nested_entries(entry)
+        [flat_entry, ..list.append(nested_entries, acc)]
+      }
+      False -> [entry, ..acc] // No expansion needed
+    }
+  })
+}
+
+/// Create all nested entries for hierarchical access
+/// "app.database.host" = "localhost" becomes:
+/// - "app" = "database.host = localhost"  
+/// - "app.database" = "host = localhost"
+fn create_all_nested_entries(entry: Entry) -> List(Entry) {
+  let parts = string.split(entry.key, ".")
+  create_nested_entries_for_all_prefixes(parts, entry.value)
+}
+
+/// Create nested entries for all possible prefixes
+/// ["app", "database", "host"] with value "localhost" creates:
+/// - Entry("app", "database.host = localhost")
+/// - Entry("app.database", "host = localhost")  
+fn create_nested_entries_for_all_prefixes(parts: List(String), value: String) -> List(Entry) {
+  case parts {
+    [] -> []
+    [_single] -> [] // No nesting for single part
+    _ -> create_prefix_entries(parts, value, 1, [])
+  }
+}
+
+/// Helper to create entries for each prefix length
+fn create_prefix_entries(parts: List(String), value: String, prefix_len: Int, acc: List(Entry)) -> List(Entry) {
+  case prefix_len >= list.length(parts) {
+    True -> acc // Done with all prefixes
+    False -> {
+      let prefix_parts = list.take(parts, prefix_len)
+      let suffix_parts = list.drop(parts, prefix_len)
+      
+      let prefix_key = string.join(prefix_parts, ".")
+      let suffix_key = string.join(suffix_parts, ".")
+      let nested_value = suffix_key <> " = " <> value
+      let nested_entry = Entry(prefix_key, nested_value)
+      
+      create_prefix_entries(parts, value, prefix_len + 1, [nested_entry, ..acc])
+    }
+  }
+}
+
 pub fn make_objects(entries: List(Entry)) -> CCL {
+  // Expand dotted keys while preserving original flat keys
+  let expanded_entries = expand_dotted_keys(entries)
+  
   // Group entries by key, allowing multiple values per key
-  let grouped = group_entries_by_key(entries, dict.new())
+  let grouped = group_entries_by_key(expanded_entries, dict.new())
 
   // Convert to value entries and apply fixpoint algorithm
   let value_entries =
@@ -69,9 +132,17 @@ pub fn make_objects(entries: List(Entry)) -> CCL {
 }
 
 /// Get a value from CCL using a dot-separated path
+/// Tries flat access first, then hierarchical access
 pub fn get_value(ccl: CCL, path: String) -> Result(String, String) {
-  let keys = string.split(path, ".")
-  get_value_by_keys(ccl, keys)
+  // Try flat access first (exact key match)
+  case get_terminal_value(ccl, path) {
+    Ok(value) -> Ok(value)
+    Error(_) -> {
+      // Fall back to hierarchical access
+      let keys = string.split(path, ".")
+      get_value_by_keys(ccl, keys)
+    }
+  }
 }
 
 /// Get all values for a key (useful for list-style structures with empty keys)

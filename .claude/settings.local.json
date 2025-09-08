@@ -72,7 +72,18 @@
       "Read(//home/tylerbu/code/claude-workspace/ccl-test-data/tests/**)",
       "Bash(git branch:*)",
       "Bash(git reflog:*)",
-      "Bash(git gc:*)"
+      "Bash(git gc:*)",
+      "Bash(git restore:*)",
+      "Bash(mv:*)",
+      "Bash(just:*)",
+      "Read(//home/tylerbu/code/claude-workspace/ccl-test-data/**)",
+      "WebFetch(domain:gleam.run)",
+      "Bash(for:*)",
+      "Bash(do)",
+      "Bash(then)",
+      "Bash(jq:*)",
+      "Bash(fi)",
+      "Bash(done)"
     ],
     "deny": [],
     "ask": []

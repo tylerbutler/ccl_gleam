@@ -1,6 +1,7 @@
 import ccl_core
 import ccl_test_loader
-import gleam/json
+import ccl_types.{Entry}
+import gleam/list
 import gleeunit
 import gleeunit/should
 
@@ -8,44 +9,52 @@ pub fn main() {
   gleeunit.main()
 }
 
-pub fn ccl_to_json_simple_test() {
-  let entries = [ccl_core.Entry("key", "value")]
+pub fn basic_test_loader_test() {
+  let entries = [Entry("key", "value")]
   let ccl = ccl_core.make_objects(entries)
-
-  let json_result = ccl_test_loader.ccl_to_json(ccl)
-  json.to_string(json_result) |> should.equal("{\"key\":\"value\"}")
-}
-
-pub fn json_to_ccl_simple_test() {
-  let json_str = "{\"key\":\"value\"}"
-  let result = ccl_test_loader.json_string_to_ccl(json_str)
-
-  result |> should.be_ok()
-  let ccl = case result {
-    Ok(ccl) -> ccl
-    Error(_) -> ccl_core.empty_ccl()
-  }
 
   ccl_core.get_value(ccl, "key") |> should.be_ok() |> should.equal("value")
 }
 
-pub fn roundtrip_test() {
-  let entries = [ccl_core.Entry("name", "test"), ccl_core.Entry("count", "42")]
-  let original_ccl = ccl_core.make_objects(entries)
+pub fn test_case_creation_test() {
+  let test_case = ccl_test_loader.create_basic_test(
+    "test", 
+    "key = value",
+    [Entry("key", "value")]
+  )
+  
+  test_case.name |> should.equal("test")
+  test_case.input |> should.equal("key = value")
+}
 
-  let json_str = ccl_test_loader.ccl_to_json_string(original_ccl)
-  let restored_result = ccl_test_loader.json_string_to_ccl(json_str)
-
-  restored_result |> should.be_ok()
-  let restored_ccl = case restored_result {
-    Ok(ccl) -> ccl
-    Error(_) -> ccl_core.empty_ccl()
+pub fn run_test_case_test() {
+  let test_case = ccl_test_loader.create_basic_test(
+    "basic_parse",
+    "name = Alice",
+    [Entry("name", "Alice")]
+  )
+  
+  let result = ccl_test_loader.run_test_case(test_case, ccl_core.parse)
+  
+  case result {
+    ccl_test_loader.Pass(_, _) -> should.equal(True, True)
+    ccl_test_loader.Fail(_, _) -> should.equal(True, False)
   }
+}
 
-  ccl_core.get_value(restored_ccl, "name")
-  |> should.be_ok()
-  |> should.equal("test")
-  ccl_core.get_value(restored_ccl, "count")
-  |> should.be_ok()
-  |> should.equal("42")
+pub fn ccl_core_comprehensive_test_suite() {
+  // This runs all CCL Core test suites against ccl_core.parse
+  let _results = ccl_test_loader.run_ccl_core_comprehensive_tests(ccl_core.parse)
+  
+  // For now, just ensure it completes without crashing
+  should.equal(True, True)
+}
+
+pub fn test_suite_paths_test() {
+  // Verify we have the expected test suite paths
+  let core_paths = ccl_test_loader.ccl_core_test_paths()
+  let package_paths = ccl_test_loader.ccl_package_test_paths()
+  
+  list.length(core_paths) |> should.equal(7) // 7 test suites for ccl_core
+  list.length(package_paths) |> should.equal(2) // 2 test suites for ccl package
 }

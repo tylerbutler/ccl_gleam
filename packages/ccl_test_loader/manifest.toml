@@ -2,6 +2,8 @@
 # You typically do not need to edit this file
 
 packages = [
+  { name = "ccl", version = "1.0.0", build_tools = ["gleam"], requirements = ["ccl_core", "ccl_types", "gleam_stdlib"], source = "local", path = "../ccl" },
+  { name = "ccl_core", version = "1.0.0", build_tools = ["gleam"], requirements = ["ccl_types", "gleam_stdlib"], source = "local", path = "../ccl_core" },
   { name = "ccl_types", version = "1.0.0", build_tools = ["gleam"], requirements = ["gleam_stdlib"], source = "local", path = "../ccl_types" },
   { name = "filepath", version = "1.1.2", build_tools = ["gleam"], requirements = ["gleam_stdlib"], otp_app = "filepath", source = "hex", outer_checksum = "B06A9AF0BF10E51401D64B98E4B627F1D2E48C154967DA7AF4D0914780A6D40A" },
   { name = "gleam_json", version = "3.0.2", build_tools = ["gleam"], requirements = ["gleam_stdlib"], otp_app = "gleam_json", source = "hex", outer_checksum = "874FA3C3BB6E22DD2BB111966BD40B3759E9094E05257899A7C08F5DE77EC049" },
@@ -12,6 +14,8 @@ packages = [
 ]
 
 [requirements]
+ccl = { path = "../ccl" }
+ccl_core = { path = "../ccl_core" }
 ccl_types = { path = "../ccl_types" }
 gleam_json = { version = ">= 3.0.2 and < 4.0.0" }
 gleam_stdlib = { version = ">= 0.44.0 and < 2.0.0" }

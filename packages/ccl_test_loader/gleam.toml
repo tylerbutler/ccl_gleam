@@ -8,6 +8,8 @@ gleam_stdlib = ">= 0.44.0 and < 2.0.0"
 gleam_json = ">= 3.0.2 and < 4.0.0"
 simplifile = ">= 2.3.0 and < 3.0.0"
 ccl_types = { path = "../ccl_types" }
+ccl_core = { path = "../ccl_core" }
+ccl = { path = "../ccl" }
 jscheam = ">= 2.0.0 and < 3.0.0"
 
 [dev-dependencies]
