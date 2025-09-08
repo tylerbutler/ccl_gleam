@@ -1,7 +1,7 @@
 #!/usr/bin/env just --justfile
 
 # Workspace packages
-packages := "ccl_core ccl ccl_test_loader"
+packages := "ccl_types ccl_core ccl ccl_test_loader"
 
 # Common aliases for faster development
 alias b := build
@@ -18,25 +18,41 @@ default:
 
 build: build-all
 
+# Check all packages
 check:
-	gleam check
+	@echo "Checking all packages..."
+	@for package in {{packages}}; do \
+		echo "Checking $package..."; \
+		cd packages/$package && gleam check || exit 1; \
+		cd - > /dev/null; \
+	done
 
+# Test all packages
 test:
-	gleam test
+	@echo "Testing all packages..."
+	@for package in {{packages}}; do \
+		echo "Testing $package..."; \
+		cd packages/$package && gleam test || exit 1; \
+		cd - > /dev/null; \
+	done
 
-# Format source code
+# Format all packages
 format:
-	gleam format
+	@echo "Formatting all packages..."
+	@for package in {{packages}}; do \
+		echo "Formatting $package..."; \
+		cd packages/$package && gleam format; \
+		cd - > /dev/null; \
+	done
 
-# Check if code is formatted without changing it
+# Check formatting for all packages
 format-check:
-	gleam format --check
-
-
-# Audit dependencies for security issues (displays progress spinner)
-audit:
-	@echo "Running dependency security audit (this may take a while)..."
-	@mise exec -- gleam run -m go_over -- --format minimal
+	@echo "Checking formatting for all packages..."
+	@for package in {{packages}}; do \
+		echo "Checking format for $package..."; \
+		cd packages/$package && gleam format --check || exit 1; \
+		cd - > /dev/null; \
+	done
 
 # Run all linting checks
 lint: check format-check
@@ -62,8 +78,6 @@ build-all:
 		cd packages/$package && gleam build || exit 1; \
 		cd - > /dev/null; \
 	done
-	@echo "Building root package..."
-	@gleam build
 	@echo "All packages built successfully!"
 
 # Test all packages in workspace
@@ -74,8 +88,6 @@ test-all:
 		cd packages/$package && gleam test || exit 1; \
 		cd - > /dev/null; \
 	done
-	@echo "Testing root package..."
-	@gleam test
 	@echo "All tests completed!"
 
 # Clean build artifacts
@@ -85,45 +97,5 @@ clean:
 		rm -rf packages/$package/build; \
 	done
 
-# Run full CI pipeline
-ci: format-check check test
-
 # Run full CI pipeline for all packages
-ci-all: format-check build-all test-all
-
-# === BENCHMARK TASKS ===
-
-# Run all benchmarks
-bench: bench-statistical bench-comparison bench-memory bench-demo
-
-# Run statistical performance benchmarks
-bench-statistical:
-	@echo "🔥 Running CCL Statistical Benchmarks..."
-	@cd benchmarks && gleam run --module ccl_statistical_benchmark
-
-# Run performance comparison with baselines
-bench-comparison:
-	@echo "⚡ Running CCL Performance Comparison..."
-	@cd benchmarks && gleam run --module ccl_json_comparison
-
-# Run memory usage analysis
-bench-memory:
-	@echo "🧠 Running CCL Memory Analysis..."
-	@cd benchmarks && gleam run --module ccl_memory_profiler
-
-# Run simple benchmark demo
-bench-demo:
-	@echo "📊 Running CCL Benchmark Demo..."
-	@cd benchmarks && gleam run --module ccl_benchmark_demo
-
-# Run quick performance check (statistical only)
-bench-quick: bench-statistical
-
-# Run comprehensive performance analysis
-bench-full: build bench-statistical bench-comparison bench-memory
-	@echo ""
-	@echo "✅ Full performance analysis completed!"
-	@echo "📝 See plans/performance_analysis.md for detailed results"
-
-# Clean and run all benchmarks (for clean measurement)
-bench-clean: clean build bench-full
+ci: format-check build-all test-all

@@ -5,6 +5,9 @@ target = "erlang"
 
 [dependencies]
 gleam_stdlib = ">= 0.44.0 and < 2.0.0"
+ccl_types = { path = "../ccl_types" }
 
 [dev-dependencies]
 gleeunit = ">= 1.0.0 and < 2.0.0"
+ccl_test_loader = { path = "../ccl_test_loader" }
+simplifile = ">= 2.3.0 and < 3.0.0"

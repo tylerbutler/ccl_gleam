@@ -1,25 +1,14 @@
-name = "ccl_gleam"
-version = "1.0.0"
-description = "CCL Gleam workspace - Configuration specification language implementation"
-
-target = "erlang"
-
-[workspace]
-members = [
-  "packages/ccl_core",
-  "packages/ccl",
-  "packages/ccl_test_loader"
-]
-
-[dependencies]
-gleam_stdlib = ">= 0.44.0 and < 2.0.0"
-simplifile = ">= 2.3.0 and < 3.0.0"
-gleam_json = ">= 3.0.2 and < 4.0.0"
-# Import specific packages as needed
-ccl_core = { path = "packages/ccl_core" }
-ccl = { path = "packages/ccl" }
-
-[dev-dependencies]
-gleeunit = ">= 1.0.0 and < 2.0.0"
-gleamy_bench = ">= 0.6.0 and < 1.0.0"
-go_over = ">= 3.2.0 and < 4.0.0"
+# CCL Gleam Multipackage Project
+# 
+# This directory contains multiple Gleam packages for CCL implementation.
+# Since Gleam doesn't currently support official workspace configuration,
+# build each package individually:
+#
+# cd packages/ccl_core && gleam build
+# cd packages/ccl && gleam build  
+# cd packages/ccl_test_loader && gleam build
+#
+# Individual packages:
+# - packages/ccl_core/      - Minimal CCL parsing (zero dependencies)
+# - packages/ccl/           - Full-featured library with typed parsing
+# - packages/ccl_test_loader/ - JSON test suite utilities

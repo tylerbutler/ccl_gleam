@@ -1,25 +1,10 @@
+import ccl_types.{type CCL, type Entry, type ParseError, CCL, Entry, ParseError}
 import gleam/dict
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/string
 
-// === CORE DATA TYPES ===
-
-pub type Entry {
-  Entry(key: String, value: String)
-}
-
-pub type ParseError {
-  ParseError(line: Int, reason: String)
-}
-
-// === NESTED CCL DATA STRUCTURE ===
-
-/// Recursive CCL structure equivalent to OCaml's `type t = Fix of t Map.t`
-/// This represents the nested object structure after applying the fixpoint algorithm
-pub type CCL {
-  CCL(map: dict.Dict(String, CCL))
-}
+// === VALUE ENTRY TYPE ===
 
 /// Value entry type for intermediate processing during object construction
 pub type ValueEntry {
