@@ -1,38 +1,18 @@
-# Categorical Configuration Language (CCL) – Gleam Implementation
+# CCL Gleam Implementation
 
 [![Package Version](https://img.shields.io/hexpm/v/ccl)](https://hex.pm/packages/ccl)
 [![Hex Docs](https://img.shields.io/badge/hex-docs-ffaff3)](https://hexdocs.pm/ccl/)
 
-A Gleam implementation of the Categorical Configuration Language (CCL), organized as a multi-package workspace.
+A Gleam implementation of the [Categorical Configuration Language (CCL)](https://chshersh.com/blog/2025-01-06-the-most-elegant-configuration-language.html).
 
-## Package Organization
+## Installation
 
-This project is organized as a multi-package workspace:
-
-### 📦 [ccl_core](packages/ccl_core/) 
-[![Hex Docs](https://img.shields.io/badge/hex-docs-ffaff3)](https://hexdocs.pm/ccl_core/)
-
-**Minimal CCL parsing library** - Zero dependencies, core parsing only.
-
-### 📦 [ccl](packages/ccl/)
-[![Hex Docs](https://img.shields.io/badge/hex-docs-ffaff3)](https://hexdocs.pm/ccl/)
-
-**Full-featured CCL library** - Type-safe parsing, smart accessors, enhanced usability.
-
-### 📦 [ccl_test_loader](packages/ccl_test_loader/)
-
-**Test utilities** - JSON test suite loader for cross-language testing.
-
-## Quick Start
-
-Add to your `gleam.toml`:
-
-```toml
-[dependencies]
-ccl = "1.0.0"
+```sh
+gleam add ccl       # Full-featured library (recommended)
+gleam add ccl_core  # Minimal core library
 ```
 
-### Basic Usage
+## Quick Start
 
 ```gleam
 import ccl
@@ -56,45 +36,27 @@ case ccl.parse(config) {
 }
 ```
 
-## What is CCL?
+## Package Organization
 
-CCL is a minimal configuration format based on key-value pairs with elegant nesting:
+This project provides three packages:
 
-```ccl
-database =
-  host = localhost
-  port = 5432
-server =
-  ports =
-    = 8000
-    = 8001
-```
+### 📦 [ccl](packages/ccl/)
+[![Hex Docs](https://img.shields.io/badge/hex-docs-ffaff3)](https://hexdocs.pm/ccl/)
 
-**[📖 Full CCL specification →](https://chshersh.com/blog/2025-01-06-the-most-elegant-configuration-language.html)**
+**Full-featured CCL library** - Type-safe parsing, smart accessors, enhanced usability.
 
-## Usage
+### 📦 [ccl_core](packages/ccl_core/) 
+[![Hex Docs](https://img.shields.io/badge/hex-docs-ffaff3)](https://hexdocs.pm/ccl_core/)
 
-Parse CCL text and access nested values using dot notation:
+**Minimal CCL parsing library** - Zero dependencies, core parsing only.
 
-### Quick Start
+### 📦 [ccl_test_loader](packages/ccl_test_loader/)
 
-```gleam
-import ccl
+**Test utilities** - JSON test suite loader for CCL conformance testing.
 
-let config = "database.host = localhost\ndatabase.port = 5432"
-case ccl.parse(config) {
-  Ok(entries) -> {
-    let objects = ccl.make_objects(entries)
-    case ccl.get(objects, "database.host") {
-      Ok(ccl.CclString(host)) -> io.println("Host: " <> host)
-      _ -> io.println("Host not found") 
-    }
-  }
-  Error(err) -> io.println("Parse error: " <> err.reason)
-}
-```
+## Usage Examples
 
-### Advanced Example
+### Parsing Nested Configuration
 
 ```gleam
 import ccl
@@ -102,7 +64,6 @@ import ccl
 let config = "
 database =
   host = localhost
-database =
   port = 5432
 server =
   ports =
@@ -113,40 +74,139 @@ server =
 case ccl.parse(config) {
   Ok(entries) -> {
     let objects = ccl.make_objects(entries)
-    // Access: ccl.get(objects, "database.host") -> Ok(CclString("localhost"))
-    // Lists: ccl.get(objects, "server.ports") -> Ok(CclList(["8000", "8001"]))
+    // Access nested values
+    let host = ccl.get(objects, "database.host")   // Ok(CclString("localhost"))
+    let ports = ccl.get(objects, "server.ports")   // Ok(CclList(["8000", "8001"]))
   }
   Error(err) -> io.println("Parse error: " <> err.reason)
 }
 ```
 
-### Package Selection Guide
+### Type-Safe Value Access
 
-**Quick Decision:** Use `ccl` for applications, `ccl_core` for libraries.
+```gleam
+import ccl
 
-- **`ccl`** - Full-featured with type-safe parsing, smart accessors, enhanced error handling
-- **`ccl_core`** - Minimal dependencies, direct parsing access, performance-focused
-- **`ccl_test_loader`** - Cross-language testing utilities
+// Get typed values with automatic parsing
+let config_obj = ccl.parse(config_text) |> result.map(ccl.make_objects)
 
-## Installation
+// Integer parsing
+case ccl.get_int(config_obj, "server.port") {
+  Ok(port) -> start_server(port)
+  Error(_) -> start_server(8080)  // Default port
+}
 
-```sh
-gleam add ccl       # Full-featured library (recommended)
-gleam add ccl_core  # Minimal core library
+// Boolean parsing
+case ccl.get_bool(config_obj, "debug.enabled") {
+  Ok(True) -> enable_debug_mode()
+  Ok(False) -> disable_debug_mode()
+  Error(_) -> disable_debug_mode()  // Default to production
+}
+
+// String access
+case ccl.get_string(config_obj, "app.name") {
+  Ok(name) -> io.println("Starting " <> name)
+  Error(_) -> io.println("Starting application")
+}
+```
+
+## Package Selection Guide
+
+- **Use `ccl`** for applications needing full CCL features
+- **Use `ccl_core`** for libraries wanting minimal dependencies
+- **Use `ccl_test_loader`** for testing CCL implementations
+
+## Development
+
+### Tool Setup (Recommended)
+
+This project uses `mise` for version management and `just` for task running:
+
+```bash
+# Install mise (version manager)
+# macOS
+brew install mise
+
+# Or use the installer
+curl https://mise.run | sh
+
+# Activate the project's tool versions
+mise install
+
+# This will install the correct versions of:
+# - Gleam
+# - Erlang/OTP
+# - Just (task runner)
+```
+
+### Using Just
+
+This project includes a `justfile` for common development tasks:
+
+```bash
+# List all available commands
+just
+
+# Run tests
+just test
+
+# Build the project
+just build
+
+# Format code
+just format
+
+# Type check
+just check
+
+# Run all checks (format, check, build, test)
+just all
+
+# Clean build artifacts
+just clean
+```
+
+### Manual Commands
+
+If you prefer not to use `just`, you can run the Gleam commands directly:
+
+```bash
+# Run tests
+gleam test
+
+# Build project
+gleam build
+
+# Format code
+gleam format
+
+# Type check
+gleam check
+```
+
+### Installing Tools Individually
+
+If you don't want to use `mise`, you can install tools separately:
+
+```bash
+# Install Just
+brew install just              # macOS
+apt install just               # Ubuntu/Debian
+cargo install just             # Via Rust
+
+# Install Gleam
+brew install gleam             # macOS
+# Or see: https://gleam.run/getting-started/installing/
 ```
 
 ## Documentation
 
-### 📖 CCL Language Guide
-For comprehensive CCL language documentation, see the central repository:
+- **[Gleam API Guide](docs/gleam-api-guide.md)** - Complete API reference
+- **[Gleam Patterns](docs/gleam-patterns.md)** - Advanced usage patterns
+- **[Testing Guide](docs/TESTING.md)** - Running and adding tests
+- **[Hex Documentation](https://hexdocs.pm/ccl/)** - Generated API docs
 
-- **[CCL Getting Started](../ccl-test-data/docs/getting-started.md)** - Learn CCL syntax and concepts
-- **[CCL FAQ](../ccl-test-data/docs/ccl_faq.md)** - Common questions and gotchas  
-- **[Format Comparison](../ccl-test-data/docs/format-comparison.md)** - CCL vs JSON, YAML, TOML
-- **[4-Level Architecture](../ccl-test-data/docs/4-level-architecture.md)** - Implementation design
+## CCL Language Resources
 
-### 🔧 Gleam Implementation Guide
-- **[Gleam API Guide](docs/gleam-api-guide.md)** - Complete Gleam CCL API reference
-- **[Advanced Patterns](docs/gleam-patterns.md)** - Type-safe configuration patterns in Gleam
-- **[API Documentation](https://hexdocs.pm/ccl/)** - Generated API docs
-
+- **[CCL Specification](https://chshersh.com/blog/2025-01-06-the-most-elegant-configuration-language.html)** - Official language specification
+- **[OCaml Reference Implementation](https://github.com/chshersh/ccl)** - Original implementation

@@ -1,168 +1,216 @@
-# CCL Test Suite Documentation
-
-## Overview
-
-The CCL test suite is organized by the 4-level CCL architecture with an additional pretty printer test layer:
-
-- **Level 1**: Entry Parsing (`ccl-test-suite/ccl-entry-parsing.json`)
-- **Level 2**: Entry Processing (`ccl-test-suite/ccl-entry-processing.json`) 
-- **Level 3**: Object Construction (`ccl-test-suite/ccl-object-construction.json`)
-- **Level 4**: Typed Parsing (`ccl-test-suite/ccl-typed-parsing-examples.json`)
-- **Pretty Printer**: Round-trip and canonical formatting (`ccl-test-suite/ccl-pretty-printer.json`)
-- **Error Handling**: Parse errors (`ccl-test-suite/ccl-errors.json`)
-
-## Adding New Test Cases
-
-### Step 1: Add Test to JSON File
-
-Choose the appropriate test suite file and add your test case:
-
-```json
-{
-  "name": "descriptive_test_name",
-  "input": "ccl input text",
-  "expected": [
-    {"key": "parsed_key", "value": "parsed_value"}
-  ],
-  "meta": {"tags": ["category"], "level": 1}
-}
-```
-
-### Step 2: Pretty Printer Tests (Special Format)
-
-For pretty printer tests, use this format:
-
-```json
-{
-  "name": "test_name",
-  "property": "round_trip|canonical_format|deterministic", 
-  "input": "ccl input text",
-  "expected_canonical": "expected pretty printed output",
-  "meta": {"tags": ["category"], "level": "pretty-print"}
-}
-```
-
-**Property Types:**
-- `round_trip`: Test that `parse(pretty_print(parse(input))) == parse(input)`
-- `canonical_format`: Test that `pretty_print(parse(input)) == expected_canonical`
-- `deterministic`: Test that multiple calls to pretty_print produce identical output
-
-### Step 3: Update Type Definitions (if needed)
-
-If adding new test structure, update `test/test_suite_types.gleam`:
-
-```gleam
-// Add new decoder function
-fn new_test_decoder() -> decode.Decoder(NewTestType) {
-  // Decoder implementation
-}
-
-// Add new getter function  
-pub fn get_new_tests() -> List(NewTestType) {
-  load_test_file("ccl-test-suite/new-test-file.json")
-}
-```
-
-### Step 4: Update Test Runner
-
-Add your test execution in `test/ccl_gleam_test.gleam`:
-
-```gleam
-pub fn new_test_category() {
-  io.println("\n=== NEW TEST CATEGORY ===")
-  let test_cases = test_suite_types.get_new_tests()
-  
-  // Test execution logic
-  run_test_cases(test_cases, "New Category")
-}
-```
-
-### Step 5: Update Test Overview
-
-Update the `print_test_overview()` function to include your new test count:
-
-```gleam
-let new_test_count = list.length(test_suite_types.get_new_tests())
-let total_count = existing_counts + new_test_count + ...
-
-io.println("New Test Category: " <> string.inspect(new_test_count) <> " tests")
-```
-
-## CCL Behavior Guidelines
-
-When writing tests, follow these CCL parsing and formatting rules:
-
-### Whitespace Handling
-- **Keys**: Trim all leading/trailing whitespace
-- **Values**: Strip leading spaces, preserve trailing tabs/spaces
-- **Line endings**: Normalize CRLF → LF  
-- **Empty values**: `key =` (no trailing space in canonical format)
-
-### Multiline Values  
-- Preserve exact whitespace structure within multiline content
-- Don't normalize internal spacing in multiline values
-- Empty multiline sections should have empty string values
-
-### List Formatting
-- Empty keys use `= value` format (no space before equals)
-- Regular keys use `key = value` format (spaces around equals)
-
-### Tab Preservation
-- Leading tabs in values are preserved (after leading space removal)
-- Trailing tabs in values are stripped during parsing
-- Tabs within values are preserved exactly
-
-## Example Test Cases
-
-### Basic Entry Parsing
-```json
-{
-  "name": "basic_key_value",
-  "input": "name = Alice\nage = 42", 
-  "expected": [
-    {"key": "name", "value": "Alice"},
-    {"key": "age", "value": "42"}
-  ],
-  "meta": {"tags": ["basic"], "level": 1}
-}
-```
-
-### Pretty Printer Round-trip
-```json
-{
-  "name": "round_trip_basic",
-  "property": "round_trip",
-  "input": "key = value\nnested =\n  sub = val",
-  "expected_canonical": "key = value\nnested =\n  sub = val",
-  "meta": {"tags": ["round-trip", "basic"], "level": "pretty-print"}
-}
-```
-
-### Error Test
-```json
-{
-  "name": "invalid_syntax",
-  "input": "invalid input without equals",
-  "expected_error": true,
-  "error_message": "expected equals sign",
-  "meta": {"tags": ["error", "syntax"], "level": 1}
-}
-```
+# Testing Guide for CCL Gleam Implementation
 
 ## Running Tests
+
+### Quick Start
 
 ```bash
 # Run all tests
 gleam test
 
-# Check specific components  
-gleam check
-gleam build
+# Run tests for a specific package
+cd packages/ccl && gleam test
+cd packages/ccl_core && gleam test
+cd packages/ccl_test_loader && gleam test
 ```
 
-The test runner will show:
-- Test counts by category
-- Pass/fail status for each level
-- Details about any failing tests
+### Test Framework
 
-All tests must pass before merging changes.
+This project uses **gleeunit** for testing, which is the standard Gleam test framework.
+
+## Project Test Structure
+
+```
+ccl_gleam/
+├── test/                          # Main test directory
+│   ├── ccl_gleam_test.gleam     # Main test runner
+│   └── test_suite_types.gleam   # JSON test loader types
+├── packages/
+│   ├── ccl/test/                 # Full library tests
+│   ├── ccl_core/test/           # Core library tests
+│   └── ccl_test_loader/test/    # Test loader tests
+└── ccl-test-suite/               # JSON test files
+```
+
+## Adding Tests
+
+### Adding Gleam Unit Tests
+
+Create a new test file in the appropriate `test/` directory:
+
+```gleam
+import gleeunit/should
+import ccl
+
+pub fn parse_simple_test() {
+  let input = "key = value"
+  let result = ccl.parse(input)
+  
+  result
+  |> should.be_ok
+  |> should.equal([ccl.Entry("key", "value")])
+}
+```
+
+### Using the JSON Test Suite
+
+The project uses JSON test files for cross-language compatibility:
+
+```gleam
+import test_suite_types
+
+pub fn run_json_tests() {
+  // Load test cases from JSON
+  let test_cases = test_suite_types.get_entry_parsing_tests()
+  
+  // Run each test
+  list.each(test_cases, fn(test_case) {
+    let result = ccl.parse(test_case.input)
+    case test_case.expected {
+      Ok(expected) -> should.equal(result, Ok(expected))
+      Error(_) -> should.be_error(result)
+    }
+  })
+}
+```
+
+## Test Categories
+
+The Gleam implementation runs tests from these JSON files:
+
+- `ccl-entry-parsing.json` - Core parsing tests
+- `ccl-entry-processing.json` - Comment filtering tests
+- `ccl-object-construction.json` - Nested object tests
+- `ccl-typed-parsing-examples.json` - Type conversion tests
+- `ccl-pretty-printer.json` - Formatting tests
+- `ccl-errors.json` - Error handling tests
+
+## Test Utilities
+
+### Loading Test Data
+
+Use the `ccl_test_loader` package to load JSON test files:
+
+```gleam
+import ccl_test_loader
+
+// Load a specific test file
+let tests = ccl_test_loader.load_file("ccl-test-suite/ccl-entry-parsing.json")
+```
+
+### Running Test Suites
+
+The main test runner (`test/ccl_gleam_test.gleam`) orchestrates all tests:
+
+```gleam
+pub fn main() {
+  gleeunit.main()
+}
+
+// Individual test functions
+pub fn entry_parsing_tests() {
+  run_test_suite("Entry Parsing", test_suite_types.get_entry_parsing_tests())
+}
+
+pub fn object_construction_tests() {
+  run_test_suite("Object Construction", test_suite_types.get_object_tests())
+}
+```
+
+## Debugging Tests
+
+### Verbose Output
+
+Enable detailed test output:
+
+```gleam
+import gleam/io
+
+pub fn debug_test() {
+  let input = "key = value"
+  io.println("Input: " <> input)
+  
+  let result = ccl.parse(input)
+  io.println("Result: " <> string.inspect(result))
+  
+  should.be_ok(result)
+}
+```
+
+### Testing Specific Features
+
+Test individual CCL features in isolation:
+
+```gleam
+// Test multiline values
+pub fn multiline_test() {
+  let input = "desc = line1\n  line2\n  line3"
+  let result = ccl.parse(input)
+  // Verify multiline handling
+}
+
+// Test nested sections
+pub fn nesting_test() {
+  let input = "section =\n  key = value"
+  let result = ccl.parse(input)
+  // Verify nesting
+}
+```
+
+## Performance Testing
+
+For performance benchmarks:
+
+```gleam
+import gleam/erlang/process
+
+pub fn benchmark_parsing() {
+  let start = process.system_time(process.Millisecond)
+  
+  // Run parsing 1000 times
+  list.range(1, 1000)
+  |> list.each(fn(_) { ccl.parse(large_config) })
+  
+  let end = process.system_time(process.Millisecond)
+  io.println("Time: " <> int.to_string(end - start) <> "ms")
+}
+```
+
+## Continuous Integration
+
+Tests run automatically on CI for:
+- All commits to main branch
+- All pull requests
+- Tagged releases
+
+The CI configuration uses:
+```yaml
+- uses: erlef/setup-beam@v1
+  with:
+    otp-version: "26.0"
+    gleam-version: "1.0.0"
+- run: gleam test
+```
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Test files not found**: Ensure you're running from the project root
+2. **JSON decode errors**: Check test file format matches expected schema
+3. **Type errors**: Run `gleam check` to identify type mismatches
+
+### Getting Help
+
+- Check existing tests for examples
+- Review the [Gleam API Guide](gleam-api-guide.md)
+- Consult gleeunit documentation
+- Open an issue on GitHub
+
+## Test Coverage Goals
+
+The Gleam implementation aims for:
+- 100% coverage of CCL specification features
+- All JSON test suite cases passing
+- Edge case handling
+- Performance regression prevention

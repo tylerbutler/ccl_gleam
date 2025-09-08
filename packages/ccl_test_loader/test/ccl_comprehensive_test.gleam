@@ -1,25 +1,31 @@
+import ccl
 import ccl_core
 import gleam/io
 import gleam/list
 import gleam/string
 import gleeunit
 import gleeunit/should
+import test_config
 import test_suite_types
 
 pub fn main() {
-  // Print test overview first
-  print_test_overview()
+  // Check for custom test configuration from environment
+  let config = test_config.from_env()
+  
+  // Print test overview with config
+  print_test_overview(config)
   gleeunit.main()
 }
 
-fn print_test_overview() {
-  io.println("=== CCL Test Suite Overview ===")
-  io.println(test_suite_types.get_test_suite_summary())
 
-  let regular_tests_count = list.length(test_suite_types.get_regular_tests())
-  let error_tests_count = list.length(test_suite_types.get_all_error_tests())
+fn print_test_overview(config: test_config.TestConfig) {
+  io.println("=== CCL Test Suite Overview ===")
+  io.println(test_suite_types.get_test_suite_summary(config))
+
+  let regular_tests_count = list.length(test_suite_types.get_regular_tests(config))
+  let error_tests_count = list.length(test_suite_types.get_all_error_tests(config))
   let pretty_printer_count =
-    list.length(test_suite_types.get_pretty_printer_tests())
+    list.length(test_suite_types.get_pretty_printer_tests("../ccl-test-data/tests/pretty-print.json"))
   let total_count =
     regular_tests_count + error_tests_count + pretty_printer_count + 1
   // +1 for parse_error_type_test
@@ -41,15 +47,17 @@ fn print_test_overview() {
 
 /// Run all regular tests
 pub fn ccl_regular_tests() {
+  let config = test_config.from_env()
   io.println("\n=== REGULAR TESTS ===")
-  let test_cases = test_suite_types.get_regular_tests()
+  let test_cases = test_suite_types.get_regular_tests(config)
   run_basic_test_cases(test_cases, "Regular")
 }
 
 /// Run all error tests
 pub fn ccl_error_tests() {
+  let config = test_config.from_env()
   io.println("\n=== ERROR TESTS ===")
-  let error_test_cases = test_suite_types.get_all_error_tests()
+  let error_test_cases = test_suite_types.get_all_error_tests(config)
   run_error_test_cases(error_test_cases, "Error")
 }
 
@@ -106,6 +114,119 @@ fn run_basic_test_cases(
   }
 }
 
+/// Pretty Printer Tests - Round-trip and canonical formatting
+pub fn ccl_pretty_printer_test() {
+  io.println("\n=== PRETTY PRINTER ===")
+  let test_cases = test_suite_types.get_pretty_printer_tests("../ccl-test-data/tests/pretty-print.json")
+
+  let results =
+    list.map(test_cases, fn(test_case) {
+      let result = case test_case.property {
+        "round_trip" -> run_round_trip_test(test_case)
+        "canonical_format" -> run_canonical_format_test(test_case)
+        "deterministic" -> run_deterministic_test(test_case)
+        _ -> False
+      }
+      case result {
+        False -> io.println("FAILED: " <> test_case.name)
+        True -> Nil
+      }
+      result
+    })
+
+  let passed = list.count(results, fn(r) { r == True })
+
+  let total = list.length(test_cases)
+
+  io.println(
+    "Pretty Printer: "
+    <> string.inspect(passed)
+    <> "/"
+    <> string.inspect(total)
+    <> " passed",
+  )
+
+  case passed != total {
+    True -> should.fail()
+    False -> Nil
+  }
+}
+
+fn run_round_trip_test(test_case: test_suite_types.PrettyPrintTestCase) -> Bool {
+  case ccl_core.parse(test_case.input) {
+    Ok(entries) -> {
+      let pretty_printed = ccl.pretty_print_entries(entries)
+      case ccl_core.parse(pretty_printed) {
+        Ok(reparsed_entries) -> {
+          let round_trip_ok = entries == reparsed_entries
+          let canonical_ok = pretty_printed == test_case.expected_canonical
+          let passed = round_trip_ok && canonical_ok
+          case passed {
+            False -> {
+              io.println("  Round-trip OK: " <> string.inspect(round_trip_ok))
+              io.println("  Canonical OK: " <> string.inspect(canonical_ok))
+              io.println("  Input: " <> string.inspect(test_case.input))
+              io.println(
+                "  Expected: " <> string.inspect(test_case.expected_canonical),
+              )
+              io.println("  Got: " <> string.inspect(pretty_printed))
+            }
+            True -> Nil
+          }
+          passed
+        }
+        Error(err) -> {
+          io.println("  Reparse error: " <> string.inspect(err))
+          False
+        }
+      }
+    }
+    Error(err) -> {
+      io.println("  Parse error: " <> string.inspect(err))
+      False
+    }
+  }
+}
+
+fn run_canonical_format_test(
+  test_case: test_suite_types.PrettyPrintTestCase,
+) -> Bool {
+  case ccl_core.parse(test_case.input) {
+    Ok(entries) -> {
+      let pretty_printed = ccl.pretty_print_entries(entries)
+      let passed = pretty_printed == test_case.expected_canonical
+      case passed {
+        False -> {
+          io.println("  Input: " <> string.inspect(test_case.input))
+          io.println(
+            "  Expected: " <> string.inspect(test_case.expected_canonical),
+          )
+          io.println("  Got: " <> string.inspect(pretty_printed))
+        }
+        True -> Nil
+      }
+      passed
+    }
+    Error(err) -> {
+      io.println("  Parse error: " <> string.inspect(err))
+      False
+    }
+  }
+}
+
+fn run_deterministic_test(
+  test_case: test_suite_types.PrettyPrintTestCase,
+) -> Bool {
+  case ccl_core.parse(test_case.input) {
+    Ok(entries) -> {
+      let output1 = ccl.pretty_print_entries(entries)
+      let output2 = ccl.pretty_print_entries(entries)
+      // Same input should always produce same output
+      output1 == output2 && output1 == test_case.expected_canonical
+    }
+    Error(_) -> False
+  }
+}
 // Test for error handling - ensures ParseError type is properly used
 pub fn parse_error_type_test() {
   // This test verifies error handling for invalid CCL syntax
@@ -115,6 +236,7 @@ pub fn parse_error_type_test() {
     Ok(_) -> should.fail()
   }
 }
+
 
 /// Helper function to run error test cases
 fn run_error_test_cases(

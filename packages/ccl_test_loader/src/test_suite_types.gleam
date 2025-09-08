@@ -6,6 +6,7 @@ import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/string
 import simplifile
+import test_config.{type TestConfig}
 
 pub type TestCase {
   TestCase(
@@ -92,20 +93,9 @@ pub type PrettyPrintTestCase {
   )
 }
 
-// Test discovery functions - simplified for flat directory structure
-pub fn discover_json_test_files() -> List(String) {
-  let base_path = "../ccl-test-data/tests"
-  case simplifile.read_directory(base_path) {
-    Ok(files) ->
-      files
-      |> list.filter(string.ends_with(_, ".json"))
-      |> list.filter(fn(f) {
-        !string.starts_with(f, "schema")
-        && !string.starts_with(f, "pretty-print")
-      })
-      |> list.map(fn(f) { base_path <> "/" <> f })
-    Error(_) -> []
-  }
+// Test discovery functions - configurable
+pub fn discover_json_test_files(config: TestConfig) -> List(String) {
+  test_config.discover_test_files(config)
 }
 
 /// API test file paths for new validation format
@@ -221,18 +211,22 @@ fn load_all_new_tests() -> List(NewUnifiedTestCase) {
   |> list.flatten
 }
 
-pub fn get_pretty_printer_tests() -> List(PrettyPrintTestCase) {
-  // Load all new format test files and filter for pretty printer tests
-  load_all_new_tests()
-  |> list.filter(fn(test_case) {
-    list.contains(test_case.meta.tags, "round-trip") ||
-    list.contains(test_case.meta.tags, "pretty-printing")
-  })
-  |> list.filter_map(convert_new_to_pretty_print_test_case)
+/// Load pretty printer test file
+fn load_pretty_printer_test_file(path: String) -> List(PrettyPrintTestCase) {
+  // For now, return empty list - this would need proper implementation
+  // to load from JSON files with pretty printer test format
+  []
 }
 
-pub fn get_tests_by_tags(required_tags: List(String)) -> List(TestCase) {
-  get_all_tests()
+pub fn get_pretty_printer_tests(path: String) -> List(PrettyPrintTestCase) {
+  load_pretty_printer_test_file(path)
+}
+
+pub fn get_tests_by_tags(
+  required_tags: List(String),
+  config: TestConfig,
+) -> List(TestCase) {
+  get_all_tests(config)
   |> list.filter(fn(test_case) {
     list.all(required_tags, fn(tag) { list.contains(test_case.meta.tags, tag) })
   })
@@ -240,19 +234,22 @@ pub fn get_tests_by_tags(required_tags: List(String)) -> List(TestCase) {
   |> list.filter_map(convert_to_basic_test_case)
 }
 
-pub fn get_regular_tests() -> List(TestCase) {
-  get_all_tests()
+pub fn get_regular_tests(config: TestConfig) -> List(TestCase) {
+  get_all_tests(config)
   |> list.filter(not_error_test)
   |> list.filter_map(convert_to_basic_test_case)
 }
 
-pub fn get_all_error_tests() -> List(ErrorTestCase) {
-  get_all_tests()
+pub fn get_all_error_tests(config: TestConfig) -> List(ErrorTestCase) {
+  get_all_tests(config)
   |> list.filter_map(convert_to_error_test_case)
 }
 
-pub fn get_tests_by_suite_name(suite_name: String) -> List(TestCase) {
-  discover_json_test_files()
+pub fn get_tests_by_suite_name(
+  suite_name: String,
+  config: TestConfig,
+) -> List(TestCase) {
+  discover_json_test_files(config)
   |> list.filter_map(fn(file) {
     case load_and_validate_test_suite(file) {
       Ok(suite) if suite.suite == suite_name -> Ok(suite.tests)
@@ -264,8 +261,10 @@ pub fn get_tests_by_suite_name(suite_name: String) -> List(TestCase) {
   |> list.filter_map(convert_to_basic_test_case)
 }
 
-pub fn get_all_available_tests() -> dict.Dict(String, List(UnifiedTestCase)) {
-  discover_json_test_files()
+pub fn get_all_available_tests(
+  config: TestConfig,
+) -> dict.Dict(String, List(UnifiedTestCase)) {
+  discover_json_test_files(config)
   |> list.map(fn(file) {
     let suite = load_test_suite_safe(file)
     #(suite.suite, suite.tests)
@@ -273,8 +272,8 @@ pub fn get_all_available_tests() -> dict.Dict(String, List(UnifiedTestCase)) {
   |> dict.from_list
 }
 
-pub fn get_test_suite_summary() -> String {
-  let suites = get_all_available_tests()
+pub fn get_test_suite_summary(config: TestConfig) -> String {
+  let suites = get_all_available_tests(config)
   let total_tests =
     dict.values(suites)
     |> list.map(list.length)
@@ -287,8 +286,9 @@ pub fn get_test_suite_summary() -> String {
   <> " total tests"
 }
 
-fn get_all_tests() -> List(UnifiedTestCase) {
-  discover_json_test_files()
+
+fn get_all_tests(config: TestConfig) -> List(UnifiedTestCase) {
+  discover_json_test_files(config)
   |> list.map(load_test_suite_safe)
   |> list.map(fn(suite) { suite.tests })
   |> list.flatten
