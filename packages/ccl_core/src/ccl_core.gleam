@@ -70,7 +70,8 @@ fn expand_dotted_keys(entries: List(Entry)) -> List(Entry) {
         let nested_entries = create_all_nested_entries(entry)
         [flat_entry, ..list.append(nested_entries, acc)]
       }
-      False -> [entry, ..acc] // No expansion needed
+      False -> [entry, ..acc]
+      // No expansion needed
     }
   })
 }
@@ -88,27 +89,37 @@ fn create_all_nested_entries(entry: Entry) -> List(Entry) {
 /// ["app", "database", "host"] with value "localhost" creates:
 /// - Entry("app", "database.host = localhost")
 /// - Entry("app.database", "host = localhost")  
-fn create_nested_entries_for_all_prefixes(parts: List(String), value: String) -> List(Entry) {
+fn create_nested_entries_for_all_prefixes(
+  parts: List(String),
+  value: String,
+) -> List(Entry) {
   case parts {
     [] -> []
-    [_single] -> [] // No nesting for single part
+    [_single] -> []
+    // No nesting for single part
     _ -> create_prefix_entries(parts, value, 1, [])
   }
 }
 
 /// Helper to create entries for each prefix length
-fn create_prefix_entries(parts: List(String), value: String, prefix_len: Int, acc: List(Entry)) -> List(Entry) {
+fn create_prefix_entries(
+  parts: List(String),
+  value: String,
+  prefix_len: Int,
+  acc: List(Entry),
+) -> List(Entry) {
   case prefix_len >= list.length(parts) {
-    True -> acc // Done with all prefixes
+    True -> acc
+    // Done with all prefixes
     False -> {
       let prefix_parts = list.take(parts, prefix_len)
       let suffix_parts = list.drop(parts, prefix_len)
-      
+
       let prefix_key = string.join(prefix_parts, ".")
       let suffix_key = string.join(suffix_parts, ".")
       let nested_value = suffix_key <> " = " <> value
       let nested_entry = Entry(prefix_key, nested_value)
-      
+
       create_prefix_entries(parts, value, prefix_len + 1, [nested_entry, ..acc])
     }
   }
@@ -117,7 +128,7 @@ fn create_prefix_entries(parts: List(String), value: String, prefix_len: Int, ac
 pub fn make_objects(entries: List(Entry)) -> CCL {
   // Expand dotted keys while preserving original flat keys
   let expanded_entries = expand_dotted_keys(entries)
-  
+
   // Group entries by key, allowing multiple values per key
   let grouped = group_entries_by_key(expanded_entries, dict.new())
 

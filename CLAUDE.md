@@ -94,12 +94,23 @@ The nested structure limitation is cosmetic and doesn't affect CCL functionality
 - Dependencies: gleam_stdlib, simplifile, gleam_json
 
 ### Build Commands
+**Multi-Project Commands (from root):**
+- `just test` - Run tests for all packages (ccl_types, ccl_core, ccl_test_loader, ccl)
+- `just build` - Build all packages  
+- `just format` - Format all packages
+- `just test-package <name>` - Run tests for specific package
+
+**Individual Package Commands (from packages/<name>/):**
 - `gleam check` - Type check without building
 - `gleam build` - Compile project
-- `gleam test` - Run all tests
-- `gleam format` - Format code (runs automatically with LSP)
+- `gleam test` - Run package tests
+- `gleam format` - Format code
 - `gleam run` - Run project entrypoint
-- `gleam shell` - Start Erlang shell for REPL
+
+**Comprehensive Test Suite:**
+- **Location**: `packages/ccl_test_loader/test/ccl_comprehensive_test.gleam`
+- **Command**: `just test-package ccl_test_loader` 
+- **Tests**: 135 JSON-driven tests from ccl-test-data
 
 ### Code Conventions
 - Use functional programming patterns with immutable data

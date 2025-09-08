@@ -8,7 +8,7 @@ pub type Entry {
 }
 
 pub type ParseError {
-  ParseError(line: Int, reason: String)  
+  ParseError(line: Int, reason: String)
 }
 
 pub type CCL {

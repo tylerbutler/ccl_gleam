@@ -1,5 +1,5 @@
-import ccl_types.{type CCL, type Entry, CCL, Entry}
 import ccl_core
+import ccl_types.{type CCL, type Entry, CCL, Entry}
 import gleam/dict
 import gleam/float
 import gleam/int
@@ -341,12 +341,12 @@ fn format_ccl_entry(key: String, sub_ccl: CCL, indent_level: Int) -> String {
     CCL(map) -> {
       case dict.size(map) {
         0 -> {
-          // Terminal empty value
+          // This is actually a terminal value - the key itself is the terminal value
           case formatted_key {
-            "" -> indent <> "= "
-            // Empty key (list item) with empty value
-            _ -> indent <> formatted_key <> " = "
-            // Regular key with empty value
+            "" -> indent <> "= " <> key
+            // Empty key (list item) - key is the actual value
+            _ -> indent <> formatted_key <> " = " <> key
+            // Regular key - key is the actual value
           }
         }
         _ -> {
@@ -362,11 +362,22 @@ fn format_ccl_entry(key: String, sub_ccl: CCL, indent_level: Int) -> String {
               }
             }
             _ -> {
-              let nested_content =
-                format_ccl_recursive(sub_ccl, indent_level + 1)
-              case string.trim(nested_content) {
-                "" -> indent <> formatted_key <> " ="
-                content -> indent <> formatted_key <> " =\n" <> content
+              // Check if this is a simple key-value pair (key -> "" -> terminal_value)
+              let terminal_values = get_all_terminal_values_from_ccl(sub_ccl)
+              case terminal_values {
+                [single_terminal_value] -> {
+                  // This is a simple key-value pair, format as single line
+                  indent <> formatted_key <> " = " <> normalize_value(single_terminal_value)
+                }
+                _ -> {
+                  // This is a complex nested structure, format with indentation
+                  let nested_content =
+                    format_ccl_recursive(sub_ccl, indent_level + 1)
+                  case string.trim(nested_content) {
+                    "" -> indent <> formatted_key <> " ="
+                    content -> indent <> formatted_key <> " =\n" <> content
+                  }
+                }
               }
             }
           }

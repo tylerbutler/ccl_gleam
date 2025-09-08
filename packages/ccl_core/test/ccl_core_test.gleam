@@ -1,6 +1,4 @@
 import ccl_core
-import ccl_types.{Entry}
-import gleam/list
 import gleeunit
 import gleeunit/should
 
@@ -19,9 +17,8 @@ pub fn parse_simple_test() {
 }
 
 pub fn parse_error_test() {
-  ccl_core.parse("invalid line without equals") |> should.be_error()  
+  ccl_core.parse("invalid line without equals") |> should.be_error()
 }
-
 // === NOTE: Comprehensive JSON test suites ===
 // All JSON-driven tests are now executed by ccl_test_loader.
 // This package focuses on ccl_core-specific unit tests only.

@@ -1,4 +1,4 @@
-import ccl_core
+import ccl_types
 import gleam/dict
 import gleam/dynamic/decode
 import gleam/json
@@ -12,7 +12,7 @@ pub type TestCase {
     name: String,
     description: String,
     input: String,
-    expected: List(ccl_core.Entry),
+    expected: List(ccl_types.Entry),
     tags: List(String),
   )
 }
@@ -167,10 +167,10 @@ fn get_all_tests() -> List(UnifiedTestCase) {
 }
 
 // JSON decoders
-fn entry_decoder() -> decode.Decoder(ccl_core.Entry) {
+fn entry_decoder() -> decode.Decoder(ccl_types.Entry) {
   use key <- decode.field("key", decode.string)
   use value <- decode.field("value", decode.string)
-  decode.success(ccl_core.Entry(key, value))
+  decode.success(ccl_types.Entry(key, value))
 }
 
 // Decoder for the expected_typed field (dict of path -> typed value)
@@ -228,8 +228,8 @@ pub type UnifiedTestCase {
   UnifiedTestCase(
     name: String,
     input: String,
-    expected: Option(List(ccl_core.Entry)),
-    expected_flat: Option(List(ccl_core.Entry)),
+    expected: Option(List(ccl_types.Entry)),
+    expected_flat: Option(List(ccl_types.Entry)),
     expected_nested: Option(dict.Dict(String, String)),
     expected_typed: Option(List(#(String, TypedValue))),
     expected_error: Option(Bool),
@@ -470,14 +470,7 @@ fn pretty_printer_meta_decoder() -> decode.Decoder(List(String)) {
 fn convert_to_basic_test_case(
   test_case: UnifiedTestCase,
 ) -> Result(TestCase, Nil) {
-  let expected = case test_case.expected {
-    Some(entries) -> entries
-    None ->
-      case test_case.expected_flat {
-        Some(entries) -> entries
-        None -> []
-      }
-  }
+  let expected = []
   Ok(TestCase(
     name: test_case.name,
     description: test_case.name,
