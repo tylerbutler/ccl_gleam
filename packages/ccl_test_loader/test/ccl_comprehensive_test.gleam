@@ -11,21 +11,24 @@ import test_suite_types
 pub fn main() {
   // Check for custom test configuration from environment
   let config = test_config.from_env()
-  
+
   // Print test overview with config
   print_test_overview(config)
   gleeunit.main()
 }
 
-
 fn print_test_overview(config: test_config.TestConfig) {
   io.println("=== CCL Test Suite Overview ===")
   io.println(test_suite_types.get_test_suite_summary(config))
 
-  let regular_tests_count = list.length(test_suite_types.get_regular_tests(config))
-  let error_tests_count = list.length(test_suite_types.get_all_error_tests(config))
+  let regular_tests_count =
+    list.length(test_suite_types.get_regular_tests(config))
+  let error_tests_count =
+    list.length(test_suite_types.get_all_error_tests(config))
   let pretty_printer_count =
-    list.length(test_suite_types.get_pretty_printer_tests("../ccl-test-data/tests/pretty-print.json"))
+    list.length(test_suite_types.get_pretty_printer_tests(
+      "../ccl-test-data/tests/pretty-print.json",
+    ))
   let total_count =
     regular_tests_count + error_tests_count + pretty_printer_count + 1
   // +1 for parse_error_type_test
@@ -117,7 +120,10 @@ fn run_basic_test_cases(
 /// Pretty Printer Tests - Round-trip and canonical formatting
 pub fn ccl_pretty_printer_test() {
   io.println("\n=== PRETTY PRINTER ===")
-  let test_cases = test_suite_types.get_pretty_printer_tests("../ccl-test-data/tests/pretty-print.json")
+  let test_cases =
+    test_suite_types.get_pretty_printer_tests(
+      "../ccl-test-data/tests/pretty-print.json",
+    )
 
   let results =
     list.map(test_cases, fn(test_case) {
@@ -227,6 +233,7 @@ fn run_deterministic_test(
     Error(_) -> False
   }
 }
+
 // Test for error handling - ensures ParseError type is properly used
 pub fn parse_error_type_test() {
   // This test verifies error handling for invalid CCL syntax
@@ -236,7 +243,6 @@ pub fn parse_error_type_test() {
     Ok(_) -> should.fail()
   }
 }
-
 
 /// Helper function to run error test cases
 fn run_error_test_cases(

@@ -1,7 +1,9 @@
 import ccl_core
 import ccl_types.{type CCL}
 import gleam/option.{type Option, None, Some}
-import test_suite_types.{type NewUnifiedTestCase, type AssociativitySpec, type RoundTripSpec}
+import test_suite_types.{
+  type AssociativitySpec, type NewUnifiedTestCase, type RoundTripSpec,
+}
 
 // === PROPERTY TEST RESULT TYPES ===
 
@@ -13,9 +15,11 @@ pub type PropertyTestResult {
 // === PROPERTY TEST RUNNER ===
 
 /// Run all property tests for a given test case
-pub fn run_property_test(test_case: NewUnifiedTestCase) -> List(PropertyTestResult) {
+pub fn run_property_test(
+  test_case: NewUnifiedTestCase,
+) -> List(PropertyTestResult) {
   let results = []
-  
+
   // Test Associativity Property
   let results = case test_case.validations.associativity {
     Some(assoc_spec) -> {
@@ -26,7 +30,7 @@ pub fn run_property_test(test_case: NewUnifiedTestCase) -> List(PropertyTestResu
     }
     None -> results
   }
-  
+
   // Test Round-Trip Property
   let results = case test_case.validations.round_trip {
     Some(round_trip_spec) -> {
@@ -37,24 +41,27 @@ pub fn run_property_test(test_case: NewUnifiedTestCase) -> List(PropertyTestResu
     }
     None -> results
   }
-  
+
   results
 }
 
 // === PROPERTY TEST IMPLEMENTATIONS ===
 
 /// Test associativity property: (A ⊕ B) ⊕ C = A ⊕ (B ⊕ C)
-fn test_associativity(input: String, spec: AssociativitySpec) -> Result(Bool, String) {
+fn test_associativity(
+  input: String,
+  spec: AssociativitySpec,
+) -> Result(Bool, String) {
   // Parse original input
   case ccl_core.parse(input) {
     Ok(entries) -> {
       let ccl_a = ccl_core.make_objects(entries)
-      
+
       // Create test objects for associativity
       // For now, test with self-merge as base case since we don't have merge yet
       let ccl_b = ccl_a
       let ccl_c = ccl_a
-      
+
       // Test (A ⊕ B) ⊕ C
       case ccl_merge(ccl_a, ccl_b) {
         Ok(ab_merged) -> {
@@ -65,15 +72,21 @@ fn test_associativity(input: String, spec: AssociativitySpec) -> Result(Bool, St
                 Ok(bc_merged) -> {
                   case ccl_merge(ccl_a, bc_merged) {
                     Ok(right_assoc) -> {
-                      Ok(ccl_equal(left_assoc, right_assoc) == spec.should_be_equal)
+                      Ok(
+                        ccl_equal(left_assoc, right_assoc)
+                        == spec.should_be_equal,
+                      )
                     }
-                    Error(error) -> Error("Right associativity final merge failed: " <> error)
+                    Error(error) ->
+                      Error("Right associativity final merge failed: " <> error)
                   }
                 }
-                Error(error) -> Error("Right associativity BC merge failed: " <> error)
+                Error(error) ->
+                  Error("Right associativity BC merge failed: " <> error)
               }
             }
-            Error(error) -> Error("Left associativity final merge failed: " <> error)
+            Error(error) ->
+              Error("Left associativity final merge failed: " <> error)
           }
         }
         Error(error) -> Error("Left associativity AB merge failed: " <> error)
@@ -92,11 +105,11 @@ fn test_round_trip(input: String, spec: RoundTripSpec) -> Result(Bool, String) {
         Ok(entries) -> {
           let ccl_obj = ccl_core.make_objects(entries)
           let pretty_printed = pretty_print_ccl(ccl_obj)
-          
+
           case ccl_core.parse(pretty_printed) {
             Ok(reparsed_entries) -> {
               let reparsed_ccl = ccl_core.make_objects(reparsed_entries)
-              
+
               // Test semantic equivalence (not textual)
               Ok(ccl_semantically_equal(ccl_obj, reparsed_ccl))
             }

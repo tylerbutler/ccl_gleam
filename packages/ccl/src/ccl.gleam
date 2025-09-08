@@ -379,7 +379,10 @@ fn format_ccl_entry(key: String, sub_ccl: CCL, indent_level: Int) -> String {
                       // Format as repeated key-value pairs for list
                       terminal_values
                       |> list.map(fn(value) {
-                        indent <> formatted_key <> " = " <> normalize_value(value)
+                        indent
+                        <> formatted_key
+                        <> " = "
+                        <> normalize_value(value)
                       })
                       |> string.join("\n")
                     }
@@ -433,7 +436,8 @@ fn is_list_structure(ccl: CCL) -> Bool {
       case entries {
         [#("", sub_ccl)] -> {
           // Single empty key - check if it has multiple terminal values
-          let terminal_count = list.length(get_all_terminal_values_from_ccl(sub_ccl))
+          let terminal_count =
+            list.length(get_all_terminal_values_from_ccl(sub_ccl))
           terminal_count > 1
         }
         _ -> False
@@ -787,10 +791,11 @@ pub fn ccl_merge(a: CCL, b: CCL) -> Result(CCL, String) {
   case a, b {
     CCL(map_a), CCL(map_b) -> {
       // Combine dictionaries with right-wins semantics
-      let merged_dict = dict.fold(map_b, map_a, fn(acc_dict, key, value_b) {
-        // For semigroup semantics, b (right operand) wins for any conflicting keys
-        dict.insert(acc_dict, key, value_b)
-      })
+      let merged_dict =
+        dict.fold(map_b, map_a, fn(acc_dict, key, value_b) {
+          // For semigroup semantics, b (right operand) wins for any conflicting keys
+          dict.insert(acc_dict, key, value_b)
+        })
       Ok(CCL(merged_dict))
     }
   }
@@ -808,14 +813,12 @@ fn normalize_ccl_for_comparison(ccl: CCL) -> CCL {
   case ccl {
     CCL(map) -> {
       // Get sorted list of key-value pairs and recursively normalize values
-      let sorted_pairs = dict.to_list(map)
+      let sorted_pairs =
+        dict.to_list(map)
         |> list.sort(fn(a, b) { string.compare(a.0, b.0) })
-        |> list.map(fn(pair) { 
-          #(pair.0, normalize_ccl_for_comparison(pair.1)) 
-        })
-      
+        |> list.map(fn(pair) { #(pair.0, normalize_ccl_for_comparison(pair.1)) })
+
       CCL(dict.from_list(sorted_pairs))
     }
   }
 }
-

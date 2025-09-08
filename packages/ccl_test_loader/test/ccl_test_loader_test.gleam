@@ -1,10 +1,10 @@
+import ccl_comprehensive_test_new
 import ccl_core
 import ccl_test_loader
 import ccl_types.{Entry}
 import gleam/list
 import gleeunit
 import gleeunit/should
-import ccl_comprehensive_test_new
 
 pub fn main() {
   gleeunit.main()

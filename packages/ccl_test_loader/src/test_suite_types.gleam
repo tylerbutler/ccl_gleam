@@ -42,22 +42,20 @@ pub type TypedValue {
 /// Node types from ccl.gleam
 pub type NodeType {
   SingleValue
-  ListValue  
+  ListValue
   ObjectValue
   Missing
 }
 
 /// Property specifications for property tests
 pub type AssociativitySpec {
-  AssociativitySpec(
-    property: String,
-    should_be_equal: Bool
-  )
+  AssociativitySpec(property: String, should_be_equal: Bool)
 }
 
 pub type RoundTripSpec {
   RoundTripSpec(
-    property: String  // "identity"
+    property: String,
+    // "identity"
   )
 }
 
@@ -68,12 +66,11 @@ pub type TestValidations {
     parse: Option(List(ccl_types.Entry)),
     make_objects: Option(ccl_types.CCL),
     get_string: Option(String),
-    get_list: Option(List(String)), 
+    get_list: Option(List(String)),
     node_type: Option(NodeType),
-    
     // Property test validations
     associativity: Option(AssociativitySpec),
-    round_trip: Option(RoundTripSpec)
+    round_trip: Option(RoundTripSpec),
   )
 }
 
@@ -103,13 +100,13 @@ pub fn api_test_paths() -> List(String) {
   let base_path = "../../../ccl-test-data/tests"
   [
     base_path <> "/api-essential-parsing.json",
-    base_path <> "/api-comprehensive-parsing.json", 
+    base_path <> "/api-comprehensive-parsing.json",
     base_path <> "/api-comments.json",
     base_path <> "/api-processing.json",
     base_path <> "/api-object-construction.json",
     base_path <> "/api-dotted-keys.json",
     base_path <> "/api-typed-access.json",
-    base_path <> "/api-errors.json"
+    base_path <> "/api-errors.json",
   ]
 }
 
@@ -118,7 +115,7 @@ pub fn property_test_paths() -> List(String) {
   let base_path = "../../../ccl-test-data/tests"
   [
     base_path <> "/property-algebraic.json",
-    base_path <> "/property-round-trip.json"
+    base_path <> "/property-round-trip.json",
   ]
 }
 
@@ -128,7 +125,7 @@ pub type NewTestSuite {
     suite: String,
     version: String,
     description: Option(String),
-    tests: List(NewUnifiedTestCase)
+    tests: List(NewUnifiedTestCase),
   )
 }
 
@@ -200,7 +197,7 @@ fn load_all_new_tests() -> List(NewUnifiedTestCase) {
   let api_files = api_test_paths()
   let property_files = property_test_paths()
   let all_files = list.append(api_files, property_files)
-  
+
   all_files
   |> list.filter_map(fn(path) {
     case load_new_test_suite(path) {
@@ -285,7 +282,6 @@ pub fn get_test_suite_summary(config: TestConfig) -> String {
   <> string.inspect(total_tests)
   <> " total tests"
 }
-
 
 fn get_all_tests(config: TestConfig) -> List(UnifiedTestCase) {
   discover_json_test_files(config)
@@ -374,7 +370,7 @@ pub type NewUnifiedTestCase {
     name: String,
     input: String,
     validations: TestValidations,
-    meta: TestMetadata
+    meta: TestMetadata,
   )
 }
 
@@ -564,7 +560,6 @@ fn parse_options_decoder() -> decode.Decoder(ParseOptions) {
   ))
 }
 
-
 // === NEW JSON DECODERS FOR VALIDATION FORMAT ===
 
 /// Decoder for NodeType values
@@ -572,10 +567,11 @@ fn node_type_decoder() -> decode.Decoder(NodeType) {
   use node_type_str <- decode.then(decode.string)
   case node_type_str {
     "SingleValue" -> decode.success(SingleValue)
-    "ListValue" -> decode.success(ListValue)  
+    "ListValue" -> decode.success(ListValue)
     "ObjectValue" -> decode.success(ObjectValue)
     "Missing" -> decode.success(Missing)
-    _ -> decode.success(Missing) // Default to Missing for unknown values
+    _ -> decode.success(Missing)
+    // Default to Missing for unknown values
   }
 }
 
@@ -585,7 +581,7 @@ fn associativity_decoder() -> decode.Decoder(AssociativitySpec) {
   use should_be_equal <- decode.field("should_be_equal", decode.bool)
   decode.success(AssociativitySpec(
     property: property,
-    should_be_equal: should_be_equal
+    should_be_equal: should_be_equal,
   ))
 }
 
@@ -603,14 +599,42 @@ fn ccl_decoder() -> decode.Decoder(ccl_types.CCL) {
 
 /// Decoder for the new validation structure
 fn validations_decoder() -> decode.Decoder(TestValidations) {
-  use parse_opt <- decode.optional_field("parse", None, decode.optional(decode.list(entry_decoder())))
-  use make_objects_opt <- decode.optional_field("make_objects", None, decode.optional(ccl_decoder()))
-  use get_string_opt <- decode.optional_field("get_string", None, decode.optional(decode.string))
-  use get_list_opt <- decode.optional_field("get_list", None, decode.optional(decode.list(decode.string)))
-  use node_type_opt <- decode.optional_field("node_type", None, decode.optional(node_type_decoder()))
-  use associativity_opt <- decode.optional_field("associativity", None, decode.optional(associativity_decoder()))
-  use round_trip_opt <- decode.optional_field("round_trip", None, decode.optional(round_trip_decoder()))
-  
+  use parse_opt <- decode.optional_field(
+    "parse",
+    None,
+    decode.optional(decode.list(entry_decoder())),
+  )
+  use make_objects_opt <- decode.optional_field(
+    "make_objects",
+    None,
+    decode.optional(ccl_decoder()),
+  )
+  use get_string_opt <- decode.optional_field(
+    "get_string",
+    None,
+    decode.optional(decode.string),
+  )
+  use get_list_opt <- decode.optional_field(
+    "get_list",
+    None,
+    decode.optional(decode.list(decode.string)),
+  )
+  use node_type_opt <- decode.optional_field(
+    "node_type",
+    None,
+    decode.optional(node_type_decoder()),
+  )
+  use associativity_opt <- decode.optional_field(
+    "associativity",
+    None,
+    decode.optional(associativity_decoder()),
+  )
+  use round_trip_opt <- decode.optional_field(
+    "round_trip",
+    None,
+    decode.optional(round_trip_decoder()),
+  )
+
   decode.success(TestValidations(
     parse: parse_opt,
     make_objects: make_objects_opt,
@@ -618,7 +642,7 @@ fn validations_decoder() -> decode.Decoder(TestValidations) {
     get_list: get_list_opt,
     node_type: node_type_opt,
     associativity: associativity_opt,
-    round_trip: round_trip_opt
+    round_trip: round_trip_opt,
   ))
 }
 
@@ -628,12 +652,12 @@ fn new_unified_test_case_decoder() -> decode.Decoder(NewUnifiedTestCase) {
   use input <- decode.field("input", decode.string)
   use validations <- decode.field("validations", validations_decoder())
   use meta <- decode.field("meta", meta_decoder())
-  
+
   decode.success(NewUnifiedTestCase(
     name: name,
     input: input,
     validations: validations,
-    meta: meta
+    meta: meta,
   ))
 }
 
@@ -641,7 +665,10 @@ fn new_unified_test_case_decoder() -> decode.Decoder(NewUnifiedTestCase) {
 fn new_test_suite_decoder() -> decode.Decoder(NewTestSuite) {
   use suite <- decode.field("suite", decode.string)
   use version <- decode.field("version", decode.string)
-  use tests <- decode.field("tests", decode.list(new_unified_test_case_decoder()))
+  use tests <- decode.field(
+    "tests",
+    decode.list(new_unified_test_case_decoder()),
+  )
   decode.success(NewTestSuite(
     suite: suite,
     version: version,
@@ -697,7 +724,8 @@ fn convert_new_to_pretty_print_test_case(
         name: test_case.name,
         property: round_trip_spec.property,
         input: test_case.input,
-        expected_canonical: test_case.input, // For now, use input as expected canonical
+        expected_canonical: test_case.input,
+        // For now, use input as expected canonical
         tags: test_case.meta.tags,
       ))
     }

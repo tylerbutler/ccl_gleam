@@ -3,7 +3,9 @@ import ccl_types.{type CCL, type Entry}
 import gleam/list
 import gleam/option.{None, Some}
 import gleam/string
-import test_suite_types.{type NewUnifiedTestCase, type NodeType, Missing, SingleValue}
+import test_suite_types.{
+  type NewUnifiedTestCase, type NodeType, Missing, SingleValue,
+}
 
 // === API TEST RESULT TYPES ===
 
@@ -20,7 +22,7 @@ pub type ApiTestResult {
 /// Run all API tests for a given test case
 pub fn run_api_test(test_case: NewUnifiedTestCase) -> List(ApiTestResult) {
   let results = []
-  
+
   // Test Level 1: parse
   let results = case test_case.validations.parse {
     Some(expected_entries) -> {
@@ -34,7 +36,7 @@ pub fn run_api_test(test_case: NewUnifiedTestCase) -> List(ApiTestResult) {
     }
     None -> results
   }
-  
+
   // Test Level 3: make_objects  
   let results = case test_case.validations.make_objects {
     Some(expected_ccl) -> {
@@ -49,18 +51,29 @@ pub fn run_api_test(test_case: NewUnifiedTestCase) -> List(ApiTestResult) {
     }
     None -> results
   }
-  
+
   // Test Level 4: get_string
   let results = case test_case.validations.get_string {
     Some(expected_string) -> {
       case run_full_pipeline(test_case.input) {
         Ok(ccl_obj) -> {
-          case get_smart_value_string(ccl_obj, extract_path_from_test_name(test_case.name)) {
+          case
+            get_smart_value_string(
+              ccl_obj,
+              extract_path_from_test_name(test_case.name),
+            )
+          {
             Ok(actual_string) -> {
               let passed = actual_string == expected_string
-              [GetStringTestResult(actual_string, expected_string, passed), ..results]
+              [
+                GetStringTestResult(actual_string, expected_string, passed),
+                ..results
+              ]
             }
-            Error(_) -> [GetStringTestResult("", expected_string, False), ..results]
+            Error(_) -> [
+              GetStringTestResult("", expected_string, False),
+              ..results
+            ]
           }
         }
         Error(_) -> results
@@ -68,13 +81,18 @@ pub fn run_api_test(test_case: NewUnifiedTestCase) -> List(ApiTestResult) {
     }
     None -> results
   }
-  
+
   // Test Level 4: get_list
   let results = case test_case.validations.get_list {
     Some(expected_list) -> {
       case run_full_pipeline(test_case.input) {
         Ok(ccl_obj) -> {
-          case get_smart_value_list(ccl_obj, extract_path_from_test_name(test_case.name)) {
+          case
+            get_smart_value_list(
+              ccl_obj,
+              extract_path_from_test_name(test_case.name),
+            )
+          {
             Ok(actual_list) -> {
               let passed = actual_list == expected_list
               [GetListTestResult(actual_list, expected_list, passed), ..results]
@@ -87,22 +105,29 @@ pub fn run_api_test(test_case: NewUnifiedTestCase) -> List(ApiTestResult) {
     }
     None -> results
   }
-  
+
   // Test Level 4: node_type
   let results = case test_case.validations.node_type {
     Some(expected_node_type) -> {
       case run_full_pipeline(test_case.input) {
         Ok(ccl_obj) -> {
-          let actual_node_type = get_node_type(ccl_obj, extract_path_from_test_name(test_case.name))
+          let actual_node_type =
+            get_node_type(ccl_obj, extract_path_from_test_name(test_case.name))
           let passed = actual_node_type == expected_node_type
-          [NodeTypeTestResult(actual_node_type, expected_node_type, passed), ..results]
+          [
+            NodeTypeTestResult(actual_node_type, expected_node_type, passed),
+            ..results
+          ]
         }
-        Error(_) -> [NodeTypeTestResult(Missing, expected_node_type, False), ..results]
+        Error(_) -> [
+          NodeTypeTestResult(Missing, expected_node_type, False),
+          ..results
+        ]
       }
     }
     None -> results
   }
-  
+
   list.reverse(results)
 }
 

@@ -26,14 +26,20 @@ pub fn run_tests_from_paths(paths: List(String)) -> Nil {
 
 /// Run tests with custom configuration
 pub fn run_tests_with_config(config: TestConfig) -> Nil {
-  run_tests_with_config_and_pretty_print_path(config, "../ccl-test-data/tests/pretty-print.json")
+  run_tests_with_config_and_pretty_print_path(
+    config,
+    "../ccl-test-data/tests/pretty-print.json",
+  )
 }
 
 /// Run tests with custom configuration and custom pretty print path
-pub fn run_tests_with_config_and_pretty_print_path(config: TestConfig, pretty_print_path: String) -> Nil {
+pub fn run_tests_with_config_and_pretty_print_path(
+  config: TestConfig,
+  pretty_print_path: String,
+) -> Nil {
   // Print configuration info
   print_config_overview(config)
-  
+
   // Run all test types with the custom config
   run_regular_tests_with_config(config)
   run_error_tests_with_config(config)
@@ -53,10 +59,14 @@ fn print_config_overview(config: TestConfig) -> Nil {
     Some(tags) -> io.println("Tag filter: " <> string.inspect(tags))
     None -> Nil
   }
-  
+
   // Show discovered files
   let discovered_files = test_config.discover_test_files(config)
-  io.println("Discovered " <> string.inspect(list.length(discovered_files)) <> " test files:")
+  io.println(
+    "Discovered "
+    <> string.inspect(list.length(discovered_files))
+    <> " test files:",
+  )
   list.each(discovered_files, fn(file) { io.println("  - " <> file) })
   io.println("")
 }
@@ -76,7 +86,10 @@ pub fn run_error_tests_with_config(config: TestConfig) -> Nil {
 }
 
 /// Run pretty printer tests with configuration
-pub fn run_pretty_printer_tests_with_config(_config: TestConfig, pretty_print_path: String) -> Nil {
+pub fn run_pretty_printer_tests_with_config(
+  _config: TestConfig,
+  pretty_print_path: String,
+) -> Nil {
   io.println("=== PRETTY PRINTER TESTS ===")
   let test_cases = test_suite_types.get_pretty_printer_tests(pretty_print_path)
   run_pretty_printer_test_cases(test_cases)
@@ -103,7 +116,9 @@ fn run_basic_test_cases(
                 False -> {
                   io.println("FAILED: " <> test_case.name)
                   io.println("  Input: " <> string.inspect(cleaned_input))
-                  io.println("  Expected: " <> string.inspect(test_case.expected))
+                  io.println(
+                    "  Expected: " <> string.inspect(test_case.expected),
+                  )
                   io.println("  Got: " <> string.inspect(result))
                 }
                 True -> Nil
@@ -161,7 +176,9 @@ fn run_error_test_cases(
                 True -> {
                   io.println("FAILED: " <> error_test_case.name)
                   io.println("  Expected error but parse succeeded")
-                  io.println("  Input: " <> string.inspect(error_test_case.input))
+                  io.println(
+                    "  Input: " <> string.inspect(error_test_case.input),
+                  )
                   False
                 }
                 False -> True
@@ -232,13 +249,17 @@ fn run_round_trip_test(_test_case: test_suite_types.PrettyPrintTestCase) -> Bool
   True
 }
 
-fn run_canonical_format_test(_test_case: test_suite_types.PrettyPrintTestCase) -> Bool {
+fn run_canonical_format_test(
+  _test_case: test_suite_types.PrettyPrintTestCase,
+) -> Bool {
   // This would need to be implemented with ccl pretty print functions
   // For now, return True as a placeholder
   True
 }
 
-fn run_deterministic_test(_test_case: test_suite_types.PrettyPrintTestCase) -> Bool {
+fn run_deterministic_test(
+  _test_case: test_suite_types.PrettyPrintTestCase,
+) -> Bool {
   // This would need to be implemented with ccl pretty print functions  
   // For now, return True as a placeholder
   True
