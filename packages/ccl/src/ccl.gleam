@@ -367,7 +367,10 @@ fn format_ccl_entry(key: String, sub_ccl: CCL, indent_level: Int) -> String {
               case terminal_values {
                 [single_terminal_value] -> {
                   // This is a simple key-value pair, format as single line
-                  indent <> formatted_key <> " = " <> normalize_value(single_terminal_value)
+                  indent
+                  <> formatted_key
+                  <> " = "
+                  <> normalize_value(single_terminal_value)
                 }
                 _ -> {
                   // This is a complex nested structure, format with indentation
