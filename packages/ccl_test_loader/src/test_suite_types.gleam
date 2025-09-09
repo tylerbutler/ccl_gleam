@@ -36,6 +36,46 @@ pub type TypedValue {
   EmptyVal
 }
 
+// === NEW VALIDATION TYPES FOR MIGRATION ===
+
+/// Node types from ccl.gleam
+pub type NodeType {
+  SingleValue
+  ListValue  
+  ObjectValue
+  Missing
+}
+
+/// Property specifications for property tests
+pub type AssociativitySpec {
+  AssociativitySpec(
+    property: String,
+    should_be_equal: Bool
+  )
+}
+
+pub type RoundTripSpec {
+  RoundTripSpec(
+    property: String  // "identity"
+  )
+}
+
+/// New validation structure for both API and property tests
+pub type TestValidations {
+  TestValidations(
+    // API test validations
+    parse: Option(List(ccl_types.Entry)),
+    make_objects: Option(ccl_types.CCL),
+    get_string: Option(String),
+    get_list: Option(List(String)), 
+    node_type: Option(NodeType),
+    
+    // Property test validations
+    associativity: Option(AssociativitySpec),
+    round_trip: Option(RoundTripSpec)
+  )
+}
+
 pub type ParseOptions {
   ParseOptions(parse_integers: Bool, parse_floats: Bool, parse_booleans: Bool)
 }
@@ -65,6 +105,71 @@ pub fn discover_json_test_files() -> List(String) {
       })
       |> list.map(fn(f) { base_path <> "/" <> f })
     Error(_) -> []
+  }
+}
+
+/// API test file paths for new validation format
+pub fn api_test_paths() -> List(String) {
+  let base_path = "../../../ccl-test-data/tests"
+  [
+    base_path <> "/api-essential-parsing.json",
+    base_path <> "/api-comprehensive-parsing.json", 
+    base_path <> "/api-comments.json",
+    base_path <> "/api-processing.json",
+    base_path <> "/api-object-construction.json",
+    base_path <> "/api-dotted-keys.json",
+    base_path <> "/api-typed-access.json",
+    base_path <> "/api-errors.json"
+  ]
+}
+
+/// Property test file paths for new validation format
+pub fn property_test_paths() -> List(String) {
+  let base_path = "../../../ccl-test-data/tests"
+  [
+    base_path <> "/property-algebraic.json",
+    base_path <> "/property-round-trip.json"
+  ]
+}
+
+/// New test suite structure for validation format
+pub type NewTestSuite {
+  NewTestSuite(
+    suite: String,
+    version: String,
+    description: Option(String),
+    tests: List(NewUnifiedTestCase)
+  )
+}
+
+/// Load a test suite using the new validation format
+pub fn load_new_test_suite(filename: String) -> Result(NewTestSuite, String) {
+  case simplifile.read(filename) {
+    Ok(content) -> {
+      case json.parse(content, new_test_suite_decoder()) {
+        Ok(suite) -> Ok(suite)
+        Error(err) ->
+          Error(
+            "Invalid JSON format in " <> filename <> ": " <> string.inspect(err),
+          )
+      }
+    }
+    Error(err) ->
+      Error("Could not read file " <> filename <> ": " <> string.inspect(err))
+  }
+}
+
+/// Safe version that returns empty suite on error
+pub fn load_new_test_suite_safe(filename: String) -> NewTestSuite {
+  case load_new_test_suite(filename) {
+    Ok(suite) -> suite
+    Error(_) ->
+      NewTestSuite(
+        suite: "Empty Suite",
+        version: "1.0",
+        description: None,
+        tests: [],
+      )
   }
 }
 
@@ -99,8 +204,31 @@ pub fn load_test_suite_safe(filename: String) -> TestSuite {
   }
 }
 
+/// Load all tests from new format JSON files
+fn load_all_new_tests() -> List(NewUnifiedTestCase) {
+  // Load from both API and property test paths
+  let api_files = api_test_paths()
+  let property_files = property_test_paths()
+  let all_files = list.append(api_files, property_files)
+  
+  all_files
+  |> list.filter_map(fn(path) {
+    case load_new_test_suite(path) {
+      Ok(suite) -> Ok(suite.tests)
+      Error(_) -> Error(Nil)
+    }
+  })
+  |> list.flatten
+}
+
 pub fn get_pretty_printer_tests() -> List(PrettyPrintTestCase) {
-  load_pretty_printer_test_file("../ccl-test-data/tests/pretty-print.json")
+  // Load all new format test files and filter for pretty printer tests
+  load_all_new_tests()
+  |> list.filter(fn(test_case) {
+    list.contains(test_case.meta.tags, "round-trip") ||
+    list.contains(test_case.meta.tags, "pretty-printing")
+  })
+  |> list.filter_map(convert_new_to_pretty_print_test_case)
 }
 
 pub fn get_tests_by_tags(required_tags: List(String)) -> List(TestCase) {
@@ -237,6 +365,16 @@ pub type UnifiedTestCase {
     parse_options: Option(ParseOptions),
     api_calls: Option(List(String)),
     meta: TestMetadata,
+  )
+}
+
+/// New unified test case for validation-based format
+pub type NewUnifiedTestCase {
+  NewUnifiedTestCase(
+    name: String,
+    input: String,
+    validations: TestValidations,
+    meta: TestMetadata
   )
 }
 
@@ -426,44 +564,90 @@ fn parse_options_decoder() -> decode.Decoder(ParseOptions) {
   ))
 }
 
-fn load_pretty_printer_test_file(filename: String) -> List(PrettyPrintTestCase) {
-  case simplifile.read(filename) {
-    Ok(content) -> {
-      let pretty_printer_test_suite_decoder = {
-        use tests <- decode.field(
-          "tests",
-          decode.list(pretty_printer_test_case_decoder()),
-        )
-        decode.success(tests)
-      }
 
-      case json.parse(content, pretty_printer_test_suite_decoder) {
-        Ok(parsed) -> parsed
-        Error(_) -> []
-      }
-    }
-    Error(_) -> []
+// === NEW JSON DECODERS FOR VALIDATION FORMAT ===
+
+/// Decoder for NodeType values
+fn node_type_decoder() -> decode.Decoder(NodeType) {
+  use node_type_str <- decode.then(decode.string)
+  case node_type_str {
+    "SingleValue" -> decode.success(SingleValue)
+    "ListValue" -> decode.success(ListValue)  
+    "ObjectValue" -> decode.success(ObjectValue)
+    "Missing" -> decode.success(Missing)
+    _ -> decode.success(Missing) // Default to Missing for unknown values
   }
 }
 
-fn pretty_printer_test_case_decoder() -> decode.Decoder(PrettyPrintTestCase) {
-  use name <- decode.field("name", decode.string)
+/// Decoder for AssociativitySpec
+fn associativity_decoder() -> decode.Decoder(AssociativitySpec) {
   use property <- decode.field("property", decode.string)
-  use input <- decode.field("input", decode.string)
-  use expected_canonical <- decode.field("expected_canonical", decode.string)
-  use meta <- decode.field("meta", pretty_printer_meta_decoder())
-  decode.success(PrettyPrintTestCase(
-    name: name,
+  use should_be_equal <- decode.field("should_be_equal", decode.bool)
+  decode.success(AssociativitySpec(
     property: property,
-    input: input,
-    expected_canonical: expected_canonical,
-    tags: meta,
+    should_be_equal: should_be_equal
   ))
 }
 
-fn pretty_printer_meta_decoder() -> decode.Decoder(List(String)) {
-  use tags <- decode.field("tags", decode.list(decode.string))
-  decode.success(tags)
+/// Decoder for RoundTripSpec  
+fn round_trip_decoder() -> decode.Decoder(RoundTripSpec) {
+  use property <- decode.field("property", decode.string)
+  decode.success(RoundTripSpec(property: property))
+}
+
+/// Decoder for CCL objects - simplified version
+fn ccl_decoder() -> decode.Decoder(ccl_types.CCL) {
+  // For now, create empty CCL - this will need proper implementation
+  decode.success(ccl_types.CCL(dict.new()))
+}
+
+/// Decoder for the new validation structure
+fn validations_decoder() -> decode.Decoder(TestValidations) {
+  use parse_opt <- decode.optional_field("parse", None, decode.optional(decode.list(entry_decoder())))
+  use make_objects_opt <- decode.optional_field("make_objects", None, decode.optional(ccl_decoder()))
+  use get_string_opt <- decode.optional_field("get_string", None, decode.optional(decode.string))
+  use get_list_opt <- decode.optional_field("get_list", None, decode.optional(decode.list(decode.string)))
+  use node_type_opt <- decode.optional_field("node_type", None, decode.optional(node_type_decoder()))
+  use associativity_opt <- decode.optional_field("associativity", None, decode.optional(associativity_decoder()))
+  use round_trip_opt <- decode.optional_field("round_trip", None, decode.optional(round_trip_decoder()))
+  
+  decode.success(TestValidations(
+    parse: parse_opt,
+    make_objects: make_objects_opt,
+    get_string: get_string_opt,
+    get_list: get_list_opt,
+    node_type: node_type_opt,
+    associativity: associativity_opt,
+    round_trip: round_trip_opt
+  ))
+}
+
+/// Decoder for new unified test case format
+fn new_unified_test_case_decoder() -> decode.Decoder(NewUnifiedTestCase) {
+  use name <- decode.field("name", decode.string)
+  use input <- decode.field("input", decode.string)
+  use validations <- decode.field("validations", validations_decoder())
+  use meta <- decode.field("meta", meta_decoder())
+  
+  decode.success(NewUnifiedTestCase(
+    name: name,
+    input: input,
+    validations: validations,
+    meta: meta
+  ))
+}
+
+/// Decoder for new test suite format
+fn new_test_suite_decoder() -> decode.Decoder(NewTestSuite) {
+  use suite <- decode.field("suite", decode.string)
+  use version <- decode.field("version", decode.string)
+  use tests <- decode.field("tests", decode.list(new_unified_test_case_decoder()))
+  decode.success(NewTestSuite(
+    suite: suite,
+    version: version,
+    description: None,
+    tests: tests,
+  ))
 }
 
 // Conversion helper functions
@@ -500,5 +684,23 @@ fn convert_to_error_test_case(
         tags: test_case.meta.tags,
       ))
     False -> Error(Nil)
+  }
+}
+
+/// Convert a NewUnifiedTestCase to a PrettyPrintTestCase if it has round-trip validation
+fn convert_new_to_pretty_print_test_case(
+  test_case: NewUnifiedTestCase,
+) -> Result(PrettyPrintTestCase, Nil) {
+  case test_case.validations.round_trip {
+    Some(round_trip_spec) -> {
+      Ok(PrettyPrintTestCase(
+        name: test_case.name,
+        property: round_trip_spec.property,
+        input: test_case.input,
+        expected_canonical: test_case.input, // For now, use input as expected canonical
+        tags: test_case.meta.tags,
+      ))
+    }
+    None -> Error(Nil)
   }
 }

@@ -356,3 +356,111 @@ pub fn structure_preservation_test() {
     Error(_) -> should.fail()
   }
 }
+
+// === NEW VALIDATION-BASED TESTING ===
+
+/// Test the new CCL algebraic operations
+pub fn ccl_merge_test() {
+  let entries_a = [Entry("key1", "value1"), Entry("shared", "from_a")]
+  let entries_b = [Entry("key2", "value2"), Entry("shared", "from_b")]
+  
+  let ccl_a = ccl_core.make_objects(entries_a)
+  let ccl_b = ccl_core.make_objects(entries_b)
+  
+  case ccl.ccl_merge(ccl_a, ccl_b) {
+    Ok(merged) -> {
+      // Test that merged CCL contains keys from both
+      case ccl.get_smart_value(merged, "key1") {
+        Ok(value1) -> value1 |> should.equal("value1")
+        Error(_) -> should.fail()
+      }
+      case ccl.get_smart_value(merged, "key2") {
+        Ok(value2) -> value2 |> should.equal("value2")
+        Error(_) -> should.fail()
+      }
+      // Shared key should have value from b (right operand wins)
+      case ccl.get_smart_value(merged, "shared") {
+        Ok(shared) -> shared |> should.equal("from_b")
+        Error(_) -> should.fail()
+      }
+    }
+    Error(_) -> should.fail()
+  }
+}
+
+/// Test CCL semantic equality
+pub fn ccl_semantic_equality_test() {
+  let entries_original = [Entry("key1", "value1"), Entry("key2", "value2")]
+  let entries_reordered = [Entry("key2", "value2"), Entry("key1", "value1")]
+  
+  let ccl_original = ccl_core.make_objects(entries_original)
+  let ccl_reordered = ccl_core.make_objects(entries_reordered)
+  
+  // Should be semantically equal despite different ordering
+  ccl.ccl_semantically_equal(ccl_original, ccl_reordered) |> should.equal(True)
+  
+  // Test with different content
+  let entries_different = [Entry("key1", "different_value"), Entry("key2", "value2")]
+  let ccl_different = ccl_core.make_objects(entries_different)
+  
+  ccl.ccl_semantically_equal(ccl_original, ccl_different) |> should.equal(False)
+}
+
+/// Test round-trip property: parse -> pretty_print -> parse
+pub fn round_trip_property_test() {
+  let original_text = "key1 = value1\nkey2 = value2\nlist = item1\nlist = item2"
+  
+  case ccl_core.parse(original_text) {
+    Ok(entries) -> {
+      let ccl_obj = ccl_core.make_objects(entries)
+      let pretty_printed = ccl.pretty_print_ccl(ccl_obj)
+      
+      case ccl_core.parse(pretty_printed) {
+        Ok(reparsed_entries) -> {
+          let reparsed_ccl = ccl_core.make_objects(reparsed_entries)
+          
+          // Test semantic equivalence
+          ccl.ccl_semantically_equal(ccl_obj, reparsed_ccl) |> should.equal(True)
+        }
+        Error(_) -> should.fail()
+      }
+    }
+    Error(_) -> should.fail()
+  }
+}
+
+/// Test associativity property: (A ⊕ B) ⊕ C = A ⊕ (B ⊕ C)
+pub fn associativity_property_test() {
+  let entries_a = [Entry("a", "value_a")]
+  let entries_b = [Entry("b", "value_b")]  
+  let entries_c = [Entry("c", "value_c")]
+  
+  let ccl_a = ccl_core.make_objects(entries_a)
+  let ccl_b = ccl_core.make_objects(entries_b)
+  let ccl_c = ccl_core.make_objects(entries_c)
+  
+  // Test (A ⊕ B) ⊕ C
+  case ccl.ccl_merge(ccl_a, ccl_b) {
+    Ok(ab_merged) -> {
+      case ccl.ccl_merge(ab_merged, ccl_c) {
+        Ok(left_assoc) -> {
+          // Test A ⊕ (B ⊕ C)
+          case ccl.ccl_merge(ccl_b, ccl_c) {
+            Ok(bc_merged) -> {
+              case ccl.ccl_merge(ccl_a, bc_merged) {
+                Ok(right_assoc) -> {
+                  // Should be semantically equal
+                  ccl.ccl_semantically_equal(left_assoc, right_assoc) |> should.equal(True)
+                }
+                Error(_) -> should.fail()
+              }
+            }
+            Error(_) -> should.fail()
+          }
+        }
+        Error(_) -> should.fail()
+      }
+    }
+    Error(_) -> should.fail()
+  }
+}

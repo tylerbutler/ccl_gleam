@@ -4,6 +4,7 @@ import ccl_types.{Entry}
 import gleam/list
 import gleeunit
 import gleeunit/should
+import ccl_comprehensive_test_new
 
 pub fn main() {
   gleeunit.main()
@@ -58,4 +59,14 @@ pub fn test_suite_paths_test() {
   // 7 test suites for ccl_core
   list.length(package_paths) |> should.equal(2)
   // 2 test suites for ccl package
+}
+
+/// Run all API tests from JSON files
+pub fn json_api_comprehensive_test() {
+  ccl_comprehensive_test_new.comprehensive_api_tests()
+}
+
+/// Run all property tests from JSON files
+pub fn json_property_comprehensive_test() {
+  ccl_comprehensive_test_new.comprehensive_property_tests()
 }

@@ -373,12 +373,25 @@ fn format_ccl_entry(key: String, sub_ccl: CCL, indent_level: Int) -> String {
                   <> normalize_value(single_terminal_value)
                 }
                 _ -> {
-                  // This is a complex nested structure, format with indentation
-                  let nested_content =
-                    format_ccl_recursive(sub_ccl, indent_level + 1)
-                  case string.trim(nested_content) {
-                    "" -> indent <> formatted_key <> " ="
-                    content -> indent <> formatted_key <> " =\n" <> content
+                  // Multiple terminal values - check if this is a list structure
+                  case is_list_structure(sub_ccl) {
+                    True -> {
+                      // Format as repeated key-value pairs for list
+                      terminal_values
+                      |> list.map(fn(value) {
+                        indent <> formatted_key <> " = " <> normalize_value(value)
+                      })
+                      |> string.join("\n")
+                    }
+                    False -> {
+                      // This is a complex nested structure, format with indentation
+                      let nested_content =
+                        format_ccl_recursive(sub_ccl, indent_level + 1)
+                      case string.trim(nested_content) {
+                        "" -> indent <> formatted_key <> " ="
+                        content -> indent <> formatted_key <> " =\n" <> content
+                      }
+                    }
                   }
                 }
               }
@@ -408,6 +421,23 @@ fn get_all_terminal_values_from_ccl(ccl: CCL) -> List(String) {
           }
         }
       })
+    }
+  }
+}
+
+/// Check if a CCL structure represents a list (single empty key with multiple terminal values)
+fn is_list_structure(ccl: CCL) -> Bool {
+  case ccl {
+    CCL(map) -> {
+      let entries = dict.to_list(map)
+      case entries {
+        [#("", sub_ccl)] -> {
+          // Single empty key - check if it has multiple terminal values
+          let terminal_count = list.length(get_all_terminal_values_from_ccl(sub_ccl))
+          terminal_count > 1
+        }
+        _ -> False
+      }
     }
   }
 }
@@ -748,3 +778,44 @@ fn try_parse_bool(value: String) -> Result(Bool, Nil) {
     _ -> Error(Nil)
   }
 }
+
+// === ALGEBRAIC OPERATIONS FOR PROPERTY TESTING ===
+
+/// Merge two CCL objects with semigroup associativity (right operand wins)
+/// Used for testing algebraic properties in CCL structures
+pub fn ccl_merge(a: CCL, b: CCL) -> Result(CCL, String) {
+  case a, b {
+    CCL(map_a), CCL(map_b) -> {
+      // Combine dictionaries with right-wins semantics
+      let merged_dict = dict.fold(map_b, map_a, fn(acc_dict, key, value_b) {
+        // For semigroup semantics, b (right operand) wins for any conflicting keys
+        dict.insert(acc_dict, key, value_b)
+      })
+      Ok(CCL(merged_dict))
+    }
+  }
+}
+
+/// Test if two CCL objects are semantically equal
+/// Handles ordering differences and normalization for testing
+pub fn ccl_semantically_equal(a: CCL, b: CCL) -> Bool {
+  normalize_ccl_for_comparison(a) == normalize_ccl_for_comparison(b)
+}
+
+/// Normalize CCL structure for semantic comparison
+/// Sorts keys and normalizes nested structures to handle ordering differences
+fn normalize_ccl_for_comparison(ccl: CCL) -> CCL {
+  case ccl {
+    CCL(map) -> {
+      // Get sorted list of key-value pairs and recursively normalize values
+      let sorted_pairs = dict.to_list(map)
+        |> list.sort(fn(a, b) { string.compare(a.0, b.0) })
+        |> list.map(fn(pair) { 
+          #(pair.0, normalize_ccl_for_comparison(pair.1)) 
+        })
+      
+      CCL(dict.from_list(sorted_pairs))
+    }
+  }
+}
+
