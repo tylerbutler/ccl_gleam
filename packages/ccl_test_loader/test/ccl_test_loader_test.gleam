@@ -5,6 +5,7 @@ import ccl_types.{Entry}
 import gleam/list
 import gleeunit
 import gleeunit/should
+import validation_test
 
 pub fn main() {
   gleeunit.main()
@@ -61,12 +62,21 @@ pub fn test_suite_paths_test() {
   // 2 test suites for ccl package
 }
 
-/// Run all API tests from JSON files
-pub fn json_api_comprehensive_test() {
-  ccl_comprehensive_test_new.comprehensive_api_tests()
+/// Run minimal capability tests
+pub fn json_minimal_capability_test() {
+  ccl_comprehensive_test_new.minimal_capability_tests()
 }
 
-/// Run all property tests from JSON files
-pub fn json_property_comprehensive_test() {
-  ccl_comprehensive_test_new.comprehensive_property_tests()
+/// Run basic capability tests
+pub fn json_basic_capability_test() {
+  ccl_comprehensive_test_new.basic_capability_tests()
+}
+
+// Import validation tests
+pub fn test_compose_validation_simple() {
+  validation_test.test_compose_validation_simple()
+}
+
+pub fn test_round_trip_validation_basic() {
+  validation_test.test_round_trip_validation_basic()
 }
