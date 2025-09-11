@@ -1,3 +1,6 @@
+// Simple test utilities and core test suite runner.
+// For advanced capability testing, see progressive_test_runner.gleam
+
 import ccl_core
 import ccl_types.{type CCL, type Entry, Entry}
 import gleam/dynamic/decode
