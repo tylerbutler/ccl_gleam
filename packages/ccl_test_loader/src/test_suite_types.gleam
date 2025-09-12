@@ -59,10 +59,19 @@ pub type CountedTypedValidation {
 
 pub type ErrorValidation {
   ErrorValidation(
+    count: Int,
     error: Bool,
     error_type: Option(String),
     error_message: Option(String),
   )
+}
+
+pub type CountedRoundTripSpec {
+  CountedRoundTripSpec(count: Int, property: String)
+}
+
+pub type CountedPrettyPrintSpec {
+  CountedPrettyPrintSpec(count: Int, expected: String)
 }
 
 // Unified validation types
@@ -88,8 +97,8 @@ pub type ValidationSpec {
   GetListValidation(CountedTypedValidation)
 
   // Level 5: Formatting
-  PrettyPrintValidation(String)
-  RoundTripValidation(RoundTripSpec)
+  PrettyPrintValidation(CountedPrettyPrintSpec)
+  RoundTripValidation(CountedRoundTripSpec)
 }
 
 pub type CombineSpec {
@@ -170,12 +179,23 @@ pub fn property_test_paths() -> List(String) {
   ]
 }
 
+/// Test suite metadata structure
+pub type TestSuiteMetadata {
+  TestSuiteMetadata(
+    test_count: Int,
+    assertion_count: Int,
+    complexity_level: Option(String),
+    implementation_notes: Option(String),
+  )
+}
+
 /// Test suite structure for validation format
 pub type TestSuite {
   TestSuite(
     suite: String,
     version: String,
     description: Option(String),
+    llm_metadata: Option(TestSuiteMetadata),
     tests: List(TestCase),
   )
 }
@@ -207,6 +227,7 @@ pub fn load_test_suite_safe(filename: String) -> TestSuite {
         suite: "Empty Suite",
         version: "1.0",
         description: None,
+        llm_metadata: None,
         tests: [],
       )
   }
@@ -374,11 +395,11 @@ fn create_validation_spec(
       |> result.map(GetListValidation)
     }
     "pretty_print" -> {
-      decode.run(dynamic_value, decode.string)
+      decode.run(dynamic_value, optimized_pretty_print_validation_decoder())
       |> result.map(PrettyPrintValidation)
     }
     "round_trip" -> {
-      decode.run(dynamic_value, optimized_round_trip_spec_decoder())
+      decode.run(dynamic_value, optimized_round_trip_validation_decoder())
       |> result.map(RoundTripValidation)
     }
     _ -> {
@@ -397,6 +418,7 @@ fn optimized_counted_validation_decoder() -> decode.Decoder(CountedValidation) {
 }
 
 fn optimized_error_validation_decoder() -> decode.Decoder(ErrorValidation) {
+  use count <- decode.field("count", decode.int)
   use error <- decode.field("error", decode.bool)
   use error_type <- decode.optional_field(
     "error_type",
@@ -409,10 +431,23 @@ fn optimized_error_validation_decoder() -> decode.Decoder(ErrorValidation) {
     decode.optional(decode.string),
   )
   decode.success(ErrorValidation(
+    count: count,
     error: error,
     error_type: error_type,
     error_message: error_message,
   ))
+}
+
+fn optimized_round_trip_validation_decoder() -> decode.Decoder(CountedRoundTripSpec) {
+  use count <- decode.field("count", decode.int)
+  use property <- decode.field("property", decode.string)
+  decode.success(CountedRoundTripSpec(count: count, property: property))
+}
+
+fn optimized_pretty_print_validation_decoder() -> decode.Decoder(CountedPrettyPrintSpec) {
+  use count <- decode.field("count", decode.int)
+  use expected <- decode.field("expected", decode.string)
+  decode.success(CountedPrettyPrintSpec(count: count, expected: expected))
 }
 
 fn optimized_typed_test_case_decoder() -> decode.Decoder(TypedTestCase) {
@@ -439,10 +474,6 @@ fn optimized_combine_spec_decoder() -> decode.Decoder(CombineSpec) {
   decode.success(CombineSpec(left: left, right: right, expected: expected))
 }
 
-fn optimized_round_trip_spec_decoder() -> decode.Decoder(RoundTripSpec) {
-  use property <- decode.field("property", decode.string)
-  decode.success(RoundTripSpec(property: property))
-}
 
 fn optimized_section_group_decoder() -> decode.Decoder(SectionGroup) {
   use header <- decode.optional_field(
@@ -541,6 +572,29 @@ fn optimized_test_metadata_decoder() -> decode.Decoder(TestMetadata) {
   ))
 }
 
+// Optimized test suite metadata decoder
+fn optimized_test_suite_metadata_decoder() -> decode.Decoder(TestSuiteMetadata) {
+  use test_count <- decode.field("test_count", decode.int)
+  use assertion_count <- decode.field("assertion_count", decode.int)
+  use complexity_level <- decode.optional_field(
+    "complexity_level",
+    None,
+    decode.optional(decode.string),
+  )
+  use implementation_notes <- decode.optional_field(
+    "implementation_notes",
+    None,
+    decode.optional(decode.string),
+  )
+
+  decode.success(TestSuiteMetadata(
+    test_count: test_count,
+    assertion_count: assertion_count,
+    complexity_level: complexity_level,
+    implementation_notes: implementation_notes,
+  ))
+}
+
 // Optimized test suite decoder
 fn optimized_test_suite_decoder() -> decode.Decoder(TestSuite) {
   use suite <- decode.field("suite", decode.string)
@@ -550,12 +604,18 @@ fn optimized_test_suite_decoder() -> decode.Decoder(TestSuite) {
     None,
     decode.optional(decode.string),
   )
+  use llm_metadata <- decode.optional_field(
+    "llm_metadata",
+    None,
+    decode.optional(optimized_test_suite_metadata_decoder()),
+  )
   use tests <- decode.field("tests", decode.list(optimized_test_case_decoder()))
 
   decode.success(TestSuite(
     suite: suite,
     version: version,
     description: description,
+    llm_metadata: llm_metadata,
     tests: tests,
   ))
 }
