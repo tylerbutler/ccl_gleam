@@ -85,7 +85,7 @@ database =
 
   case ccl_core.parse(ccl_flat) {
     Ok(entries) -> {
-      let ccl_obj = ccl_core.make_objects(entries)
+      let ccl_obj = ccl_core.build_hierarchy(entries)
       let keys = ccl_core.get_keys(ccl_obj, "")
       io.println("Keys: " <> string.inspect(keys))
 
@@ -108,7 +108,7 @@ database =
 
   case ccl_core.parse(ccl_nested) {
     Ok(entries) -> {
-      let ccl_obj = ccl_core.make_objects(entries)
+      let ccl_obj = ccl_core.build_hierarchy(entries)
       let keys = ccl_core.get_keys(ccl_obj, "")
       io.println("Keys: " <> string.inspect(keys))
 

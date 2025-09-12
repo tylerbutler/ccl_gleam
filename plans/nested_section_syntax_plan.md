@@ -45,7 +45,7 @@ Convert nested syntax to flat dot-notation entries compatible with existing `get
 pub fn parse(content: String) -> Result(List(Entry), ParseError)
 
 // Convert entries to nested CCL structure with recursive parsing
-pub fn make_objects(entries: List(Entry)) -> CCL
+pub fn build_hierarchy(entries: List(Entry)) -> CCL
 
 // Access nested values using dot notation
 pub fn get_value(ccl: CCL, path: String) -> Result(String, String)
@@ -54,7 +54,7 @@ pub fn get_value(ccl: CCL, path: String) -> Result(String, String)
 ### How It Works
 The implementation uses a **two-phase approach**:
 1. **Parse phase**: Nested content becomes multiline values in entries
-2. **Object construction**: `make_objects()` recursively parses nested CCL within values
+2. **Object construction**: `build_hierarchy()` recursively parses nested CCL within values
 
 ## Implementation Algorithm
 

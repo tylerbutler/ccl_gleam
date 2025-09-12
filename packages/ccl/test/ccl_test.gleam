@@ -17,7 +17,7 @@ pub fn node_type_test() {
     Entry("list", "item2"),
     Entry("obj.key", "nested_value"),
   ]
-  let ccl_obj = ccl_core.make_objects(entries)
+  let ccl_obj = ccl_core.build_hierarchy(entries)
 
   ccl.node_type(ccl_obj, "single") |> should.equal(ccl.SingleValue)
   ccl.node_type(ccl_obj, "list") |> should.equal(ccl.ListValue)
@@ -32,7 +32,7 @@ pub fn get_unified_test() {
     Entry("list", "item2"),
     Entry("obj.key", "nested_value"),
   ]
-  let ccl_obj = ccl_core.make_objects(entries)
+  let ccl_obj = ccl_core.build_hierarchy(entries)
 
   case ccl.get(ccl_obj, "single") {
     Ok(ccl.CclString(value)) -> value |> should.equal("value")
@@ -60,7 +60,7 @@ pub fn smart_accessors_test() {
     Entry("list", "item1"),
     Entry("list", "item2"),
   ]
-  let ccl_obj = ccl_core.make_objects(entries)
+  let ccl_obj = ccl_core.build_hierarchy(entries)
 
   ccl.get_smart_value(ccl_obj, "single")
   |> should.be_ok()
@@ -87,7 +87,7 @@ pub fn smart_accessors_test() {
 
 pub fn pretty_print_test() {
   let entries = [Entry("key", "value")]
-  let ccl_obj = ccl_core.make_objects(entries)
+  let ccl_obj = ccl_core.build_hierarchy(entries)
 
   let output = ccl.pretty_print_ccl(ccl_obj)
   // Just verify it produces some output (exact format may vary)
@@ -97,7 +97,7 @@ pub fn pretty_print_test() {
   }
 }
 
-pub fn filter_keys_test() {
+pub fn filter_test() {
   let entries = [
     Entry("config", "value1"),
     Entry("/", "This is a comment"),
@@ -109,31 +109,31 @@ pub fn filter_keys_test() {
   ]
 
   // Test filtering single comment style
-  let filtered_single = ccl.filter_keys(entries, ["/"])
+  let filtered_single = ccl.filter(entries, ["/"])
   let single_keys = list.map(filtered_single, fn(entry) { entry.key })
   single_keys
   |> should.equal(["config", "setting", "#", "//", "data", "comment"])
 
   // Test filtering multiple comment styles
-  let filtered_multiple = ccl.filter_keys(entries, ["/", "#", "//"])
+  let filtered_multiple = ccl.filter(entries, ["/", "#", "//"])
   let multiple_keys = list.map(filtered_multiple, fn(entry) { entry.key })
   multiple_keys |> should.equal(["config", "setting", "data", "comment"])
 
   // Test filtering any keys
-  let filtered_custom = ccl.filter_keys(entries, ["comment", "setting"])
+  let filtered_custom = ccl.filter(entries, ["comment", "setting"])
   let custom_keys = list.map(filtered_custom, fn(entry) { entry.key })
   custom_keys |> should.equal(["config", "/", "#", "//", "data"])
 
   // Test empty exclude list (should return all entries)
-  let filtered_none = ccl.filter_keys(entries, [])
+  let filtered_none = ccl.filter(entries, [])
   filtered_none |> should.equal(entries)
 
   // Test filtering non-existent keys
-  let filtered_missing = ccl.filter_keys(entries, ["nonexistent"])
+  let filtered_missing = ccl.filter(entries, ["nonexistent"])
   filtered_missing |> should.equal(entries)
 }
 
-pub fn filter_keys_integration_test() {
+pub fn filter_integration_test() {
   // Test the complete parsing pipeline with filtering
   let entries = [
     Entry("server", "localhost"),
@@ -144,8 +144,8 @@ pub fn filter_keys_integration_test() {
   ]
 
   // Filter out comments and build CCL object
-  let filtered = ccl.filter_keys(entries, ["/", "#"])
-  let ccl_obj = ccl_core.make_objects(filtered)
+  let filtered = ccl.filter(entries, ["/", "#"])
+  let ccl_obj = ccl_core.build_hierarchy(filtered)
 
   // Test that regular values work
   ccl.get_smart_value(ccl_obj, "server")
@@ -177,8 +177,8 @@ pub fn round_trip_basic_test() {
       case ccl_core.parse(pretty_printed) {
         Ok(reparsed_entries) -> {
           // Convert both to CCL objects and verify they're equivalent
-          let original_ccl = ccl_core.make_objects(entries)
-          let reparsed_ccl = ccl_core.make_objects(reparsed_entries)
+          let original_ccl = ccl_core.build_hierarchy(entries)
+          let reparsed_ccl = ccl_core.build_hierarchy(reparsed_entries)
 
           // Test that all values are preserved
           ccl.get_smart_value(original_ccl, "key")
@@ -203,8 +203,8 @@ pub fn round_trip_multiline_test() {
 
       case ccl_core.parse(pretty_printed) {
         Ok(reparsed_entries) -> {
-          let original_ccl = ccl_core.make_objects(entries)
-          let reparsed_ccl = ccl_core.make_objects(reparsed_entries)
+          let original_ccl = ccl_core.build_hierarchy(entries)
+          let reparsed_ccl = ccl_core.build_hierarchy(reparsed_entries)
 
           ccl.get_smart_value(original_ccl, "config")
           |> should.equal(ccl.get_smart_value(reparsed_ccl, "config"))
@@ -244,7 +244,7 @@ pub fn round_trip_ccl_structure_test() {
     Entry("database.user", "admin"),
   ]
 
-  let original_ccl = ccl_core.make_objects(entries)
+  let original_ccl = ccl_core.build_hierarchy(entries)
 
   // Pretty print the CCL structure
   let pretty_printed = ccl.pretty_print_ccl(original_ccl)
@@ -252,7 +252,7 @@ pub fn round_trip_ccl_structure_test() {
   // Parse back
   case ccl_core.parse(pretty_printed) {
     Ok(reparsed_entries) -> {
-      let reparsed_ccl = ccl_core.make_objects(reparsed_entries)
+      let reparsed_ccl = ccl_core.build_hierarchy(reparsed_entries)
 
       // Verify nested structure is preserved
       ccl.get_smart_value(original_ccl, "server.host")
@@ -307,7 +307,7 @@ pub fn pretty_print_list_formatting_test() {
     Entry("regular_key", "value"),
   ]
 
-  let ccl_obj = ccl_core.make_objects(entries)
+  let ccl_obj = ccl_core.build_hierarchy(entries)
   let output = ccl.pretty_print_ccl(ccl_obj)
 
   // Should format empty key entries as list items
@@ -331,13 +331,13 @@ pub fn structure_preservation_test() {
     Entry("features", "metrics"),
   ]
 
-  let original_ccl = ccl_core.make_objects(entries)
+  let original_ccl = ccl_core.build_hierarchy(entries)
   let pretty_printed = ccl.pretty_print_ccl(original_ccl)
 
   // Parse the pretty printed output back
   case ccl_core.parse(pretty_printed) {
     Ok(reparsed_entries) -> {
-      let reparsed_ccl = ccl_core.make_objects(reparsed_entries)
+      let reparsed_ccl = ccl_core.build_hierarchy(reparsed_entries)
 
       // Verify all the original structure is preserved
       ccl.get_smart_value(original_ccl, "app.name")
@@ -364,8 +364,8 @@ pub fn ccl_merge_test() {
   let entries_a = [Entry("key1", "value1"), Entry("shared", "from_a")]
   let entries_b = [Entry("key2", "value2"), Entry("shared", "from_b")]
 
-  let ccl_a = ccl_core.make_objects(entries_a)
-  let ccl_b = ccl_core.make_objects(entries_b)
+  let ccl_a = ccl_core.build_hierarchy(entries_a)
+  let ccl_b = ccl_core.build_hierarchy(entries_b)
 
   case ccl.ccl_merge(ccl_a, ccl_b) {
     Ok(merged) -> {
@@ -393,8 +393,8 @@ pub fn ccl_semantic_equality_test() {
   let entries_original = [Entry("key1", "value1"), Entry("key2", "value2")]
   let entries_reordered = [Entry("key2", "value2"), Entry("key1", "value1")]
 
-  let ccl_original = ccl_core.make_objects(entries_original)
-  let ccl_reordered = ccl_core.make_objects(entries_reordered)
+  let ccl_original = ccl_core.build_hierarchy(entries_original)
+  let ccl_reordered = ccl_core.build_hierarchy(entries_reordered)
 
   // Should be semantically equal despite different ordering
   ccl.ccl_semantically_equal(ccl_original, ccl_reordered) |> should.equal(True)
@@ -404,7 +404,7 @@ pub fn ccl_semantic_equality_test() {
     Entry("key1", "different_value"),
     Entry("key2", "value2"),
   ]
-  let ccl_different = ccl_core.make_objects(entries_different)
+  let ccl_different = ccl_core.build_hierarchy(entries_different)
 
   ccl.ccl_semantically_equal(ccl_original, ccl_different) |> should.equal(False)
 }
@@ -415,12 +415,12 @@ pub fn round_trip_property_test() {
 
   case ccl_core.parse(original_text) {
     Ok(entries) -> {
-      let ccl_obj = ccl_core.make_objects(entries)
+      let ccl_obj = ccl_core.build_hierarchy(entries)
       let pretty_printed = ccl.pretty_print_ccl(ccl_obj)
 
       case ccl_core.parse(pretty_printed) {
         Ok(reparsed_entries) -> {
-          let reparsed_ccl = ccl_core.make_objects(reparsed_entries)
+          let reparsed_ccl = ccl_core.build_hierarchy(reparsed_entries)
 
           // Test semantic equivalence
           ccl.ccl_semantically_equal(ccl_obj, reparsed_ccl)
@@ -439,9 +439,9 @@ pub fn associativity_property_test() {
   let entries_b = [Entry("b", "value_b")]
   let entries_c = [Entry("c", "value_c")]
 
-  let ccl_a = ccl_core.make_objects(entries_a)
-  let ccl_b = ccl_core.make_objects(entries_b)
-  let ccl_c = ccl_core.make_objects(entries_c)
+  let ccl_a = ccl_core.build_hierarchy(entries_a)
+  let ccl_b = ccl_core.build_hierarchy(entries_b)
+  let ccl_c = ccl_core.build_hierarchy(entries_c)
 
   // Test (A ⊕ B) ⊕ C
   case ccl.ccl_merge(ccl_a, ccl_b) {

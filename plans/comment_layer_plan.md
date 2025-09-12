@@ -2,7 +2,7 @@
 
 ## Overview
 
-The comment filtering layer is **fully implemented** in CCL. Comments are treated as regular key-value pairs that can be filtered out using the `filter_keys()` function.
+The comment filtering layer is **fully implemented** in CCL. Comments are treated as regular key-value pairs that can be filtered out using the `filter()` function.
 
 ## Comment Syntax
 
@@ -19,7 +19,7 @@ Following the CCL specification, comments use special keys:
 ### Available Function
 ```gleam
 // Implemented in packages/ccl/src/ccl.gleam
-pub fn filter_keys(entries: List(Entry), exclude_keys: List(String)) -> List(Entry)
+pub fn filter(entries: List(Entry), exclude_keys: List(String)) -> List(Entry)
 ```
 
 The function filters out entries whose keys match any key in the exclude list.
@@ -29,13 +29,13 @@ The function filters out entries whose keys match any key in the exclude list.
 let entries = parse_ccl_string(content)
 
 // Single comment style
-let no_comments = filter_keys(entries, ["/"])
+let no_comments = filter(entries, ["/"])
 
 // Multiple comment styles  
-let no_comments = filter_keys(entries, ["/", "#", "//"])
+let no_comments = filter(entries, ["/", "#", "//"])
 
 // Any keys you want to exclude
-let filtered = filter_keys(entries, ["debug", "temp", "comment"])
+let filtered = filter(entries, ["debug", "temp", "comment"])
 
 // Then convert to CCL as usual
 let ccl = entries_to_ccl(no_comments)

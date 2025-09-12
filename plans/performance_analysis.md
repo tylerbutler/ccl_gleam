@@ -51,17 +51,17 @@ flat_100_entries    parse_to_entries          517.7764        1.6373        2.61
 nested_shallow      parse_to_entries         1767.9268        0.4538        1.1381
 nested_deep         parse_to_entries         3122.0025        0.2642        0.4832
 
-flat_10_entries_parsedmake_objects             7441.0636        0.1300        0.1827
-flat_100_entries_parsedmake_objects              668.0148        1.4148        2.1177
-nested_shallow_parsedmake_objects             2376.1947        0.2968        0.6531
-nested_deep_parsed  make_objects             4156.3097        0.2135        0.3638
+flat_10_entries_parsedbuild_hierarchy             7441.0636        0.1300        0.1827
+flat_100_entries_parsedbuild_hierarchy              668.0148        1.4148        2.1177
+nested_shallow_parsedbuild_hierarchy             2376.1947        0.2968        0.6531
+nested_deep_parsed  build_hierarchy             4156.3097        0.2135        0.3638
 ```
 
 **Key Insights:**
 - **Fixpoint Algorithm**: Object construction is often faster than parsing itself
 - **Nested Performance**: Deep nesting (6 levels) performs better than shallow wide structures
 - **Scaling**: Construction performance scales well with entry count
-- **Efficiency**: The `make_objects` phase adds minimal overhead
+- **Efficiency**: The `build_hierarchy` phase adds minimal overhead
 
 ### 3. Typed Parsing Overhead Analysis
 

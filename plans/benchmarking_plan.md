@@ -116,7 +116,7 @@ Core CCL:         Text → List(Entry) → CCL
 
 **Comment Filtering:**
 - Impact of comment density on parsing
-- Cost of `filter_keys()` operations
+- Cost of `filter()` operations
 - Memory usage with/without comments
 
 **List Processing:**
@@ -246,12 +246,12 @@ pub fn main() {
       }),
       #("full_pipeline", fn(config_text) {
         ccl_core.parse(config_text)
-        |> result.map(ccl_core.make_objects)
+        |> result.map(ccl_core.build_hierarchy)
       }),
       #("typed_parsing", fn(config_text) {
         let config = ccl_core.parse(config_text)
           |> result.unwrap([])
-          |> ccl_core.make_objects()
+          |> ccl_core.build_hierarchy()
         ccl.get_int(config, "server.port")
       })
     ],

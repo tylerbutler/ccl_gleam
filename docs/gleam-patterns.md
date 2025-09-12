@@ -75,7 +75,7 @@ pub fn load_for_environment() -> Result(DatabaseConfig, String) {
   
   use content <- result.try(simplifile.read("config/" <> env <> ".ccl"))
   use entries <- result.try(ccl.parse(content))
-  let config = ccl.make_objects(entries)
+  let config = ccl.build_hierarchy(entries)
   
   load_env_config(config, env)
 }
@@ -97,7 +97,7 @@ pub fn validate_config(config_text: String) -> Result(AppConfig, List(ConfigErro
   case ccl.parse(config_text) {
     Error(parse_err) -> Error([ParseError("Failed to parse CCL: " <> parse_err.reason)])
     Ok(entries) -> {
-      let config = ccl.make_objects(entries)
+      let config = ccl.build_hierarchy(entries)
       let errors = []
       
       // Validate required fields
@@ -225,7 +225,7 @@ pub fn load_servers_with_config(config: ccl.CCL) -> List(ServerInfo) {
 ### Multi-File Configuration Loading
 
 ```gleam
-pub fn load_composed_config(
+pub fn load_combined_config(
   base_file: String,
   override_file: String
 ) -> Result(ccl.CCL, String) {
@@ -236,10 +236,10 @@ pub fn load_composed_config(
   use override_entries <- result.try(ccl.parse(override_content))
   
   // Combine entries - overrides take precedence
-  let combined = ccl.compose_entries(base_entries, override_entries)
-  let filtered = ccl.filter_comments(combined)
+  let combined = ccl.combine(base_entries, override_entries)
+  let filtered = ccl.filter(combined)
   
-  Ok(ccl.make_objects(filtered))
+  Ok(ccl.build_hierarchy(filtered))
 }
 
 // Environment-aware composition
@@ -268,7 +268,7 @@ pub fn load_config_with_overrides() -> Result(ccl.CCL, String) {
 fn load_single_config(file_path: String) -> Result(ccl.CCL, String) {
   use content <- result.try(simplifile.read(file_path))
   use entries <- result.try(ccl.parse(content))
-  Ok(ccl.make_objects(ccl.filter_comments(entries)))
+  Ok(ccl.build_hierarchy(ccl.filter(entries)))
 }
 
 fn merge_configs(base: ccl.CCL, override: ccl.CCL) -> ccl.CCL {
@@ -289,8 +289,8 @@ pub fn load_config_pipeline() -> Result(AppConfig, String) {
   "config/app.ccl"
   |> simplifile.read()
   |> result.try(ccl.parse)
-  |> result.map(ccl.filter_comments)
-  |> result.map(ccl.make_objects)
+  |> result.map(ccl.filter)
+  |> result.map(ccl.build_hierarchy)
   |> result.try(validate_and_build_config)
 }
 
@@ -353,7 +353,7 @@ pub fn test_config_defaults_property() {
   
   case ccl.parse(config_with_minimal_fields) {
     Ok(entries) -> {
-      let config = ccl.make_objects(entries)
+      let config = ccl.build_hierarchy(entries)
       let app_config = build_app_config_with_defaults(config)
       
       // Assert that defaults produce valid configuration
@@ -376,10 +376,10 @@ pub fn test_config_composition_associativity() {
   let assert Ok(entries_c) = ccl.parse(config_c)
   
   // (A + B) + C should equal A + (B + C)
-  let left = ccl.compose_entries(ccl.compose_entries(entries_a, entries_b), entries_c)
-  let right = ccl.compose_entries(entries_a, ccl.compose_entries(entries_b, entries_c))
+  let left = ccl.combine(ccl.combine(entries_a, entries_b), entries_c)
+  let right = ccl.combine(entries_a, ccl.combine(entries_b, entries_c))
   
-  ccl.make_objects(left) |> should.equal(ccl.make_objects(right))
+  ccl.build_hierarchy(left) |> should.equal(ccl.build_hierarchy(right))
 }
 
 // Helper validation functions
@@ -426,7 +426,7 @@ pub fn create_test_config() -> ccl.CCL {
   "
   
   let assert Ok(entries) = ccl.parse(test_config_text)
-  ccl.make_objects(ccl.filter_comments(entries))
+  ccl.build_hierarchy(ccl.filter(entries))
 }
 
 pub fn test_feature_flag_loading() {

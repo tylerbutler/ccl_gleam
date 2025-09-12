@@ -15,7 +15,7 @@
 - **Issue**: `get_nested_test()` in ccl_core fails with "Key 'db' not found"  
 - **Root Cause**: Dotted keys like "db.host" are not creating nested structure as expected
 - **Location**: `packages/ccl_core/test/ccl_core_test.gleam:34-54`
-- **Investigation Needed**: Check how `make_objects()` processes dotted keys
+- **Investigation Needed**: Check how `build_hierarchy()` processes dotted keys
 
 ### 2. Complete JSON Schema Implementation
 **Priority: MEDIUM**

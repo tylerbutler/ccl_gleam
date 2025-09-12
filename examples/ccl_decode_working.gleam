@@ -128,7 +128,7 @@ pub fn app_config_decoder() -> Decoder(AppConfig) {
 pub fn decode_ccl(ccl_text: String, decoder: Decoder(a)) -> Result(a, String) {
   case ccl_core.parse(ccl_text) {
     Ok(entries) -> {
-      let ccl_obj = ccl_core.make_objects(entries)
+      let ccl_obj = ccl_core.build_hierarchy(entries)
       case decoder(ccl_obj, "") {
         Ok(decoded) -> Ok(decoded)
         Error(decode_error) -> Error(decode_error_to_string(decode_error))
@@ -184,7 +184,7 @@ database.timeout_ms = 30000
         )
       })
 
-      let ccl_obj = ccl_core.make_objects(entries)
+      let ccl_obj = ccl_core.build_hierarchy(entries)
       io.println("\n=== CCL Object Structure ===")
 
       // Test what keys exist at root level

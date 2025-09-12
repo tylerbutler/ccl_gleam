@@ -31,7 +31,7 @@ The Gleam implementation follows the 4-level CCL architecture:
 - **Tests**: `ccl-test-suite/ccl-entry-processing.json` (10 tests)
 
 ### Level 3: Object Construction (Hierarchical)
-**Gleam API**: `ccl.make_objects(entries) → ccl.CCL`
+**Gleam API**: `ccl.build_hierarchy(entries) → ccl.CCL`
 - **Status**: ✅ FULLY IMPLEMENTED
 - **Package**: `ccl`
 - **Tests**: `ccl-test-suite/ccl-object-construction.json` (8 tests)

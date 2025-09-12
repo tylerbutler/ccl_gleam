@@ -42,7 +42,7 @@ pub fn parse(text: String) -> Result(List(Entry), ParseError) {
   }
 }
 
-/// Convert flat key-value pairs into nested CCL structure using fixpoint algorithm
+/// Convert flat key-value pairs into hierarchical CCL structure using fixpoint algorithm
 /// 
 /// Duplicate keys are handled through deep merging:
 /// - Nested objects: Fields are combined into single object
@@ -125,7 +125,7 @@ fn create_prefix_entries(
   }
 }
 
-pub fn make_objects(entries: List(Entry)) -> CCL {
+pub fn build_hierarchy(entries: List(Entry)) -> CCL {
   // Expand dotted keys while preserving original flat keys
   let expanded_entries = expand_dotted_keys(entries)
 

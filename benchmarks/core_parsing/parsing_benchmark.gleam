@@ -43,12 +43,12 @@ fn run_basic_parsing_benchmark() {
     #("parse_only", fn(text) { ccl_core.parse(text) }),
     #("parse_and_objects", fn(text) {
       ccl_core.parse(text)
-      |> result.map(ccl_core.make_objects)
+      |> result.map(ccl_core.build_hierarchy)
     }),
     #("full_pipeline", fn(text) {
       case ccl_core.parse(text) {
         Ok(entries) -> {
-          let config = ccl_core.make_objects(entries)
+          let config = ccl_core.build_hierarchy(entries)
           // Simulate accessing a few values
           let _ = ccl_core.get_value(config, "server.port")
           let _ = ccl_core.get_value(config, "database.host")
@@ -81,7 +81,7 @@ fn run_file_size_benchmarks() {
     #("parse_text_to_entries", fn(text) { ccl_core.parse(text) }),
     #("build_object_structure", fn(text) {
       ccl_core.parse(text)
-      |> result.map(ccl_core.make_objects)
+      |> result.map(ccl_core.build_hierarchy)
     }),
   ]
 
@@ -106,7 +106,7 @@ fn run_realistic_benchmarks() {
     #("single_value_lookup", fn(config_text) {
       case ccl_core.parse(config_text) {
         Ok(entries) -> {
-          let config = ccl_core.make_objects(entries)
+          let config = ccl_core.build_hierarchy(entries)
           ccl_core.get_value(config, "server.port")
         }
         Error(e) -> Error(string.inspect(e))
@@ -115,7 +115,7 @@ fn run_realistic_benchmarks() {
     #("multiple_value_access", fn(config_text) {
       case ccl_core.parse(config_text) {
         Ok(entries) -> {
-          let config = ccl_core.make_objects(entries)
+          let config = ccl_core.build_hierarchy(entries)
           let _ = ccl_core.get_value(config, "server.host")
           let _ = ccl_core.get_value(config, "server.port")
           let _ = ccl_core.get_value(config, "database.host")
@@ -129,7 +129,7 @@ fn run_realistic_benchmarks() {
     #("nested_object_access", fn(config_text) {
       case ccl_core.parse(config_text) {
         Ok(entries) -> {
-          let config = ccl_core.make_objects(entries)
+          let config = ccl_core.build_hierarchy(entries)
           case ccl_core.get_nested(config, "server") {
             Ok(server_config) -> {
               let _ = ccl_core.get_value(server_config, "host")

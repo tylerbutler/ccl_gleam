@@ -65,7 +65,7 @@ server =
 case ccl_core.parse(ccl_text) {
   Ok(entries) -> {
     // Build nested CCL object using fixpoint algorithm
-    let ccl_obj = ccl_core.make_objects(entries)
+    let ccl_obj = ccl_core.build_hierarchy(entries)
     
     // Access nested values with dot notation
     case ccl_core.get_value(ccl_obj, "database.host") {
@@ -92,7 +92,7 @@ case ccl_core.parse(ccl_text) {
 pub fn parse(text: String) -> Result(List(Entry), ParseError)
 
 // Convert flat entries into nested CCL structure using fixpoint algorithm  
-pub fn make_objects(entries: List(Entry)) -> CCL
+pub fn build_hierarchy(entries: List(Entry)) -> CCL
 
 // Create an empty CCL structure
 pub fn empty_ccl() -> CCL
@@ -165,7 +165,7 @@ database =
 
 case ccl_core.parse(config) {
   Ok(entries) -> {
-    let ccl = ccl_core.make_objects(entries)
+    let ccl = ccl_core.build_hierarchy(entries)
     ccl_core.get_value(ccl, "database.host")  // -> Ok("localhost")
   }
   Error(err) -> // Handle parse error
@@ -186,7 +186,7 @@ ports =
 
 case ccl_core.parse(config) {
   Ok(entries) -> {
-    let ccl = ccl_core.make_objects(entries)
+    let ccl = ccl_core.build_hierarchy(entries)
     let ports = ccl_core.get_values(ccl, "ports")  // -> ["8000", "8001", "8002"]
   }
   Error(err) -> // Handle parse error

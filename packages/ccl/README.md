@@ -35,7 +35,7 @@ server =
 
 // Parse and build CCL object
 let assert Ok(entries) = ccl.parse(config)
-let ccl_obj = ccl.make_objects(entries)
+let ccl_obj = ccl.build_hierarchy(entries)
 
 // Use the unified get() API - automatically handles all data types
 case ccl.get(ccl_obj, "database.host") {

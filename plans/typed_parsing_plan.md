@@ -147,7 +147,7 @@ pub fn get_typed_value_with_options(ccl: CCL, path: String, options: ParseOption
 ```gleam
 // Simple CCL config
 let ccl_text = "login = chshersh\nhowManyYears = 2\nenabled = true"
-let ccl_obj = ccl.make_objects(ccl.parse(ccl_text))
+let ccl_obj = ccl.build_hierarchy(ccl.parse(ccl_text))
 
 // Core CCL (strings only) - unchanged
 let login = ccl.get_value(ccl_obj, "login")        // Ok("chshersh")

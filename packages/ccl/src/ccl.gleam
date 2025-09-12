@@ -475,7 +475,7 @@ fn lstrip_while_char(s: String, char: String) -> String {
 
 /// Filter out entries with specific keys (useful for removing comments)
 /// Takes a list of entries and excludes any with keys matching the exclude list
-pub fn filter_keys(
+pub fn filter(
   entries: List(Entry),
   exclude_keys: List(String),
 ) -> List(Entry) {

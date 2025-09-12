@@ -10,7 +10,7 @@ Decorative section headers introduce a **logical grouping layer** that sits betw
 
 ```
 Level 1: Entry Parsing     → Entry[]                    ✅ IMPLEMENTED
-Level 2: Entry Processing  → Entry[] (filtered/composed) ✅ IMPLEMENTED  
+Level 2: Entry Processing  → Entry[] (filtered/combined) ✅ IMPLEMENTED  
 Level 2.5: Section Grouping → SectionGroup[] (organized) ❌ NOT IMPLEMENTED
 Level 3: Object Construction → CCL (nested objects)      ✅ IMPLEMENTED
 Level 4: Typed Parsing     → typed values               ✅ IMPLEMENTED
@@ -325,12 +325,12 @@ let sections = ccl.group_by_sections(entries)
 // Extract and process database configuration (user-defined helper)
 let database_ccl = sections
   |> find_section_by_category("Database")
-  |> ccl_core.make_objects()
+  |> ccl_core.build_hierarchy()
   
 // Extract and process server configuration  
 let server_ccl = sections
   |> find_section_by_category("Server")
-  |> ccl_core.make_objects()
+  |> ccl_core.build_hierarchy()
 
 // Work with both configurations
 use db_host <- result.try(ccl.get_value(database_ccl, "database.host"))
@@ -350,7 +350,7 @@ fn process_config_sections(content: String) -> Result(Dict(String, CCL), String)
     |> list.fold(dict.new(), fn(acc, section) {
       case section.header {
         Some(category) -> {
-          let section_ccl = ccl_core.make_objects(section.entries)
+          let section_ccl = ccl_core.build_hierarchy(section.entries)
           dict.insert(acc, category, section_ccl)
         }
         None -> acc  // Skip headerless sections
@@ -374,7 +374,7 @@ content
 |> ccl_core.parse()
 |> result.unwrap([])
 |> strip_section_headers()              // User-defined helper
-|> ccl_core.make_objects()              // Convert to CCL
+|> ccl_core.build_hierarchy()              // Convert to CCL
 
 // Option 2: Section-aware processing
 content
@@ -389,7 +389,7 @@ content
 |> result.unwrap([])
 |> ccl.group_by_sections()
 |> find_section_by_category("Production")     // User-defined helper
-|> ccl_core.make_objects()                    // Process normally
+|> ccl_core.build_hierarchy()                    // Process normally
 ```
 
 ## Implementation Strategy
@@ -464,8 +464,8 @@ content
 |> ccl_core.parse()
 |> result.unwrap([])
 |> strip_section_headers()     // User-defined helper
-|> ccl.filter_keys(["/", "#"]) // Remove comments (existing API)
-|> ccl_core.make_objects()     // Convert to CCL structure
+|> ccl.filter(["/", "#"]) // Remove comments (existing API)
+|> ccl_core.build_hierarchy()     // Convert to CCL structure
 ```
 
 ### With Nested Sections
@@ -622,7 +622,7 @@ debug =
 - Mixed spacing patterns within same file
 
 ### Integration Tests
-- Works with existing `filter_keys()` for comment removal
+- Works with existing `filter()` for comment removal
 - Integrates with pretty printer output
 - Compatible with all 4 CCL levels
 - Hybrid processing workflows

@@ -57,7 +57,7 @@ pub fn analyze_memory_usage() {
         let memory_after_parse = get_process_memory()
 
         // Construct objects
-        let ccl_object = ccl_core.make_objects(entries)
+        let ccl_object = ccl_core.build_hierarchy(entries)
         let memory_after_objects = get_process_memory()
 
         // Calculate memory usage
@@ -86,7 +86,7 @@ pub fn analyze_memory_usage() {
       }
       Error(_) -> {
         io.println("❌ " <> name <> ": Failed to parse")
-        ccl_core.make_objects([])
+        ccl_core.build_hierarchy([])
       }
     }
   })
@@ -124,7 +124,7 @@ pub fn analyze_parsing_memory() {
       )
 
       // Step 2: Construct objects
-      let ccl_object = ccl_core.make_objects(entries)
+      let ccl_object = ccl_core.build_hierarchy(entries)
       let object_memory = get_process_memory()
 
       io.println(
@@ -155,7 +155,7 @@ pub fn analyze_parsing_memory() {
     }
     Error(_) -> {
       io.println("   ❌ Parsing failed")
-      ccl_core.make_objects([])
+      ccl_core.build_hierarchy([])
     }
   }
 
@@ -183,7 +183,7 @@ pub fn analyze_construction_memory() {
         let entry_count = list.length(entries)
 
         // Measure object construction memory
-        let ccl_object = ccl_core.make_objects(entries)
+        let ccl_object = ccl_core.build_hierarchy(entries)
         let final_memory = get_process_memory()
 
         let construction_memory = final_memory - parse_memory
@@ -205,7 +205,7 @@ pub fn analyze_construction_memory() {
       }
       Error(_) -> {
         io.println("❌ " <> name <> ": Construction failed")
-        ccl_core.make_objects([])
+        ccl_core.build_hierarchy([])
       }
     }
   })

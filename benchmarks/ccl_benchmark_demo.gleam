@@ -82,7 +82,7 @@ fn test_parsing_performance(name: String, config_text: String) {
       )
 
       // Test object construction
-      let ccl_object = ccl_core.make_objects(entries)
+      let ccl_object = ccl_core.build_hierarchy(entries)
       io.println("   → Object construction: ✅ completed")
 
       // Test value access
@@ -133,7 +133,7 @@ fn test_construction_step(name: String, config_text: String) {
   case ccl_core.parse(config_text) {
     Ok(entries) -> {
       let count = list.length(entries)
-      let _ccl_object = ccl_core.make_objects(entries)
+      let _ccl_object = ccl_core.build_hierarchy(entries)
       io.println(
         "   ✅ "
         <> name
@@ -173,7 +173,7 @@ fn generate_nested_entries(count: Int, depth: Int) -> String {
 fn test_feature_overhead(config_text: String) {
   case ccl_core.parse(config_text) {
     Ok(entries) -> {
-      let config = ccl_core.make_objects(entries)
+      let config = ccl_core.build_hierarchy(entries)
 
       // Test string-only access (baseline)
       let _ = ccl_core.get_value(config, "server.port")

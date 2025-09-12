@@ -76,8 +76,8 @@ pub fn run_data_access_comparison() {
   let ccl_config =
     generate_ccl_config()
     |> ccl_core.parse()
-    |> result.map(ccl_core.make_objects)
-    |> result.unwrap(ccl_core.make_objects([]))
+    |> result.map(ccl_core.build_hierarchy)
+    |> result.unwrap(ccl_core.build_hierarchy([]))
 
   let json_data = generate_equivalent_json()
 

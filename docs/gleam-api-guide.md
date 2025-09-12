@@ -33,7 +33,7 @@ server.debug = true
 case ccl.parse(config_text) {
   Ok(entries) -> {
     // Successfully parsed into Entry list
-    let objects = ccl.make_objects(entries)
+    let objects = ccl.build_hierarchy(entries)
     // Now you can access nested values
   }
   Error(parse_error) -> {
@@ -109,26 +109,26 @@ let assert Ok(entries) = ccl.parse("key = value\nother = data")
 
 ```gleam
 // Remove comment entries (keys starting with "/")
-pub fn filter_comments(entries: List(Entry)) -> List(Entry)
+pub fn filter(entries: List(Entry)) -> List(Entry)
 
 // Compose two entry lists
-pub fn compose_entries(left: List(Entry), right: List(Entry)) -> List(Entry)
+pub fn combine(left: List(Entry), right: List(Entry)) -> List(Entry)
 
 // Example usage
-let filtered = ccl.filter_comments(entries)
+let filtered = ccl.filter(entries)
 ```
 
 ### Level 3: Object Construction
 
 ```gleam
 // Build nested objects from flat entries
-pub fn make_objects(entries: List(Entry)) -> CCL
+pub fn build_hierarchy(entries: List(Entry)) -> CCL
 
 // Access any value by path
 pub fn get(ccl: CCL, path: String) -> Result(CclValue, String)
 
 // Example usage
-let config = ccl.make_objects(entries)
+let config = ccl.build_hierarchy(entries)
 let host = ccl.get(config, "database.host")
 ```
 
@@ -155,7 +155,7 @@ pub fn load_config_with_defaults() -> AppConfig {
     Ok(content) -> {
       case ccl.parse(content) {
         Ok(entries) -> {
-          let config = ccl.make_objects(entries)
+          let config = ccl.build_hierarchy(entries)
           build_app_config_with_defaults(config)
         }
         Error(_) -> default_app_config()
@@ -191,7 +191,7 @@ pub fn load_environment_config() -> Result(ccl.CCL, String) {
   use content <- result.try(simplifile.read(config_file))
   use entries <- result.try(ccl.parse(content))
   
-  Ok(ccl.make_objects(entries))
+  Ok(ccl.build_hierarchy(entries))
 }
 
 // Usage
@@ -222,7 +222,7 @@ pub fn validate_app_config(config_text: String) -> Result(AppConfig, List(Config
   case ccl.parse(config_text) {
     Error(err) -> Error([ParseError(err.reason)])
     Ok(entries) -> {
-      let config = ccl.make_objects(entries)
+      let config = ccl.build_hierarchy(entries)
       let errors = []
       
       // Check required fields
@@ -281,7 +281,7 @@ let backup_hosts = get_string_list(config, "database.backup_host")
 ### Configuration Composition
 
 ```gleam
-pub fn load_composed_config(
+pub fn load_combined_config(
   base_file: String,
   override_file: String
 ) -> Result(ccl.CCL, String) {
@@ -292,14 +292,14 @@ pub fn load_composed_config(
   use override_entries <- result.try(ccl.parse(override_content))
   
   // Combine entries - later entries override earlier ones
-  let combined = ccl.compose_entries(base_entries, override_entries)
-  let filtered = ccl.filter_comments(combined)
+  let combined = ccl.combine(base_entries, override_entries)
+  let filtered = ccl.filter(combined)
   
-  Ok(ccl.make_objects(filtered))
+  Ok(ccl.build_hierarchy(filtered))
 }
 
 // Usage
-let config = case load_composed_config("base.ccl", "production.ccl") {
+let config = case load_combined_config("base.ccl", "production.ccl") {
   Ok(config) -> config
   Error(err) -> {
     io.println("Config error: " <> err)
@@ -323,7 +323,7 @@ pub fn test_database_config_parsing() {
   "
   
   let assert Ok(entries) = ccl.parse(config_text)
-  let config = ccl.make_objects(entries)
+  let config = ccl.build_hierarchy(entries)
   
   ccl.get_string(config, "database.host")
   |> should.equal(Ok("testdb"))
@@ -339,7 +339,7 @@ pub fn test_missing_configuration() {
   let config_text = "database.host = localhost"
   
   let assert Ok(entries) = ccl.parse(config_text)
-  let config = ccl.make_objects(entries)
+  let config = ccl.build_hierarchy(entries)
   
   ccl.get_string(config, "database.port")
   |> should.be_error()
@@ -360,15 +360,15 @@ pub fn test_parse_roundtrip_property() {
 }
 
 pub fn test_object_construction_idempotent() {
-  // Property: make_objects should be idempotent for already-constructed data
+  // Property: build_hierarchy should be idempotent for already-constructed data
   let config_text = "key = value\nnested.key = nested_value"
   
   let assert Ok(entries) = ccl.parse(config_text)
-  let objects1 = ccl.make_objects(entries)
+  let objects1 = ccl.build_hierarchy(entries)
   
   // Converting back to entries and reconstructing should be identical
   let reconstructed_entries = ccl.to_entries(objects1)
-  let objects2 = ccl.make_objects(reconstructed_entries)
+  let objects2 = ccl.build_hierarchy(reconstructed_entries)
   
   objects1 |> should.equal(objects2)
 }
@@ -393,7 +393,7 @@ pub fn lazy_get(lazy_config: LazyConfig, path: String) -> Result(ccl.CclValue, S
     Some(ccl_obj) -> ccl.get(ccl_obj, path)
     None -> {
       // Construct on first access
-      let ccl_obj = ccl.make_objects(lazy_config.entries)
+      let ccl_obj = ccl.build_hierarchy(lazy_config.entries)
       ccl.get(ccl_obj, path)
     }
   }
@@ -442,7 +442,7 @@ pub type WebConfig {
 pub fn load_web_config() -> Result(WebConfig, String) {
   use content <- result.try(simplifile.read("web.ccl"))
   use entries <- result.try(ccl.parse(content))
-  let config = ccl.make_objects(ccl.filter_comments(entries))
+  let config = ccl.build_hierarchy(ccl.filter(entries))
   
   use server_port <- result.try(ccl.get_int(config, "server.port"))
   use database_url <- result.try(ccl.get_string(config, "database.url"))

@@ -19,7 +19,7 @@ import ccl_test_loader
 
 // Convert CCL to JSON for testing
 let entries = [ccl_core.Entry("name", "Alice"), ccl_core.Entry("age", "30")]
-let ccl = ccl_core.make_objects(entries)
+let ccl = ccl_core.build_hierarchy(entries)
 let json_string = ccl_test_loader.ccl_to_json_string(ccl)
 // Result: "{\"name\":\"Alice\",\"age\":\"30\"}"
 ```
@@ -45,7 +45,7 @@ import ccl_test_loader
 
 pub fn test_ccl_to_json() {
   let entries = [ccl_core.Entry("database", "postgres"), ccl_core.Entry("port", "5432")]
-  let ccl = ccl_core.make_objects(entries)
+  let ccl = ccl_core.build_hierarchy(entries)
   let json_string = ccl_test_loader.ccl_to_json_string(ccl)
   // Use json_string for cross-language testing
 }

@@ -97,8 +97,8 @@ pub fn run_construction_benchmarks() {
   ]
 
   let construction_functions = [
-    bench.Function("make_objects", fn(entries) {
-      ccl_core.make_objects(entries)
+    bench.Function("build_hierarchy", fn(entries) {
+      ccl_core.build_hierarchy(entries)
     }),
   ]
 
@@ -116,8 +116,8 @@ pub fn run_typed_parsing_benchmarks() {
   // Pre-construct the CCL object for access pattern benchmarks
   let typed_config_text = generate_typed_test_config()
   let ccl_config = case ccl_core.parse(typed_config_text) {
-    Ok(entries) -> ccl_core.make_objects(entries)
-    Error(_) -> ccl_core.make_objects([])
+    Ok(entries) -> ccl_core.build_hierarchy(entries)
+    Error(_) -> ccl_core.build_hierarchy([])
   }
 
   let typed_configs = [

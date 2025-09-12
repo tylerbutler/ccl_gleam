@@ -18,7 +18,7 @@ The CCL implementation follows a two-phase approach based on the OCaml reference
 pub fn parse(text: String) -> Result(List(Entry), ParseError)
 
 // Object construction from flat entries using fixpoint algorithm
-pub fn make_objects(entries: List(Entry)) -> CCL
+pub fn build_hierarchy(entries: List(Entry)) -> CCL
 
 // Helper functions for working with CCL objects
 pub fn pretty_print_ccl(ccl: CCL) -> String
@@ -50,7 +50,7 @@ pub type CCL {
 ### Private Functions
 
 ```gleam
-// Used internally by make_objects during fixpoint algorithm
+// Used internally by build_hierarchy during fixpoint algorithm
 fn parse_value(text: String) -> Result(List(Entry), ParseError)
 ```
 
@@ -67,9 +67,9 @@ Even though both functions have the same signature, they serve different purpose
 | **Indentation handling** | Uses first key-value pair to determine base indentation | Finds first non-empty line to determine base indentation |
 | **Error handling** | Requires at least one key-value pair with `=` | Can handle empty input (returns empty list) |
 
-## `make_objects` Function - Detailed Explanation
+## `build_hierarchy` Function - Detailed Explanation
 
-The `make_objects` function implements the core CCL fixpoint algorithm that converts flat key-value pairs into a recursive nested structure.
+The `build_hierarchy` function implements the core CCL fixpoint algorithm that converts flat key-value pairs into a recursive nested structure.
 
 ### Algorithm Steps
 
@@ -117,7 +117,7 @@ case ccl.parse(input) {
 ]
 ```
 
-#### Step 2: `make_objects` Processing
+#### Step 2: `build_hierarchy` Processing
 
 ##### 2.1 Group entries by key:
 ```gleam
@@ -196,9 +196,9 @@ CCL({
 })
 ```
 
-### Key Differences: `parse` vs `make_objects`
+### Key Differences: `parse` vs `build_hierarchy`
 
-| Aspect | `parse` | `make_objects` |
+| Aspect | `parse` | `build_hierarchy` |
 |--------|---------|----------------|
 | **Input** | Raw CCL text | List of Entry |
 | **Output** | Flat key-value pairs | Nested CCL structure |
@@ -271,7 +271,7 @@ CCL({
 ]
 ```
 
-**`make_objects` output (nested):**
+**`build_hierarchy` output (nested):**
 ```gleam
 CCL({
   "user": CCL({
@@ -300,7 +300,7 @@ The algorithm stops when `parse_value()` can't parse any more values:
 case ccl.parse(ccl_text) {
   Ok(flat_entries) -> {
     // 2. Build nested objects  
-    let nested_ccl = ccl.make_objects(flat_entries)
+    let nested_ccl = ccl.build_hierarchy(flat_entries)
     
     // 3. Use nested structure
     ccl.pretty_print_ccl(nested_ccl)
@@ -313,7 +313,7 @@ case ccl.parse(ccl_text) {
 
 ### Design Benefits
 
-1. **Clean separation**: Users only see what they need (`parse` and `make_objects`)
+1. **Clean separation**: Users only see what they need (`parse` and `build_hierarchy`)
 2. **Implementation flexibility**: Internal functions can change without breaking user code  
 3. **Clear intent**: `parse_value` being private makes it clear it's an implementation detail
 4. **Proper encapsulation**: The fixpoint algorithm details are hidden
@@ -505,7 +505,7 @@ CCL({
 // Simple user workflow:
 case ccl.parse(ccl_text) {
   Ok(entries) -> {
-    let nested = ccl.make_objects(entries)
+    let nested = ccl.build_hierarchy(entries)
     ccl.pretty_print_ccl(nested)
   }
   Error(err) -> // handle error

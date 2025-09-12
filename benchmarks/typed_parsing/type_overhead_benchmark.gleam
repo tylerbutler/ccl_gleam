@@ -31,7 +31,7 @@ fn run_type_parsing_overhead_benchmark() {
 
   // Parse config once and reuse for access benchmarks
   let parsed_config = case ccl_core.parse(mixed_type_config) {
-    Ok(entries) -> ccl_core.make_objects(entries)
+    Ok(entries) -> ccl_core.build_hierarchy(entries)
     Error(_) -> ccl_core.empty_ccl()
   }
 
@@ -98,7 +98,7 @@ fn run_feature_comparison_benchmark() {
   let test_config = generate_comprehensive_config()
 
   let parsed_config = case ccl_core.parse(test_config) {
-    Ok(entries) -> ccl_core.make_objects(entries)
+    Ok(entries) -> ccl_core.build_hierarchy(entries)
     Error(_) -> ccl_core.empty_ccl()
   }
 

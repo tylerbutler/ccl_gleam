@@ -7,9 +7,9 @@ import gleam/option.{type Option, None, Some}
 import gleam/result
 import gleam/string
 import test_suite_types.{
-  type TestCase, ComposeValidation, CountedTypedValidation,
+  type TestCase, CombineValidation, CountedTypedValidation,
   CountedValidation, FilterValidation, GetIntValidation, GetStringValidation,
-  GroupBySectionsValidation, MakeObjectsValidation, ObjectValidation, ParseErrorValidation, ParseValidation,
+  GroupBySectionsValidation, BuildHierarchyValidation, ObjectValidation, ParseErrorValidation, ParseValidation,
   PrettyPrintValidation, RoundTripValidation,
 }
 
@@ -20,7 +20,7 @@ pub type ValidationTestResult {
     count: Int,
     passed: Bool,
   )
-  MakeObjectsResult(
+  BuildHierarchyResult(
     actual: ccl_types.CCL,
     expected: ccl_types.CCL,
     count: Int,
@@ -38,7 +38,7 @@ pub type ValidationTestResult {
     count: Int,
     passed: Bool,
   )
-  ComposeResult(
+  CombineResult(
     actual: List(ccl_types.Entry),
     expected: List(ccl_types.Entry),
     passed: Bool,
@@ -81,16 +81,16 @@ pub fn run_test_case(
           }
         }
 
-        MakeObjectsValidation(ObjectValidation(count, expected)) -> {
+        BuildHierarchyValidation(ObjectValidation(count, expected)) -> {
           case parse_ccl_input(test_case.input) {
             Ok(entries) -> {
               case make_ccl_objects(entries) {
                 Ok(actual) -> {
                   let passed = ccl_equal(actual, expected)
-                  MakeObjectsResult(actual, expected, count, passed)
+                  BuildHierarchyResult(actual, expected, count, passed)
                 }
                 Error(_) ->
-                  MakeObjectsResult(
+                  BuildHierarchyResult(
                     ccl_types.CCL(dict.new()),
                     expected,
                     count,
@@ -99,7 +99,7 @@ pub fn run_test_case(
               }
             }
             Error(_) ->
-              MakeObjectsResult(
+              BuildHierarchyResult(
                 ccl_types.CCL(dict.new()),
                 expected,
                 count,
@@ -207,11 +207,11 @@ pub fn run_test_case(
           }
         }
 
-        ComposeValidation(compose_spec) -> {
+        CombineValidation(combine_spec) -> {
           // Use the ComposeSpec left/right entries instead of parsing test inputs
-          let composed = compose_entries(compose_spec.left, compose_spec.right)
-          let passed = entries_equal(composed, compose_spec.expected)
-          ComposeResult(composed, compose_spec.expected, passed)
+          let combined = combine_entries(combine_spec.left, combine_spec.right)
+          let passed = entries_equal(combined, combine_spec.expected)
+          CombineResult(combined, combine_spec.expected, passed)
         }
 
         GroupBySectionsValidation(section_spec) -> {
@@ -338,8 +338,8 @@ fn parse_ccl_input(input: String) -> Result(List(ccl_types.Entry), String) {
   }
 }
 
-// Helper function to compose entries (right overrides left on duplicate keys)
-fn compose_entries(
+// Helper function to combine entries (right overrides left on duplicate keys)
+fn combine_entries(
   left: List(ccl_types.Entry),
   right: List(ccl_types.Entry),
 ) -> List(ccl_types.Entry) {
@@ -376,7 +376,7 @@ fn make_ccl_objects(
   entries: List(ccl_types.Entry),
 ) -> Result(ccl_types.CCL, String) {
   // Call the actual CCL core object constructor
-  Ok(ccl_core.make_objects(entries))
+  Ok(ccl_core.build_hierarchy(entries))
 }
 
 fn run_full_pipeline(input: String) -> Result(ccl_types.CCL, String) {
@@ -429,7 +429,7 @@ fn get_int_from_ccl(
 
 fn filter_ccl_entries(entries: List(ccl_types.Entry)) -> List(ccl_types.Entry) {
   // Call the actual CCL filter function to remove comment entries
-  ccl.filter_keys(entries, ["/", "#", "//"])
+  ccl.filter(entries, ["/", "#", "//"])
 }
 
 fn pretty_print_entries(entries: List(ccl_types.Entry)) -> String {
@@ -506,11 +506,11 @@ fn ccl_equal(a: ccl_types.CCL, b: ccl_types.CCL) -> Bool {
 pub fn is_validation_result_passed(result: ValidationTestResult) -> Bool {
   case result {
     ParseResult(_, _, _, passed) -> passed
-    MakeObjectsResult(_, _, _, passed) -> passed
+    BuildHierarchyResult(_, _, _, passed) -> passed
     TypedAccessResult(_, _, total_count, passed_count) ->
       passed_count == total_count
     FilterResult(_, _, _, passed) -> passed
-    ComposeResult(_, _, passed) -> passed
+    CombineResult(_, _, passed) -> passed
     GroupBySectionsResult(_, _, _, passed) -> passed
     PrettyPrintResult(_, _, passed) -> passed
     RoundTripResult(passed, _) -> passed
@@ -521,10 +521,10 @@ pub fn is_validation_result_passed(result: ValidationTestResult) -> Bool {
 pub fn get_validation_result_name(result: ValidationTestResult) -> String {
   case result {
     ParseResult(_, _, _, _) -> "parse"
-    MakeObjectsResult(_, _, _, _) -> "make_objects"
+    BuildHierarchyResult(_, _, _, _) -> "build_hierarchy"
     TypedAccessResult(function, _, _, _) -> function
     FilterResult(_, _, _, _) -> "filter"
-    ComposeResult(_, _, _) -> "compose"
+    CombineResult(_, _, _) -> "combine"
     GroupBySectionsResult(_, _, _, _) -> "group_by_sections"
     PrettyPrintResult(_, _, _) -> "pretty_print"
     RoundTripResult(_, _) -> "round_trip"

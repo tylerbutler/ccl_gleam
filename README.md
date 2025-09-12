@@ -25,7 +25,7 @@ server.debug = true
 
 case ccl.parse(config) {
   Ok(entries) -> {
-    let objects = ccl.make_objects(entries)
+    let objects = ccl.build_hierarchy(entries)
     
     // Type-safe access
     let host = ccl.get_string(objects, "database.host") // Ok("localhost")
@@ -73,7 +73,7 @@ server =
 
 case ccl.parse(config) {
   Ok(entries) -> {
-    let objects = ccl.make_objects(entries)
+    let objects = ccl.build_hierarchy(entries)
     // Access nested values
     let host = ccl.get(objects, "database.host")   // Ok(CclString("localhost"))
     let ports = ccl.get(objects, "server.ports")   // Ok(CclList(["8000", "8001"]))
@@ -88,7 +88,7 @@ case ccl.parse(config) {
 import ccl
 
 // Get typed values with automatic parsing
-let config_obj = ccl.parse(config_text) |> result.map(ccl.make_objects)
+let config_obj = ccl.parse(config_text) |> result.map(ccl.build_hierarchy)
 
 // Integer parsing
 case ccl.get_int(config_obj, "server.port") {

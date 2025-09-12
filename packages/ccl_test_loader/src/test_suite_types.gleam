@@ -74,12 +74,12 @@ pub type ValidationSpec {
 
   // Level 2: Entry processing  
   FilterValidation(CountedValidation)
-  ComposeValidation(ComposeSpec)
+  CombineValidation(CombineSpec)
   ExpandDottedValidation(CountedValidation)
   GroupBySectionsValidation(SectionGroupSpec)
 
   // Level 3: Object construction
-  MakeObjectsValidation(ObjectValidation)
+  BuildHierarchyValidation(ObjectValidation)
 
   // Level 4: Typed access
   GetStringValidation(CountedTypedValidation)
@@ -93,8 +93,8 @@ pub type ValidationSpec {
   RoundTripValidation(RoundTripSpec)
 }
 
-pub type ComposeSpec {
-  ComposeSpec(
+pub type CombineSpec {
+  CombineSpec(
     left: List(ccl_types.Entry),
     right: List(ccl_types.Entry),
     expected: List(ccl_types.Entry),
@@ -332,9 +332,9 @@ fn create_validation_spec(
       decode.run(dynamic_value, optimized_counted_validation_decoder())
       |> result.map(FilterValidation)
     }
-    "compose" -> {
-      decode.run(dynamic_value, optimized_compose_spec_decoder())
-      |> result.map(ComposeValidation)
+    "combine" -> {
+      decode.run(dynamic_value, optimized_combine_spec_decoder())
+      |> result.map(CombineValidation)
     }
     "expand_dotted" -> {
       decode.run(dynamic_value, optimized_counted_validation_decoder())
@@ -344,11 +344,11 @@ fn create_validation_spec(
       decode.run(dynamic_value, optimized_section_group_spec_decoder())
       |> result.map(GroupBySectionsValidation)
     }
-    "make_objects" -> {
+    "build_hierarchy" -> {
       let object_decoder = {
         use count <- decode.field("count", decode.int)
         use expected <- decode.field("expected", json_to_ccl_decoder())
-        decode.success(MakeObjectsValidation(
+        decode.success(BuildHierarchyValidation(
           ObjectValidation(count: count, expected: expected)
         ))
       }
@@ -420,11 +420,11 @@ fn optimized_counted_typed_validation_decoder() -> decode.Decoder(CountedTypedVa
   decode.success(CountedTypedValidation(count: count, cases: cases))
 }
 
-fn optimized_compose_spec_decoder() -> decode.Decoder(ComposeSpec) {
+fn optimized_combine_spec_decoder() -> decode.Decoder(CombineSpec) {
   use left <- decode.field("left", decode.list(entry_decoder()))
   use right <- decode.field("right", decode.list(entry_decoder()))
   use expected <- decode.field("expected", decode.list(entry_decoder()))
-  decode.success(ComposeSpec(left: left, right: right, expected: expected))
+  decode.success(CombineSpec(left: left, right: right, expected: expected))
 }
 
 fn optimized_round_trip_spec_decoder() -> decode.Decoder(RoundTripSpec) {

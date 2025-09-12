@@ -215,7 +215,7 @@ fn test_object_construction(
   entries: List(Entry),
 ) -> TestResult {
   // Import ccl_core functions for object construction
-  let ccl = ccl_core.make_objects(entries)
+  let ccl = ccl_core.build_hierarchy(entries)
 
   // Test that we can access dotted keys as nested structures
   let dotted_keys =

@@ -19,7 +19,7 @@ The goal is to transform the current monolithic CCL Gleam implementation into a 
 **Includes**:
 - Core data types (`Entry`, `ParseError`, `CCL`)
 - Basic parsing function (`parse()`)
-- Fixpoint algorithm (`make_objects()`)
+- Fixpoint algorithm (`build_hierarchy()`)
 - Raw string value accessors (`get_value()`, `get_values()`, `get_nested()`)
 - Basic existence checks (`has_key()`)
 
@@ -40,7 +40,7 @@ pub type CCL {
 
 // Essential functions
 pub fn parse(text: String) -> Result(List(Entry), ParseError)
-pub fn make_objects(entries: List(Entry)) -> CCL
+pub fn build_hierarchy(entries: List(Entry)) -> CCL
 pub fn get_value(ccl: CCL, path: String) -> Result(String, String)
 pub fn get_values(ccl: CCL, path: String) -> List(String)
 pub fn get_nested(ccl: CCL, path: String) -> Result(CCL, String)
@@ -78,7 +78,7 @@ gleam_stdlib = ">= 0.44.0 and < 2.0.0"
 // Re-export everything from ccl_core
 pub use ccl_core.{
   type Entry, type ParseError, type CCL,
-  parse, make_objects, get_value, get_values, 
+  parse, build_hierarchy, get_value, get_values, 
   get_nested, has_key, get_keys, empty_ccl
 }
 
@@ -166,7 +166,7 @@ ccl_core = "1.0.0"
 2. **Extract core functionality** from current `src/ccl.gleam`:
    - Core types: `Entry`, `ParseError`, `CCL`, `ValueEntry`
    - Parsing: `parse()` function and all internal parsing helpers
-   - Object construction: `make_objects()` and fixpoint algorithm
+   - Object construction: `build_hierarchy()` and fixpoint algorithm
    - Basic accessors: `get_value()`, `get_values()`, `get_nested()`, `has_key()`, `get_keys()`
    - Utility functions: `empty_ccl()`, CCL manipulation helpers
 

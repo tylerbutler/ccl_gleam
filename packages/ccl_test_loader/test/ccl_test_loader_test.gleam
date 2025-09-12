@@ -13,7 +13,7 @@ pub fn main() {
 
 pub fn basic_test_loader_test() {
   let entries = [Entry("key", "value")]
-  let ccl = ccl_core.make_objects(entries)
+  let ccl = ccl_core.build_hierarchy(entries)
 
   ccl_core.get_value(ccl, "key") |> should.be_ok() |> should.equal("value")
 }
@@ -73,8 +73,8 @@ pub fn json_basic_capability_test() {
 }
 
 // Import validation tests
-pub fn test_compose_validation_simple() {
-  validation_test.test_compose_validation_simple()
+pub fn test_combine_validation_simple() {
+  validation_test.test_combine_validation_simple()
 }
 
 pub fn test_round_trip_validation_basic() {

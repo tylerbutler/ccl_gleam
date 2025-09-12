@@ -15,7 +15,7 @@ This plan proposes adding a high-level decode API for CCL that provides type-saf
 // Manual string parsing with error handling
 case ccl_core.parse(ccl_text) {
   Ok(entries) -> {
-    let ccl_obj = ccl_core.make_objects(entries)
+    let ccl_obj = ccl_core.build_hierarchy(entries)
     case ccl_core.get_value(ccl_obj, "database.host") {
       Ok(host_str) -> 
         case ccl_core.get_value(ccl_obj, "database.port") {
