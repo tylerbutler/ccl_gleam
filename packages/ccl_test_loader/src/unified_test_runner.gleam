@@ -7,10 +7,11 @@ import gleam/option.{type Option, None, Some}
 import gleam/result
 import gleam/string
 import test_suite_types.{
-  type TestCase, CombineValidation, CountedTypedValidation,
-  CountedValidation, FilterValidation, GetIntValidation, GetStringValidation,
-  GroupBySectionsValidation, BuildHierarchyValidation, ObjectValidation, ParseErrorValidation, ParseValidation,
-  PrettyPrintValidation, RoundTripValidation,
+  type TestCase, BuildHierarchyValidation, CombineValidation,
+  CountedTypedValidation, CountedValidation, FilterValidation, GetIntValidation,
+  GetStringValidation, GroupBySectionsValidation, ObjectValidation,
+  ParseErrorValidation, ParseValidation, PrettyPrintValidation,
+  RoundTripValidation,
 }
 
 pub type ValidationTestResult {
@@ -63,9 +64,7 @@ pub type TypedTestCaseResult {
   )
 }
 
-pub fn run_test_case(
-  test_case: TestCase,
-) -> List(ValidationTestResult) {
+pub fn run_test_case(test_case: TestCase) -> List(ValidationTestResult) {
   dict.fold(
     test_case.validations,
     [],
@@ -219,12 +218,23 @@ pub fn run_test_case(
             Ok(entries) -> {
               // Use ccl.group_by_sections to group the entries
               let actual_sections = group_by_sections_entries(entries)
-              let passed = 
+              let passed =
                 sections_equal(actual_sections, section_spec.expected_sections)
                 && list.length(actual_sections) == section_spec.count
-              GroupBySectionsResult(actual_sections, section_spec.expected_sections, section_spec.count, passed)
+              GroupBySectionsResult(
+                actual_sections,
+                section_spec.expected_sections,
+                section_spec.count,
+                passed,
+              )
             }
-            Error(_) -> GroupBySectionsResult([], section_spec.expected_sections, section_spec.count, False)
+            Error(_) ->
+              GroupBySectionsResult(
+                [],
+                section_spec.expected_sections,
+                section_spec.count,
+                False,
+              )
           }
         }
 
@@ -247,7 +257,7 @@ pub fn run_test_case(
                 Ok(entries_1) -> {
                   // Pretty print the parsed entries
                   let pretty_printed = pretty_print_entries(entries_1)
-                  
+
                   // Parse the pretty-printed result
                   case parse_ccl_input(pretty_printed) {
                     Ok(entries_2) -> {
@@ -255,16 +265,32 @@ pub fn run_test_case(
                       let passed = entries_1 == entries_2
                       case passed {
                         True -> RoundTripResult(True, None)
-                        False -> RoundTripResult(False, Some("Round-trip failed: parsed results differ"))
+                        False ->
+                          RoundTripResult(
+                            False,
+                            Some("Round-trip failed: parsed results differ"),
+                          )
                       }
                     }
-                    Error(err) -> RoundTripResult(False, Some("Failed to parse pretty-printed result: " <> err))
+                    Error(err) ->
+                      RoundTripResult(
+                        False,
+                        Some("Failed to parse pretty-printed result: " <> err),
+                      )
                   }
                 }
-                Error(err) -> RoundTripResult(False, Some("Failed to parse input: " <> err))
+                Error(err) ->
+                  RoundTripResult(False, Some("Failed to parse input: " <> err))
               }
             }
-            _ -> RoundTripResult(False, Some("Unsupported round-trip property: " <> round_trip_spec.property))
+            _ ->
+              RoundTripResult(
+                False,
+                Some(
+                  "Unsupported round-trip property: "
+                  <> round_trip_spec.property,
+                ),
+              )
           }
         }
 
@@ -274,8 +300,10 @@ pub fn run_test_case(
             Ok(_) -> {
               // Parse succeeded but error was expected
               case error_spec.error {
-                True -> ErrorResult(True, None, False)  // Expected error but got success
-                False -> ErrorResult(False, None, True)  // Expected success and got success
+                True -> ErrorResult(True, None, False)
+                // Expected error but got success
+                False -> ErrorResult(False, None, True)
+                // Expected success and got success
               }
             }
             Error(parse_error) -> {
@@ -289,7 +317,11 @@ pub fn run_test_case(
                       let error_str = string.inspect(parse_error)
                       let type_match = string.contains(error_str, expected_type)
                       let msg_match = string.contains(error_str, expected_msg)
-                      ErrorResult(True, Some(error_str), type_match && msg_match)
+                      ErrorResult(
+                        True,
+                        Some(error_str),
+                        type_match && msg_match,
+                      )
                     }
                     Some(expected_type), None -> {
                       // Only type specified - check type
@@ -309,7 +341,9 @@ pub fn run_test_case(
                     }
                   }
                 }
-                False -> ErrorResult(False, Some(string.inspect(parse_error)), False)  // Error occurred but not expected
+                False ->
+                  ErrorResult(False, Some(string.inspect(parse_error)), False)
+                // Error occurred but not expected
               }
             }
           }
@@ -344,25 +378,25 @@ fn combine_entries(
   right: List(ccl_types.Entry),
 ) -> List(ccl_types.Entry) {
   // Create a dict from left entries
-  let left_dict = 
+  let left_dict =
     left
     |> list.map(fn(entry) { #(entry.key, entry.value) })
     |> dict.from_list()
-  
+
   // Add right entries, overriding any duplicates
-  let right_dict = 
+  let right_dict =
     right
     |> list.map(fn(entry) { #(entry.key, entry.value) })
     |> dict.from_list()
-  
+
   // Merge dicts (right overrides left)
   let merged_dict = dict.merge(left_dict, right_dict)
-  
+
   // Convert back to Entry list, maintaining order (left first, then new right entries)
   let left_keys = left |> list.map(fn(entry) { entry.key })
   let right_keys = right |> list.map(fn(entry) { entry.key })
   let all_keys = list.append(left_keys, right_keys) |> list.unique()
-  
+
   all_keys
   |> list.filter_map(fn(key) {
     case dict.get(merged_dict, key) {
@@ -437,26 +471,31 @@ fn pretty_print_entries(entries: List(ccl_types.Entry)) -> String {
   ccl.pretty_print_entries(entries)
 }
 
-fn group_by_sections_entries(entries: List(ccl_types.Entry)) -> List(test_suite_types.SectionGroup) {
+fn group_by_sections_entries(
+  entries: List(ccl_types.Entry),
+) -> List(test_suite_types.SectionGroup) {
   // Call the actual CCL section grouping function and convert to our type
   let ccl_sections = ccl.group_by_sections(entries)
   list.map(ccl_sections, fn(ccl_section) {
     // Convert from ccl.SectionGroup to test_suite_types.SectionGroup
     test_suite_types.SectionGroup(
       header: ccl_section.header,
-      entries: ccl_section.entries
+      entries: ccl_section.entries,
     )
   })
 }
 
-fn sections_equal(a: List(test_suite_types.SectionGroup), b: List(test_suite_types.SectionGroup)) -> Bool {
+fn sections_equal(
+  a: List(test_suite_types.SectionGroup),
+  b: List(test_suite_types.SectionGroup),
+) -> Bool {
   case list.length(a) == list.length(b) {
     False -> False
     True -> {
       list.all(list.zip(a, b), fn(pair) {
         case pair {
           #(section_a, section_b) -> {
-            section_a.header == section_b.header 
+            section_a.header == section_b.header
             && entries_equal(section_a.entries, section_b.entries)
           }
         }
@@ -488,11 +527,13 @@ fn ccl_equal(a: ccl_types.CCL, b: ccl_types.CCL) -> Bool {
           // Check that all keys exist in both and values are equal
           dict.fold(dict_a, True, fn(acc, key, value_a) {
             case acc {
-              False -> False  // Short circuit if already failed
+              False -> False
+              // Short circuit if already failed
               True -> {
                 case dict.get(dict_b, key) {
                   Ok(value_b) -> ccl_equal(value_a, value_b)
-                  Error(_) -> False  // Key missing in dict_b
+                  Error(_) -> False
+                  // Key missing in dict_b
                 }
               }
             }

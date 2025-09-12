@@ -182,19 +182,17 @@ pub type TestSuite {
 
 /// Load a test suite using the validation format - OPTIMIZED VERSION
 /// Uses optimized decoders for ~70% code reduction
-pub fn load_test_suite(
-  filename: String,
-) -> Result(TestSuite, String) {
+pub fn load_test_suite(filename: String) -> Result(TestSuite, String) {
   use content <- result.try(
     simplifile.read(filename)
-    |> result.map_error(fn(_) { "Could not read file: " <> filename })
+    |> result.map_error(fn(_) { "Could not read file: " <> filename }),
   )
 
   use suite <- result.try(
     json.parse(content, optimized_test_suite_decoder())
-    |> result.map_error(fn(err) { 
+    |> result.map_error(fn(err) {
       "JSON parsing failed for " <> filename <> ": " <> string.inspect(err)
-    })
+    }),
   )
 
   Ok(suite)
@@ -214,24 +212,24 @@ pub fn load_test_suite_safe(filename: String) -> TestSuite {
   }
 }
 
-
 /// Load pretty printer test file
 fn load_pretty_printer_test_file(path: String) -> List(PrettyPrintTestCase) {
   case simplifile.read(path) {
     Ok(content) -> {
       case json.parse(content, pretty_print_test_suite_decoder()) {
         Ok(test_cases) -> test_cases
-        Error(_) -> []  // Return empty list on parse error
+        Error(_) -> []
+        // Return empty list on parse error
       }
     }
-    Error(_) -> []  // Return empty list on file read error
+    Error(_) -> []
+    // Return empty list on file read error
   }
 }
 
 pub fn get_pretty_printer_tests(path: String) -> List(PrettyPrintTestCase) {
   load_pretty_printer_test_file(path)
 }
-
 
 // === OPTIMIZED DECODERS IMPLEMENTATION ===
 // The extensive manual decoder implementations (~220 lines) have been replaced
@@ -245,7 +243,6 @@ fn entry_decoder() -> decode.Decoder(ccl_types.Entry) {
   decode.success(ccl_types.Entry(key, value))
 }
 
-
 // Test metadata with structured tags
 pub type TestMetadata {
   TestMetadata(
@@ -256,7 +253,6 @@ pub type TestMetadata {
     conflicts: Option(List(String)),
   )
 }
-
 
 // Test case with validation specifications
 pub type TestCase {
@@ -272,11 +268,8 @@ pub type TestCase {
   )
 }
 
-
-
 // === LEGACY DECODER REMOVED ===
 // meta_decoder() has been replaced by optimized_test_metadata_decoder()
-
 
 // === LEGACY DECODERS REMOVED ===
 // Extensive manual decoder implementations (~150 lines) have been removed
@@ -299,15 +292,19 @@ fn pretty_print_test_case_decoder() -> decode.Decoder(PrettyPrintTestCase) {
 }
 
 // Decoder for pretty print test suite (list of test cases)
-fn pretty_print_test_suite_decoder() -> decode.Decoder(List(PrettyPrintTestCase)) {
-  use tests <- decode.field("tests", decode.list(pretty_print_test_case_decoder()))
+fn pretty_print_test_suite_decoder() -> decode.Decoder(
+  List(PrettyPrintTestCase),
+) {
+  use tests <- decode.field(
+    "tests",
+    decode.list(pretty_print_test_case_decoder()),
+  )
   decode.success(tests)
 }
 
 // === LEGACY DECODERS REMOVED ===
 // section_group_decoder(), section_group_spec_decoder(), and error_validation_decoder()
 // have been replaced by optimized versions with the optimized_ prefix
-
 
 // === VALIDATION DECODER MOVED TO OPTIMIZED VERSION ===
 // The 120-line validations_decoder() function has been moved to optimized_decoders.gleam
@@ -347,9 +344,12 @@ fn create_validation_spec(
       let object_decoder = {
         use count <- decode.field("count", decode.int)
         use expected <- decode.field("expected", json_to_ccl_decoder())
-        decode.success(BuildHierarchyValidation(
-          ObjectValidation(count: count, expected: expected)
-        ))
+        decode.success(
+          BuildHierarchyValidation(ObjectValidation(
+            count: count,
+            expected: expected,
+          )),
+        )
       }
       decode.run(dynamic_value, object_decoder)
     }
@@ -398,8 +398,16 @@ fn optimized_counted_validation_decoder() -> decode.Decoder(CountedValidation) {
 
 fn optimized_error_validation_decoder() -> decode.Decoder(ErrorValidation) {
   use error <- decode.field("error", decode.bool)
-  use error_type <- decode.optional_field("error_type", None, decode.optional(decode.string))
-  use error_message <- decode.optional_field("error_message", None, decode.optional(decode.string))
+  use error_type <- decode.optional_field(
+    "error_type",
+    None,
+    decode.optional(decode.string),
+  )
+  use error_message <- decode.optional_field(
+    "error_message",
+    None,
+    decode.optional(decode.string),
+  )
   decode.success(ErrorValidation(
     error: error,
     error_type: error_type,
@@ -413,9 +421,14 @@ fn optimized_typed_test_case_decoder() -> decode.Decoder(TypedTestCase) {
   decode.success(TypedTestCase(args: args, expected: expected))
 }
 
-fn optimized_counted_typed_validation_decoder() -> decode.Decoder(CountedTypedValidation) {
+fn optimized_counted_typed_validation_decoder() -> decode.Decoder(
+  CountedTypedValidation,
+) {
   use count <- decode.field("count", decode.int)
-  use cases <- decode.field("cases", decode.list(optimized_typed_test_case_decoder()))
+  use cases <- decode.field(
+    "cases",
+    decode.list(optimized_typed_test_case_decoder()),
+  )
   decode.success(CountedTypedValidation(count: count, cases: cases))
 }
 
@@ -432,29 +445,42 @@ fn optimized_round_trip_spec_decoder() -> decode.Decoder(RoundTripSpec) {
 }
 
 fn optimized_section_group_decoder() -> decode.Decoder(SectionGroup) {
-  use header <- decode.optional_field("header", None, decode.optional(decode.string))
+  use header <- decode.optional_field(
+    "header",
+    None,
+    decode.optional(decode.string),
+  )
   use entries <- decode.field("entries", decode.list(entry_decoder()))
   decode.success(SectionGroup(header: header, entries: entries))
 }
 
 fn optimized_section_group_spec_decoder() -> decode.Decoder(SectionGroupSpec) {
   use count <- decode.field("count", decode.int)
-  use expected_sections <- decode.field("expected_sections", decode.list(optimized_section_group_decoder()))
-  decode.success(SectionGroupSpec(count: count, expected_sections: expected_sections))
+  use expected_sections <- decode.field(
+    "expected_sections",
+    decode.list(optimized_section_group_decoder()),
+  )
+  decode.success(SectionGroupSpec(
+    count: count,
+    expected_sections: expected_sections,
+  ))
 }
 
 // Streamlined validations decoder
-fn optimized_validations_decoder() -> decode.Decoder(dict.Dict(String, ValidationSpec)) {
+fn optimized_validations_decoder() -> decode.Decoder(
+  dict.Dict(String, ValidationSpec),
+) {
   use raw_dict <- decode.then(decode.dict(decode.string, decode.dynamic))
-  
+
   let validation_pairs =
     dict.fold(raw_dict, [], fn(acc, key, dynamic_value) {
       case create_validation_spec(key, dynamic_value) {
         Ok(validation_spec) -> [#(key, validation_spec), ..acc]
-        Error(_) -> acc // Skip invalid validations
+        Error(_) -> acc
+        // Skip invalid validations
       }
     })
-  
+
   decode.success(dict.from_list(validation_pairs))
 }
 
@@ -462,10 +488,25 @@ fn optimized_validations_decoder() -> decode.Decoder(dict.Dict(String, Validatio
 fn optimized_test_case_decoder() -> decode.Decoder(TestCase) {
   use name <- decode.field("name", decode.string)
   use input <- decode.field("input", decode.string)
-  use input1 <- decode.optional_field("input1", None, decode.optional(decode.string))
-  use input2 <- decode.optional_field("input2", None, decode.optional(decode.string))
-  use input3 <- decode.optional_field("input3", None, decode.optional(decode.string))
-  use validations <- decode.field("validations", optimized_validations_decoder())
+  use input1 <- decode.optional_field(
+    "input1",
+    None,
+    decode.optional(decode.string),
+  )
+  use input2 <- decode.optional_field(
+    "input2",
+    None,
+    decode.optional(decode.string),
+  )
+  use input3 <- decode.optional_field(
+    "input3",
+    None,
+    decode.optional(decode.string),
+  )
+  use validations <- decode.field(
+    "validations",
+    optimized_validations_decoder(),
+  )
   use meta <- decode.field("meta", optimized_test_metadata_decoder())
 
   decode.success(TestCase(
@@ -485,7 +526,11 @@ fn optimized_test_metadata_decoder() -> decode.Decoder(TestMetadata) {
   use level <- decode.field("level", decode.int)
   use feature <- decode.optional_field("feature", "unknown", decode.string)
   use difficulty <- decode.optional_field("difficulty", "basic", decode.string)
-  use conflicts <- decode.optional_field("conflicts", None, decode.optional(decode.list(decode.string)))
+  use conflicts <- decode.optional_field(
+    "conflicts",
+    None,
+    decode.optional(decode.list(decode.string)),
+  )
 
   decode.success(TestMetadata(
     tags: tags,
@@ -500,7 +545,11 @@ fn optimized_test_metadata_decoder() -> decode.Decoder(TestMetadata) {
 fn optimized_test_suite_decoder() -> decode.Decoder(TestSuite) {
   use suite <- decode.field("suite", decode.string)
   use version <- decode.field("version", decode.string)
-  use description <- decode.optional_field("description", None, decode.optional(decode.string))
+  use description <- decode.optional_field(
+    "description",
+    None,
+    decode.optional(decode.string),
+  )
   use tests <- decode.field("tests", decode.list(optimized_test_case_decoder()))
 
   decode.success(TestSuite(
@@ -518,11 +567,14 @@ fn json_to_ccl_decoder() -> decode.Decoder(ccl_types.CCL) {
 }
 
 /// Convert a JSON dictionary to CCL structure recursively
-fn json_dict_to_ccl(json_dict: dict.Dict(String, dynamic.Dynamic)) -> ccl_types.CCL {
-  let ccl_dict = dict.fold(json_dict, dict.new(), fn(acc, key, value) {
-    let ccl_value = json_value_to_ccl(value)
-    dict.insert(acc, key, ccl_value)
-  })
+fn json_dict_to_ccl(
+  json_dict: dict.Dict(String, dynamic.Dynamic),
+) -> ccl_types.CCL {
+  let ccl_dict =
+    dict.fold(json_dict, dict.new(), fn(acc, key, value) {
+      let ccl_value = json_value_to_ccl(value)
+      dict.insert(acc, key, ccl_value)
+    })
   ccl_types.CCL(ccl_dict)
 }
 
@@ -539,25 +591,37 @@ fn json_value_to_ccl(json_value: dynamic.Dynamic) -> ccl_types.CCL {
       case decode.run(json_value, decode.list(decode.string)) {
         // If it's a string array, create a list structure
         Ok(strings) -> {
-          let string_ccls = list.map(strings, fn(str) {
-            ccl_types.CCL(dict.from_list([#(str, ccl_types.CCL(dict.new()))]))
-          })
-          let leaf_dict = dict.from_list([#("", list.fold(string_ccls, ccl_types.CCL(dict.new()), fn(acc, ccl) {
-            case acc, ccl {
-              ccl_types.CCL(acc_dict), ccl_types.CCL(ccl_dict) -> {
-                ccl_types.CCL(dict.fold(ccl_dict, acc_dict, fn(acc2, key, value) {
-                  dict.insert(acc2, key, value)
-                }))
-              }
-            }
-          }))])
+          let string_ccls =
+            list.map(strings, fn(str) {
+              ccl_types.CCL(dict.from_list([#(str, ccl_types.CCL(dict.new()))]))
+            })
+          let leaf_dict =
+            dict.from_list([
+              #(
+                "",
+                list.fold(string_ccls, ccl_types.CCL(dict.new()), fn(acc, ccl) {
+                  case acc, ccl {
+                    ccl_types.CCL(acc_dict), ccl_types.CCL(ccl_dict) -> {
+                      ccl_types.CCL(
+                        dict.fold(ccl_dict, acc_dict, fn(acc2, key, value) {
+                          dict.insert(acc2, key, value)
+                        }),
+                      )
+                    }
+                  }
+                }),
+              ),
+            ])
           ccl_types.CCL(leaf_dict)
         }
         Error(_) -> {
-          case decode.run(json_value, decode.dict(decode.string, decode.dynamic)) {
+          case
+            decode.run(json_value, decode.dict(decode.string, decode.dynamic))
+          {
             // If it's an object, recursively convert
             Ok(nested_dict) -> json_dict_to_ccl(nested_dict)
-            Error(_) -> ccl_types.CCL(dict.new()) // Fallback for unknown types
+            Error(_) -> ccl_types.CCL(dict.new())
+            // Fallback for unknown types
           }
         }
       }

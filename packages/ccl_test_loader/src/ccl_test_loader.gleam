@@ -109,7 +109,11 @@ fn entry_decoder() -> decode.Decoder(Entry) {
 fn test_meta_decoder() -> decode.Decoder(TestMeta) {
   use tags <- decode.field("tags", decode.list(decode.string))
   use level <- decode.field("level", decode.int)
-  use conflicts <- decode.optional_field("conflicts", None, decode.optional(decode.list(decode.string)))
+  use conflicts <- decode.optional_field(
+    "conflicts",
+    None,
+    decode.optional(decode.list(decode.string)),
+  )
   decode.success(TestMeta(tags, level, conflicts))
 }
 
@@ -131,20 +135,20 @@ fn test_meta_decoder() -> decode.Decoder(TestMeta) {
 pub fn filter_tests(tests: List(TestCase), filter: TestFilter) -> List(TestCase) {
   case filter {
     All -> tests
-    
+
     ByLevel(level) ->
       list.filter(tests, fn(test_case) { test_case.meta.level == level })
-      
+
     ByFunction(function_name) ->
       list.filter(tests, fn(test_case) {
         has_function_tag(test_case.meta.tags, function_name)
       })
-      
+
     ByFeature(feature_name) ->
       list.filter(tests, fn(test_case) {
         has_feature_tag(test_case.meta.tags, feature_name)
       })
-      
+
     ByVariant(variant_name) ->
       list.filter(tests, fn(test_case) {
         has_variant_tag(test_case.meta.tags, variant_name)
@@ -167,25 +171,23 @@ pub fn load_filtered_tests(
 /// Check if tags include a function tag (function:name)
 fn has_function_tag(tags: List(String), function_name: String) -> Bool {
   let function_tag = "function:" <> function_name
-  list.contains(tags, function_tag)
-  || list.contains(tags, function_name)  // Support both prefixed and unprefixed
+  list.contains(tags, function_tag) || list.contains(tags, function_name)
+  // Support both prefixed and unprefixed
 }
 
 /// Check if tags include a feature tag (feature:name)
 fn has_feature_tag(tags: List(String), feature_name: String) -> Bool {
   let feature_tag = "feature:" <> feature_name
-  list.contains(tags, feature_tag)
-  || list.contains(tags, feature_name)  // Support both prefixed and unprefixed
+  list.contains(tags, feature_tag) || list.contains(tags, feature_name)
+  // Support both prefixed and unprefixed
 }
 
 /// Check if tags include a variant tag (variant:proposed-behavior, etc.)
 fn has_variant_tag(tags: List(String), variant_name: String) -> Bool {
   let variant_tag = "variant:" <> variant_name
-  list.contains(tags, variant_tag)
-  || list.contains(tags, variant_name)  // Support unprefixed
+  list.contains(tags, variant_tag) || list.contains(tags, variant_name)
+  // Support unprefixed
 }
-
-
 
 /// Create a simple test case for basic functionality
 pub fn create_basic_test(
@@ -390,14 +392,22 @@ pub fn print_test_suite_result(result: TestSuiteResult) -> Nil {
 pub fn ccl_api_test_paths() -> List(String) {
   let base_path = "../../../ccl-test-data/tests"
   [
-    base_path <> "/api-essential-parsing.json",     // Level 1: Basic parsing
-    base_path <> "/api-comprehensive-parsing.json", // Level 1: Edge cases
-    base_path <> "/api-processing.json",            // Level 2: Entry processing
-    base_path <> "/api-comments.json",              // Level 2: Comment handling
-    base_path <> "/api-object-construction.json",   // Level 3: Hierarchy building
-    base_path <> "/api-dotted-keys.json",           // Level 3: Dotted key expansion
-    base_path <> "/api-typed-access.json",          // Level 4: Typed value extraction
-    base_path <> "/api-errors.json",                // Error handling validation
+    base_path <> "/api-essential-parsing.json",
+    // Level 1: Basic parsing
+    base_path <> "/api-comprehensive-parsing.json",
+    // Level 1: Edge cases
+    base_path <> "/api-processing.json",
+    // Level 2: Entry processing
+    base_path <> "/api-comments.json",
+    // Level 2: Comment handling
+    base_path <> "/api-object-construction.json",
+    // Level 3: Hierarchy building
+    base_path <> "/api-dotted-keys.json",
+    // Level 3: Dotted key expansion
+    base_path <> "/api-typed-access.json",
+    // Level 4: Typed value extraction
+    base_path <> "/api-errors.json",
+    // Error handling validation
   ]
 }
 

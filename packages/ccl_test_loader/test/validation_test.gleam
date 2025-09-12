@@ -1,6 +1,5 @@
 /// Validation test module for ccl_test_loader
 /// This module exists to satisfy import requirements and provide basic validation testing
-
 import gleam/io
 import gleeunit
 import gleeunit/should
