@@ -84,7 +84,10 @@
       "Bash(jq:*)",
       "Bash(fi)",
       "Bash(done)",
-      "Bash(git rebase:*)"
+      "Bash(git rebase:*)",
+      "Bash(awk:*)",
+      "Bash(xargs:*)",
+      "Read(//home/tylerbu/code/claude-workspace/**)"
     ],
     "deny": [],
     "ask": []

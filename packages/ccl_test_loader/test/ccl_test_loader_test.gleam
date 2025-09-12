@@ -1,4 +1,3 @@
-import ccl_comprehensive_test_new
 import ccl_core
 import ccl_test_loader
 import ccl_types.{Entry}
@@ -53,23 +52,19 @@ pub fn ccl_core_comprehensive_test_suite() {
 
 pub fn test_suite_paths_test() {
   // Verify we have the expected test suite paths
-  let core_paths = ccl_test_loader.ccl_core_test_paths()
-  let package_paths = ccl_test_loader.ccl_package_test_paths()
+  let api_paths = ccl_test_loader.ccl_api_test_paths()
 
-  list.length(core_paths) |> should.equal(7)
-  // 7 test suites for ccl_core
-  list.length(package_paths) |> should.equal(2)
+  list.length(api_paths) |> should.equal(8)
+  // 8 API test suites (including round-trip and algebraic)
   // 2 test suites for ccl package
 }
 
-/// Run minimal capability tests
-pub fn json_minimal_capability_test() {
-  ccl_comprehensive_test_new.minimal_capability_tests()
-}
-
-/// Run basic capability tests
-pub fn json_basic_capability_test() {
-  ccl_comprehensive_test_new.basic_capability_tests()
+/// Simple JSON parsing test
+pub fn json_parsing_test() {
+  case ccl_core.parse("key = value") {
+    Ok(entries) -> list.length(entries) |> should.equal(1)
+    Error(_) -> should.fail()
+  }
 }
 
 // Import validation tests

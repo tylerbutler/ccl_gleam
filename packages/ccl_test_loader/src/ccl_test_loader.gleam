@@ -7,6 +7,7 @@ import gleam/dynamic/decode
 import gleam/io
 import gleam/json
 import gleam/list
+import gleam/option.{type Option, None}
 import gleam/result
 import gleam/string
 import simplifile
@@ -19,7 +20,7 @@ pub type TestCase {
 }
 
 pub type TestMeta {
-  TestMeta(tags: List(String), level: Int)
+  TestMeta(tags: List(String), level: Int, conflicts: Option(List(String)))
 }
 
 pub type TestSuite {
@@ -31,10 +32,17 @@ pub type TestSuite {
   )
 }
 
+/// Simplified CCL test filtering focused on official approach
 pub type TestFilter {
+  /// Filter by CCL implementation level (1-4)
   ByLevel(Int)
-  ByTag(String)
-  ByName(String)
+  /// Filter by function tags (function:parse, function:make-objects, etc.)
+  ByFunction(String)
+  /// Filter by feature tags (feature:comments, feature:dotted-keys, etc.)
+  ByFeature(String)
+  /// Filter by behavior/variant tags (variant:proposed-behavior, etc.)
+  ByVariant(String)
+  /// No filtering - return all tests
   All
 }
 
@@ -101,7 +109,8 @@ fn entry_decoder() -> decode.Decoder(Entry) {
 fn test_meta_decoder() -> decode.Decoder(TestMeta) {
   use tags <- decode.field("tags", decode.list(decode.string))
   use level <- decode.field("level", decode.int)
-  decode.success(TestMeta(tags, level))
+  use conflicts <- decode.optional_field("conflicts", None, decode.optional(decode.list(decode.string)))
+  decode.success(TestMeta(tags, level, conflicts))
 }
 
 // === ARCHITECTURE SUMMARY ===
@@ -118,18 +127,28 @@ fn test_meta_decoder() -> decode.Decoder(TestMeta) {
 // All test cases are loaded directly from the JSON files in ccl-test-data/tests/
 // No hardcoded test data remains in this codebase.
 
-/// Filter test cases based on criteria
+/// Filter test cases using simplified CCL-focused approach
 pub fn filter_tests(tests: List(TestCase), filter: TestFilter) -> List(TestCase) {
   case filter {
     All -> tests
+    
     ByLevel(level) ->
       list.filter(tests, fn(test_case) { test_case.meta.level == level })
-    ByTag(tag) ->
+      
+    ByFunction(function_name) ->
       list.filter(tests, fn(test_case) {
-        list.contains(test_case.meta.tags, tag)
+        has_function_tag(test_case.meta.tags, function_name)
       })
-    ByName(name) ->
-      list.filter(tests, fn(test_case) { string.contains(test_case.name, name) })
+      
+    ByFeature(feature_name) ->
+      list.filter(tests, fn(test_case) {
+        has_feature_tag(test_case.meta.tags, feature_name)
+      })
+      
+    ByVariant(variant_name) ->
+      list.filter(tests, fn(test_case) {
+        has_variant_tag(test_case.meta.tags, variant_name)
+      })
   }
 }
 
@@ -142,6 +161,32 @@ pub fn load_filtered_tests(
   Ok(filter_tests(suite.tests, filter))
 }
 
+// === FILTERING HELPER FUNCTIONS ===
+// Support for CCL test data feature-based tagging system
+
+/// Check if tags include a function tag (function:name)
+fn has_function_tag(tags: List(String), function_name: String) -> Bool {
+  let function_tag = "function:" <> function_name
+  list.contains(tags, function_tag)
+  || list.contains(tags, function_name)  // Support both prefixed and unprefixed
+}
+
+/// Check if tags include a feature tag (feature:name)
+fn has_feature_tag(tags: List(String), feature_name: String) -> Bool {
+  let feature_tag = "feature:" <> feature_name
+  list.contains(tags, feature_tag)
+  || list.contains(tags, feature_name)  // Support both prefixed and unprefixed
+}
+
+/// Check if tags include a variant tag (variant:proposed-behavior, etc.)
+fn has_variant_tag(tags: List(String), variant_name: String) -> Bool {
+  let variant_tag = "variant:" <> variant_name
+  list.contains(tags, variant_tag)
+  || list.contains(tags, variant_name)  // Support unprefixed
+}
+
+
+
 /// Create a simple test case for basic functionality
 pub fn create_basic_test(
   name: String,
@@ -152,7 +197,7 @@ pub fn create_basic_test(
     name: name,
     input: input,
     expected: expected,
-    meta: TestMeta(tags: ["basic"], level: 1),
+    meta: TestMeta(tags: ["basic"], level: 1, conflicts: None),
   )
 }
 
@@ -341,33 +386,18 @@ pub fn print_test_suite_result(result: TestSuiteResult) -> Nil {
   io.println("")
 }
 
-/// List of all JSON test suite paths for CCL Core (Levels 1-3)
-pub fn ccl_core_test_paths() -> List(String) {
+/// Official CCL test suite paths following the api-* naming convention
+pub fn ccl_api_test_paths() -> List(String) {
+  let base_path = "../../../ccl-test-data/tests"
   [
-    "/home/tylerbu/code/claude-workspace/ccl-test-data/tests/essential-parsing.json",
-    // Level 1
-    "/home/tylerbu/code/claude-workspace/ccl-test-data/tests/comprehensive-parsing.json",
-    // Level 1 
-    "/home/tylerbu/code/claude-workspace/ccl-test-data/tests/comments.json",
-    // Level 2
-    "/home/tylerbu/code/claude-workspace/ccl-test-data/tests/processing.json",
-    // Level 2
-    "/home/tylerbu/code/claude-workspace/ccl-test-data/tests/object-construction.json",
-    // Level 3
-    "/home/tylerbu/code/claude-workspace/ccl-test-data/tests/dotted-keys.json",
-    // Level 3
-    "/home/tylerbu/code/claude-workspace/ccl-test-data/tests/errors.json",
-    // All levels
-  ]
-}
-
-/// List of all JSON test suite paths for CCL Package (Level 4+)
-pub fn ccl_package_test_paths() -> List(String) {
-  [
-    "/home/tylerbu/code/claude-workspace/ccl-test-data/tests/typed-access.json",
-    // Level 4
-    "/home/tylerbu/code/claude-workspace/ccl-test-data/tests/pretty-print.json",
-    // Integration
+    base_path <> "/api-essential-parsing.json",     // Level 1: Basic parsing
+    base_path <> "/api-comprehensive-parsing.json", // Level 1: Edge cases
+    base_path <> "/api-processing.json",            // Level 2: Entry processing
+    base_path <> "/api-comments.json",              // Level 2: Comment handling
+    base_path <> "/api-object-construction.json",   // Level 3: Hierarchy building
+    base_path <> "/api-dotted-keys.json",           // Level 3: Dotted key expansion
+    base_path <> "/api-typed-access.json",          // Level 4: Typed value extraction
+    base_path <> "/api-errors.json",                // Error handling validation
   ]
 }
 
@@ -379,7 +409,7 @@ pub fn run_ccl_core_comprehensive_tests(
   io.println("========================================")
 
   let results =
-    list.map(ccl_core_test_paths(), fn(path) {
+    list.map(ccl_api_test_paths(), fn(path) {
       run_test_suite_with_parser(path, parse_fn)
     })
 

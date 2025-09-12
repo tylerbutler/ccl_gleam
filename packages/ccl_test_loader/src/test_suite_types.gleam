@@ -8,7 +8,6 @@ import gleam/option.{type Option, None}
 import gleam/result
 import gleam/string
 import simplifile
-import test_config.{type TestConfig}
 
 pub type SimpleTestCase {
   SimpleTestCase(
@@ -142,9 +141,9 @@ pub type PrettyPrintTestCase {
   )
 }
 
-// Test discovery functions - configurable
-pub fn discover_json_test_files(config: TestConfig) -> List(String) {
-  test_config.discover_test_files(config)
+// Test discovery functions - simplified for CCL focus
+pub fn discover_json_test_files() -> List(String) {
+  api_test_paths()
 }
 
 /// API test file paths for new validation format
