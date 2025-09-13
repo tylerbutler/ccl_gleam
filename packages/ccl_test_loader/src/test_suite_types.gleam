@@ -335,15 +335,23 @@ fn pretty_print_test_suite_decoder() -> decode.Decoder(
 // === OPTIMIZED DECODERS IMPLEMENTATION ===
 // Consolidated optimized decoders for ~70% code reduction
 
-// Helper function to create validation specs based on validation type
+// FIXED: Helper function to create validation specs based on validation type
 fn create_validation_spec(
   key: String,
   dynamic_value: decode.Dynamic,
 ) -> Result(ValidationSpec, List(decode.DecodeError)) {
   case key {
     "parse" -> {
-      decode.run(dynamic_value, optimized_counted_validation_decoder())
-      |> result.map(ParseValidation)
+      // FIXED: Try to decode as error validation first, then as counted validation
+      // This handles both "error": true and "expected": [...] cases
+      case decode.run(dynamic_value, optimized_error_validation_decoder()) {
+        Ok(error_validation) -> Ok(ParseErrorValidation(error_validation))
+        Error(_) -> {
+          // Fall back to regular parse validation if it's not an error case
+          decode.run(dynamic_value, optimized_counted_validation_decoder())
+          |> result.map(ParseValidation)
+        }
+      }
     }
     "filter" -> {
       decode.run(dynamic_value, optimized_counted_validation_decoder())

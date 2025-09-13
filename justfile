@@ -6,6 +6,7 @@ packages := "ccl_types ccl_core ccl_test_loader ccl"
 # Common aliases for faster development
 alias b := build
 alias t := test
+alias tc := test-counts
 alias c := check
 alias f := format
 
@@ -30,6 +31,14 @@ check:
 # Test all packages  
 test:
 	@just _run-all test
+
+# Test all packages with assertion counting
+test-counts:
+	@echo "Running tests with assertion counting..."
+	@cd packages/ccl_test_loader && gleam run -m assertion_counting_demo
+
+# Run both standard tests and assertion counting
+test-all: test test-counts
 
 # Build all packages
 build:
