@@ -2,6 +2,11 @@
 
 Complete guide to using the Gleam CCL library for type-safe configuration parsing.
 
+**For CCL language concepts and cross-implementation compatibility:**
+- **[Core Concepts](https://ccl.tylerbutler.com/core-concepts)** - Understanding CCL fundamentals
+- **[Higher-Level APIs](https://ccl.tylerbutler.com/higher-level-apis)** - API compatibility across implementations  
+- **[Dotted Keys Explained](https://ccl.tylerbutler.com/dotted-keys-explained)** - Dotted keys vs hierarchical data distinction
+
 ## Installation
 
 Add to your `gleam.toml`:

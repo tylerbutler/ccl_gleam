@@ -5,6 +5,11 @@
 
 A Gleam implementation of the [Categorical Configuration Language (CCL)](https://chshersh.com/blog/2025-01-06-the-most-elegant-configuration-language.html).
 
+**Learn about CCL:**
+- **[Core Concepts](https://ccl.tylerbutler.com/core-concepts)** - Understanding CCL fundamentals
+- **[Higher-Level APIs](https://ccl.tylerbutler.com/higher-level-apis)** - API compatibility across implementations
+- **[Dotted Keys Explained](https://ccl.tylerbutler.com/dotted-keys-explained)** - Dotted keys vs hierarchical data distinction
+
 ## Installation
 
 ```sh
@@ -27,7 +32,7 @@ case ccl.parse(config) {
   Ok(entries) -> {
     let objects = ccl.build_hierarchy(entries)
     
-    // Type-safe access
+    // Type-safe access to literal dotted keys (standard CCL behavior)
     let host = ccl.get_string(objects, "database.host") // Ok("localhost")
     let port = ccl.get_int(objects, "database.port")    // Ok(5432)  
     let debug = ccl.get_bool(objects, "server.debug")   // Ok(True)
@@ -35,6 +40,31 @@ case ccl.parse(config) {
   Error(err) -> io.println("Parse error: " <> err.reason)
 }
 ```
+
+## ✨ Gleam CCL Features
+
+### Standard Dotted Key Handling
+
+CCL Gleam follows standard CCL behavior where **dotted keys are literal string keys**:
+
+```gleam
+// These create DIFFERENT data structures:
+
+// 1. Literal dotted keys (what Gleam supports)
+let dotted_config = "database.host = localhost"
+// Creates: {"database.host": "localhost"} (literal string key)
+
+// 2. Hierarchical data  
+let nested_config = "database =
+  host = localhost"
+// Creates: {database: {host: "localhost"}} (nested structure)
+
+// Access patterns:
+ccl.get_string(dotted_obj, "database.host")    // ✓ Works for literal dotted key
+ccl.get_string(nested_obj, "database", "host") // ✓ Works for hierarchical data
+```
+
+**Important**: Unlike some implementations, CCL Gleam does NOT provide dotted representation of hierarchical data. Each access pattern is tied to its specific data structure. See [Dotted Keys Explained](https://ccl.tylerbutler.com/dotted-keys-explained) for the complete distinction.
 
 ## Package Organization
 
@@ -208,5 +238,6 @@ brew install gleam             # macOS
 
 ## CCL Language Resources
 
-- **[CCL Specification](https://chshersh.com/blog/2025-01-06-the-most-elegant-configuration-language.html)** - Official language specification
+- **[CCL Documentation](https://ccl.tylerbutler.com/)** - Official CCL language documentation and specification
 - **[OCaml Reference Implementation](https://github.com/chshersh/ccl)** - Original implementation
+- **[CCL Test Suite](../ccl-test-data/)** - Language-agnostic test cases and implementation guidance
