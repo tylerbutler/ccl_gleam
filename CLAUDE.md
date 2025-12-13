@@ -14,43 +14,43 @@
 
 This section focuses ONLY on the Gleam implementation details. For CCL language information, see the CCL Documentation above.
 
-### CCL Architecture (4-Level Implementation)
+### CCL Architecture (Core Functions)
 
-The Gleam implementation follows the 4-level CCL architecture:
+The Gleam implementation follows the CCL function-based architecture:
 
-### Level 1: Entry Parsing (Core)
+### Entry Parsing
 **Gleam API**: `ccl.parse(text) → Result(List(ccl.Entry), ccl.ParseError)`
 - **Status**: ✅ FULLY IMPLEMENTED
 - **Package**: `ccl_core` and `ccl`
 - **Tests**: `ccl-test-suite/ccl-entry-parsing.json` (18 tests)
 
-### Level 2: Entry Processing (Extensions)  
+### Entry Processing
 **Gleam API**: Comment filtering, composition functions
 - **Status**: ✅ FULLY IMPLEMENTED (comments), ❌ NOT IMPLEMENTED (decorative sections)
 - **Package**: `ccl`
 - **Tests**: `ccl-test-suite/ccl-entry-processing.json` (10 tests)
 
-### Level 3: Object Construction (Hierarchical)
+### Object Construction
 **Gleam API**: `ccl.build_hierarchy(entries) → ccl.CCL`
 - **Status**: ✅ FULLY IMPLEMENTED
 - **Package**: `ccl`
 - **Tests**: `ccl-test-suite/ccl-object-construction.json` (8 tests)
 
-### Level 4: Typed Parsing (Gleam-Specific)
+### Typed Access
 **Gleam API**: `ccl.get_int()`, `ccl.get_bool()`, `ccl.get_string()`, etc.
-- **Status**: ✅ FULLY IMPLEMENTED  
+- **Status**: ✅ FULLY IMPLEMENTED
 - **Package**: `ccl`
 - **Tests**: `ccl-test-suite/ccl-typed-parsing-examples.json` (12 tests)
 
-### Error Handling (All Levels)
+### Error Handling
 **Status**: ✅ FULLY IMPLEMENTED
 **Tests**: `ccl-test-suite/ccl-errors.json` (5 tests)
 
-### ✅ FULLY IMPLEMENTED 
+### ✅ FULLY IMPLEMENTED
 - **Pretty Printer** - Canonical CCL output formatting with comprehensive test coverage
 
 ### ❌ REMAINING WORK
-- **Decorative Section Headers** (Level 2) - `group_by_sections()` API
+- **Decorative Section Headers** - `group_by_sections()` API
 
 ## Gleam Package Structure
 
@@ -114,21 +114,21 @@ gleam check   # Type check without building
 
 ## Test Suite Architecture (Gleam Implementation)
 
-### Multi-Level Test Organization
-Tests are organized by CCL architecture level:
+### Function-Based Test Organization
+Tests are organized by CCL function:
 
-- **`ccl-entry-parsing.json`** (Level 1) - Core parsing (18 tests)
-- **`ccl-entry-processing.json`** (Level 2) - Comments, composition (10 tests)  
-- **`ccl-object-construction.json`** (Level 3) - Nested objects (8 tests)
-- **`ccl-typed-parsing-examples.json`** (Level 4) - Type-aware parsing (12 tests)
+- **`ccl-entry-parsing.json`** - Entry parsing (`parse` function) (18 tests)
+- **`ccl-entry-processing.json`** - Entry processing (`filter`, composition) (10 tests)
+- **`ccl-object-construction.json`** - Object construction (`build_hierarchy` function) (8 tests)
+- **`ccl-typed-parsing-examples.json`** - Typed access (`get_*` functions) (12 tests)
 - **`ccl-errors.json`** - Error handling (5 tests)
 - **`ccl-pretty-printer.json`** - Pretty printing (15 tests)
 
 ### Gleam Test Implementation
 - Tests loaded via `test/test_suite_types.gleam`
-- Executed by `test/ccl_gleam_test.gleam`  
+- Executed by `test/ccl_gleam_test.gleam`
 - All test cases in JSON format for cross-language compatibility
-- Each test includes `meta` field with `level` and `tags`
+- Each test includes `meta` field with function tags
 
 ### Pretty Printer Test Suite
 **Properties**: 

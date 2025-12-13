@@ -100,7 +100,7 @@ pub type CclValue {
 pub type CCL = Dict(String, CclValue)
 ```
 
-### Level 1: Core Parsing
+### Entry Parsing
 
 ```gleam
 // Parse CCL text into flat entries
@@ -110,7 +110,7 @@ pub fn parse(text: String) -> Result(List(Entry), ParseError)
 let assert Ok(entries) = ccl.parse("key = value\nother = data")
 ```
 
-### Level 2: Entry Processing
+### Entry Processing
 
 ```gleam
 // Remove comment entries (keys starting with "/")
@@ -123,7 +123,7 @@ pub fn combine(left: List(Entry), right: List(Entry)) -> List(Entry)
 let filtered = ccl.filter(entries)
 ```
 
-### Level 3: Object Construction
+### Object Construction
 
 ```gleam
 // Build nested objects from flat entries
@@ -137,7 +137,7 @@ let config = ccl.build_hierarchy(entries)
 let host = ccl.get(config, "database.host")
 ```
 
-### Level 4: Type-Safe Access
+### Typed Access
 
 ```gleam
 // Type-specific accessor functions

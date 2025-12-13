@@ -48,7 +48,7 @@ Successfully implemented cleanup recommendations from the project analysis, fixi
 
 ```
 ✅ ccl_types        - 2 tests, no failures
-✅ ccl_core         - 3 tests, no failures  
+✅ ccl_core         - 3 tests, no failures
 ✅ ccl_test_loader  - 9 tests, no failures (including new progressive tests)
 ✅ ccl              - 18 tests, no failures
 
@@ -57,11 +57,11 @@ Total: 32 tests, 0 failures
 
 ### Progressive Test Runner Output
 ```
-=== Running Minimal Capability Tests (Level 1: Parsing) ===
+=== Running Minimal Capability Tests (Entry Parsing) ===
 Results for Minimal capability:
   Total tests: 10, Passed: 8, Failed: 2, Success rate: 80%
 
-=== Running Basic Capability Tests (Levels 1, 3, 4) ===  
+=== Running Basic Capability Tests (Core Functions) ===
 Results for Basic capability:
   Total tests: 30, Passed: 24, Failed: 6, Success rate: 80%
 ```
@@ -71,10 +71,10 @@ Results for Basic capability:
 ### Progressive Test Runner Architecture
 ```gleam
 pub type TestLevel {
-  Minimal    // Level 1: Basic parsing only
-  Basic      // Levels 1, 3, 4: Core functionality  
-  Processing // Levels 1-4: Full processing
-  Full       // All levels: Complete implementation
+  Minimal    // Entry parsing only
+  Basic      // Core functionality (parsing, object construction, typed access)
+  Processing // Full processing (all functions)
+  Full       // Complete implementation
 }
 
 pub type CapabilityReport {
@@ -129,8 +129,8 @@ The implementation includes 2 harmless warnings in progressive_test_runner:
 ### Running Progressive Tests
 ```bash
 # In Gleam REPL or test environment
-ccl_minimal_tests()        # Level 1 parsing tests
-ccl_basic_tests()          # Core functionality tests  
+ccl_minimal_tests()        # Entry parsing tests
+ccl_basic_tests()          # Core functionality tests
 ccl_processing_tests()     # Full processing tests
 ccl_full_tests()           # Complete implementation tests
 ccl_capability_analysis()  # Comprehensive analysis

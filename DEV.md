@@ -4,10 +4,10 @@ This document provides detailed information about the CCL (Categorical Configura
 
 ## Architecture Overview
 
-The CCL implementation follows a two-phase approach based on the OCaml reference implementation:
+The CCL implementation follows a function-based approach based on the OCaml reference implementation:
 
-1. **Phase 1: Flat Parsing** - Parse CCL text into flat key-value pairs
-2. **Phase 2: Object Construction** - Apply fixpoint algorithm to build nested structures
+1. **Flat Parsing** - Parse CCL text into flat key-value pairs (`parse` function)
+2. **Object Construction** - Apply fixpoint algorithm to build nested structures (`build_hierarchy` function)
 
 ## Public API
 
@@ -73,6 +73,8 @@ The `build_hierarchy` function implements the core CCL fixpoint algorithm that c
 
 ### Algorithm Steps
 
+The `build_hierarchy` function implements the following algorithm:
+
 1. **Group entries by key** - Handle multiple values per key
 2. **Recursive value parsing** - Try to parse each value as nested CCL
 3. **Fixpoint convergence** - Keep parsing until no more changes occur
@@ -99,7 +101,7 @@ database =
 simple = value
 ```
 
-#### Step 1: `parse` Function Processing
+#### Step 1: Entry Parsing (`parse` function)
 
 ```gleam
 case ccl.parse(input) {
@@ -117,7 +119,7 @@ case ccl.parse(input) {
 ]
 ```
 
-#### Step 2: `build_hierarchy` Processing
+#### Step 2: Object Construction (`build_hierarchy` function)
 
 ##### 2.1 Group entries by key:
 ```gleam
@@ -208,14 +210,14 @@ CCL({
 
 ### Duplicate Key Merging Strategy
 
-CCL handles duplicate keys differently at different abstraction levels:
+CCL handles duplicate keys differently in different functions:
 
-#### Core Level (Flat Parsing)
+#### Entry Parsing (`parse` function)
 - **Behavior**: Preserves all entries in order (maintains semigroup/monoid properties)
 - **Implementation**: `group_entries_by_key()` accumulates values in latest-first order
 - **Example**: `user = alice\nuser = bob` → Two separate entries preserved
 
-#### Higher Level (Object Construction) 
+#### Object Construction (`build_hierarchy` function) 
 - **Nested Objects**: Deep merge strategy - combines fields from duplicate keys recursively
 - **List Structures**: Accumulation - collects values with empty keys into arrays
 - **Implementation**: `merge_ccl()` performs recursive deep merge of CCL structures
@@ -296,13 +298,13 @@ The algorithm stops when `parse_value()` can't parse any more values:
 ## Usage Pattern
 
 ```gleam
-// 1. Parse flat structure
+// 1. Parse CCL text into flat entries
 case ccl.parse(ccl_text) {
   Ok(flat_entries) -> {
-    // 2. Build nested objects  
+    // 2. Build nested object hierarchy
     let nested_ccl = ccl.build_hierarchy(flat_entries)
-    
-    // 3. Use nested structure
+
+    // 3. Use the nested structure
     ccl.pretty_print_ccl(nested_ccl)
   }
   Error(err) -> // handle parse error
@@ -421,8 +423,8 @@ The empty key `""` acts as a **value container** - it separates the navigation s
 ### Testing Strategy
 
 The implementation includes comprehensive test coverage:
-- **53 core flat parsing tests** - ensure backward compatibility
-- **Error condition tests** - validate proper error handling  
+- **53 entry parsing tests** - ensure parsing correctness
+- **Error condition tests** - validate proper error handling
 - **Nested structure tests** - verify object construction behavior
 - **JSON test definitions** - language-agnostic test cases for cross-implementation validation
 
@@ -435,9 +437,9 @@ CCL's mathematical foundation requires testing monoid and semigroup properties:
 - *Whitespace-Tolerant*: Empty or whitespace-only inputs - introduces normalization complexity
 - *Semantic Empty*: No entries after parsing - most practical and mathematically sound
 
-**Test Level Separation**: Following CCL's design philosophy that higher-level semantics are defined outside the core:
-- **Core Level**: Entry list concatenation, parsing invariants, text-level composition stability
-- **Higher Level**: Object construction, key merging strategies (currently accumulates, needs review), nested structure handling
+**Function Separation**: Following CCL's design philosophy that higher-level semantics are defined outside the core:
+- **Entry Parsing (`parse`)**: Entry list concatenation, parsing invariants, text-level composition stability
+- **Object Construction (`build_hierarchy`)**: Key merging strategies (currently accumulates, needs review), nested structure handling
 
 **Testing Approach**: Fixed comprehensive test cases in JSON format rather than property-based testing. Alternatives considered:
 - *QuickCheck-style*: Would require building generator infrastructure in Gleam
@@ -452,12 +454,12 @@ CCL's mathematical foundation requires testing monoid and semigroup properties:
 
 ## Development Workflow
 
-1. **Core parsing** remains unchanged - maintains all existing functionality
+1. **Entry parsing** remains unchanged - maintains all existing functionality
 2. **Object construction** is optional - users can work with flat entries if preferred
-3. **Extension point** - new CCL features can be added to object construction without affecting parsing
+3. **Extension point** - new CCL features can be added without affecting core functions
 4. **Language portability** - the JSON test suite enables validation across different language implementations
 
-This two-step process separates syntax parsing from semantic object construction, making both easier to understand and test independently while maintaining full compatibility with the CCL specification and reference implementation.
+This function-based design separates syntax parsing from semantic object construction, making both easier to understand and test independently while maintaining full compatibility with the CCL specification and reference implementation.
 
 ## Frequently Asked Questions
 

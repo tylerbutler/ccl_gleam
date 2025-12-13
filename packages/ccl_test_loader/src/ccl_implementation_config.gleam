@@ -8,7 +8,7 @@ import gleam/string
 /// Focuses on essential filtering needs for progressive testing
 pub type ImplementationConfig {
   ImplementationConfig(
-    /// CCL implementation level (1-4)
+    /// Implementation completeness level (for sorting/comparison)
     level: Int,
     /// Supported functions (parse, make-objects, get-string, etc.)
     supported_functions: List(String),
@@ -19,17 +19,17 @@ pub type ImplementationConfig {
   )
 }
 
-/// Level 4 implementation with all CCL functions
+/// Full implementation with all CCL functions
 pub fn full_implementation() -> ImplementationConfig {
   ImplementationConfig(
     level: 4,
     supported_functions: [
       "parse",
-      // Level 1: Basic parsing
+      // Entry parsing
       "make-objects",
-      // Level 3: Hierarchy construction
+      // Object construction
       "get-string",
-      // Level 4: Typed access
+      // Typed access
       "get-int",
       "get-bool",
       "get-float",
@@ -47,7 +47,7 @@ pub fn full_implementation() -> ImplementationConfig {
   )
 }
 
-/// Level 1 parsing-only implementation
+/// Parsing-only implementation
 pub fn parse_only() -> ImplementationConfig {
   ImplementationConfig(
     level: 1,
@@ -58,7 +58,7 @@ pub fn parse_only() -> ImplementationConfig {
   )
 }
 
-/// Level 3 implementation (parsing + object construction)
+/// Basic implementation (parsing + object construction)
 pub fn basic_implementation() -> ImplementationConfig {
   ImplementationConfig(
     level: 3,
@@ -69,7 +69,7 @@ pub fn basic_implementation() -> ImplementationConfig {
   )
 }
 
-/// Reference-compliant Level 4 implementation
+/// Reference-compliant full implementation
 pub fn reference_compliant() -> ImplementationConfig {
   ImplementationConfig(
     level: 4,
@@ -106,9 +106,7 @@ pub fn get_summary(config: ImplementationConfig) -> String {
   let function_count = list.length(config.supported_functions)
   let feature_count = list.length(config.supported_features)
 
-  "CCL Level "
-  <> string.inspect(config.level)
-  <> " ("
+  "CCL Implementation ("
   <> config.variant_choice
   <> ")\n"
   <> "  Functions: "

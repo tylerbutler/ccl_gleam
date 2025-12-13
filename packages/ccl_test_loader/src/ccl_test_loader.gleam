@@ -34,7 +34,7 @@ pub type TestSuite {
 
 /// Simplified CCL test filtering focused on official approach
 pub type TestFilter {
-  /// Filter by CCL implementation level (1-4)
+  /// Filter by implementation completeness level (for backward compatibility)
   ByLevel(Int)
   /// Filter by function tags (function:parse, function:make-objects, etc.)
   ByFunction(String)
@@ -203,27 +203,27 @@ pub fn create_basic_test(
   )
 }
 
-/// Run a test case with smart multi-level testing
+/// Run a test case with smart multi-function testing
 pub fn run_test_case(
   test_case: TestCase,
   parse_fn: fn(String) -> Result(List(Entry), e),
 ) -> TestResult {
-  // Always test Level 1 (entry parsing) first
+  // Always test entry parsing first
   case parse_fn(test_case.input) {
     Ok(actual_entries) -> {
-      // Test Level 1: Entry parsing
+      // Test entry parsing
       case actual_entries == test_case.expected {
         True -> {
-          // Level 1 passed - check if we should test Level 3 (object construction)
+          // Parsing passed - check if we should test object construction
           case should_test_object_construction(test_case) {
             True -> test_object_construction(test_case, actual_entries)
-            False -> Pass(test_case.name, "Level 1 parsing passed")
+            False -> Pass(test_case.name, "Entry parsing passed")
           }
         }
         False ->
           Fail(
             test_case.name,
-            "Level 1 parsing failed: Expected "
+            "Entry parsing failed: Expected "
               <> string.inspect(test_case.expected)
               <> " but got "
               <> string.inspect(actual_entries),
@@ -238,7 +238,7 @@ pub fn run_test_case(
 fn should_test_object_construction(test_case: TestCase) -> Bool {
   // Test object construction if:
   // 1. Test has dotted keys (indicates nested structure)
-  // 2. Test is tagged as object construction or level 3
+  // 2. Test is tagged as object construction
   // 3. Test name suggests nesting
   let has_dotted_keys =
     list.any(test_case.expected, fn(entry) { string.contains(entry.key, ".") })
@@ -246,7 +246,7 @@ fn should_test_object_construction(test_case: TestCase) -> Bool {
   let is_object_construction_test =
     list.contains(test_case.meta.tags, "nested")
     || list.contains(test_case.meta.tags, "object-construction")
-    || test_case.meta.level >= 3
+    || list.contains(test_case.meta.tags, "function:make-objects")
 
   let suggests_nesting =
     string.contains(test_case.name, "nested")
@@ -256,7 +256,7 @@ fn should_test_object_construction(test_case: TestCase) -> Bool {
   has_dotted_keys || is_object_construction_test || suggests_nesting
 }
 
-/// Test Level 3 object construction and nested access
+/// Test object construction and nested access
 fn test_object_construction(
   test_case: TestCase,
   entries: List(Entry),
@@ -272,10 +272,10 @@ fn test_object_construction(
     Ok(_) ->
       Pass(
         test_case.name,
-        "Level 1 parsing + Level 3 object construction passed",
+        "Entry parsing + object construction passed",
       )
     Error(error) ->
-      Fail(test_case.name, "Level 3 object construction failed: " <> error)
+      Fail(test_case.name, "Object construction failed: " <> error)
   }
 }
 
@@ -318,10 +318,10 @@ pub type TestSuiteResult {
 
 pub type ComprehensiveTestResults {
   ComprehensiveTestResults(
-    level_1: List(TestSuiteResult),
-    level_2: List(TestSuiteResult),
-    level_3: List(TestSuiteResult),
-    level_4: List(TestSuiteResult),
+    parsing: List(TestSuiteResult),
+    processing: List(TestSuiteResult),
+    construction: List(TestSuiteResult),
+    typed_access: List(TestSuiteResult),
     total_passed: Int,
     total_failed: Int,
   )
@@ -393,21 +393,21 @@ pub fn ccl_api_test_paths() -> List(String) {
   let base_path = "../../../ccl-test-data/tests"
   [
     base_path <> "/api-essential-parsing.json",
-    // Level 1: Basic parsing
+    // Entry parsing: Basic
     base_path <> "/api-comprehensive-parsing.json",
-    // Level 1: Edge cases
+    // Entry parsing: Edge cases
     base_path <> "/api-processing.json",
-    // Level 2: Entry processing
+    // Entry processing
     base_path <> "/api-comments.json",
-    // Level 2: Comment handling
+    // Entry processing: Comments
     base_path <> "/api-object-construction.json",
-    // Level 3: Hierarchy building
+    // Object construction
     base_path <> "/api-dotted-keys.json",
-    // Level 3: Dotted key expansion
+    // Object construction: Dotted keys
     base_path <> "/api-typed-access.json",
-    // Level 4: Typed value extraction
+    // Typed access
     base_path <> "/api-errors.json",
-    // Error handling validation
+    // Error handling
   ]
 }
 

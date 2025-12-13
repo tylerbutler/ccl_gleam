@@ -6,21 +6,21 @@ Support for organizing CCL entries using decorative section headers is **planned
 
 ## Architectural Position
 
-Decorative section headers introduce a **logical grouping layer** that sits between Level 2 (Entry Processing) and Level 3 (Object Construction):
+Decorative section headers introduce a **logical grouping layer** that sits between Entry Processing and Object Construction:
 
 ```
-Level 1: Entry Parsing     → Entry[]                    ✅ IMPLEMENTED
-Level 2: Entry Processing  → Entry[] (filtered/combined) ✅ IMPLEMENTED  
-Level 2.5: Section Grouping → SectionGroup[] (organized) ❌ NOT IMPLEMENTED
-Level 3: Object Construction → CCL (nested objects)      ✅ IMPLEMENTED
-Level 4: Typed Parsing     → typed values               ✅ IMPLEMENTED
+Entry Parsing          → Entry[]                    ✅ IMPLEMENTED (parse function)
+Entry Processing       → Entry[] (filtered/combined) ✅ IMPLEMENTED (filter/compose functions)
+Section Grouping       → SectionGroup[] (organized) ❌ NOT IMPLEMENTED (group_by_sections function)
+Object Construction    → CCL (nested objects)       ✅ IMPLEMENTED (build_hierarchy function)
+Typed Access           → typed values               ✅ IMPLEMENTED (get_* functions)
 ```
 
 ### Key Insight
 
 Section headers create **logical groupings** that are **orthogonal** to CCL's hierarchical nesting:
 - **Section grouping**: Database vs Server sections (visual/organizational)
-- **Object nesting**: `database.host`, `server.port` (structural hierarchy)
+- **Object nesting**: `database.host`, `server.port` (structural hierarchy via build_hierarchy)
 
 This enables both simple pipeline processing and powerful section-aware workflows.
 
@@ -459,7 +459,7 @@ Both with and without empty lines work identically.
 
 ### With Existing CCL System
 ```gleam
-// Combined with existing Level 2 features
+// Combined with existing entry processing features
 content
 |> ccl_core.parse()
 |> result.unwrap([])
@@ -624,7 +624,7 @@ debug =
 ### Integration Tests
 - Works with existing `filter()` for comment removal
 - Integrates with pretty printer output
-- Compatible with all 4 CCL levels
+- Compatible with all CCL functions (parse through typed access)
 - Hybrid processing workflows
 - Section-aware configuration management
 

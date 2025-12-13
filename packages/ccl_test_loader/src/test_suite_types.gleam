@@ -76,27 +76,27 @@ pub type CountedPrettyPrintSpec {
 
 // Unified validation types
 pub type ValidationSpec {
-  // Level 1: Entry parsing
+  // Entry parsing
   ParseValidation(CountedValidation)
   ParseErrorValidation(ErrorValidation)
 
-  // Level 2: Entry processing  
+  // Entry processing
   FilterValidation(CountedValidation)
   CombineValidation(CombineSpec)
   ExpandDottedValidation(CountedValidation)
   GroupBySectionsValidation(SectionGroupSpec)
 
-  // Level 3: Object construction
+  // Object construction
   BuildHierarchyValidation(ObjectValidation)
 
-  // Level 4: Typed access
+  // Typed access
   GetStringValidation(CountedTypedValidation)
   GetIntValidation(CountedTypedValidation)
   GetBoolValidation(CountedTypedValidation)
   GetFloatValidation(CountedTypedValidation)
   GetListValidation(CountedTypedValidation)
 
-  // Level 5: Formatting
+  // Formatting
   PrettyPrintValidation(CountedPrettyPrintSpec)
   RoundTripValidation(CountedRoundTripSpec)
 }

@@ -36,9 +36,9 @@
 ### 4. Enhanced Test Coverage
 **Priority: MEDIUM**
 - **Expand JSON Test Integration**: Load and run tests from all JSON files:
-  - `essential-parsing.json` (Level 1)
-  - `object-construction.json` (Level 3)  
-  - `comments.json` (Level 2)
+  - `essential-parsing.json` (Entry parsing)
+  - `object-construction.json` (Object construction)
+  - `comments.json` (Entry processing)
   - `errors.json` (Error handling)
 - **Test Filtering Enhancement**: Add more sophisticated filtering options
 - **Test Reporting**: Improve failure reporting with detailed error messages
@@ -62,14 +62,14 @@
 # Should pass all tests
 just ba && just test-all
 
-# Should successfully load and run JSON test cases  
+# Should successfully load and run JSON test cases
 cd packages/ccl_core && gleam test
 
-# Should handle all levels of CCL architecture
-# Level 1: Entry parsing ✅ (working)
-# Level 2: Entry processing (needs JSON tests)  
-# Level 3: Object construction (needs nested key fix)
-# Level 4: Typed parsing (needs implementation in ccl package)
+# Should handle all CCL functions
+# Entry parsing: ✅ (working)
+# Entry processing: (needs JSON tests)
+# Object construction: (needs nested key fix)
+# Typed access: (needs implementation in ccl package)
 ```
 
 ## Architecture Readiness
