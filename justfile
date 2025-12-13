@@ -1,74 +1,146 @@
 #!/usr/bin/env just --justfile
 
-# Workspace packages
-packages := "ccl_types ccl_core ccl_test_loader ccl"
-
 # Common aliases for faster development
 alias b := build
 alias t := test
 alias tc := test-counts
 alias c := check
 alias f := format
+alias pr := ci
 
 # Default recipe - shows available commands
 default:
     @just --list
 
-# Helper to run gleam command on all packages
-_run-all cmd:
-	@echo "Running '{{cmd}}' on all packages..."
-	@for package in {{packages}}; do \
-		echo "→ $package"; \
-		cd packages/$package && gleam {{cmd}} || exit 1; \
-		cd - > /dev/null; \
-	done
-	@echo "✅ Completed successfully!"
-
 # Check all packages
 check:
-	@just _run-all check
+	@just _check-ccl-types
+	@just _check-ccl-core
+	@just _check-ccl-test-loader
+	@just _check-ccl
 
-# Test all packages  
+# Test all packages
 test:
-	@just _run-all test
+	@just _test-ccl-types
+	@just _test-ccl-core
+	@just _test-ccl-test-loader
+	@just _test-ccl
 
 # Test all packages with assertion counting
 test-counts:
-	@echo "Running tests with assertion counting..."
 	@cd packages/ccl_test_loader && gleam run -m assertion_counting_demo
-
-# Run both standard tests and assertion counting
-test-all: test test-counts
 
 # Build all packages
 build:
-	@just _run-all build
+	@just _build-ccl-types
+	@just _build-ccl-core
+	@just _build-ccl-test-loader
+	@just _build-ccl
 
 # Format all packages
 format:
-	@just _run-all format
+	@just _format-ccl-types
+	@just _format-ccl-core
+	@just _format-ccl-test-loader
+	@just _format-ccl
 
-# Check formatting for all packages  
+# Check formatting for all packages
 format-check:
-	@just _run-all "format --check"
+	@just _format-check-ccl-types
+	@just _format-check-ccl-core
+	@just _format-check-ccl-test-loader
+	@just _format-check-ccl
 
 # Run all quality checks
 lint: check format-check
 
-# Run command on a specific package
-run-on package cmd:
-	@echo "Running '{{cmd}}' on {{package}}..."
-	@cd packages/{{package}} && gleam {{cmd}}
-
 # Clean build artifacts
 clean:
-	@echo "Cleaning build artifacts..."
-	@rm -rf build
-	@for package in {{packages}}; do \
-		echo "→ cleaning packages/$package/build"; \
-		rm -rf packages/$package/build; \
-	done
-	@echo "✅ Clean completed!"
+	@just _clean-root
+	@just _clean-ccl-types
+	@just _clean-ccl-core
+	@just _clean-ccl-test-loader
+	@just _clean-ccl
 
 # Run full CI pipeline
 ci: lint build test
+
+# Private helper recipes for ccl_types package
+_check-ccl-types:
+	@cd packages/ccl_types && gleam check
+
+_test-ccl-types:
+	@cd packages/ccl_types && gleam test
+
+_build-ccl-types:
+	@cd packages/ccl_types && gleam build
+
+_format-ccl-types:
+	@cd packages/ccl_types && gleam format
+
+_format-check-ccl-types:
+	@cd packages/ccl_types && gleam format --check
+
+_clean-ccl-types:
+	@rm -rf packages/ccl_types/build
+
+# Private helper recipes for ccl_core package
+_check-ccl-core:
+	@cd packages/ccl_core && gleam check
+
+_test-ccl-core:
+	@cd packages/ccl_core && gleam test
+
+_build-ccl-core:
+	@cd packages/ccl_core && gleam build
+
+_format-ccl-core:
+	@cd packages/ccl_core && gleam format
+
+_format-check-ccl-core:
+	@cd packages/ccl_core && gleam format --check
+
+_clean-ccl-core:
+	@rm -rf packages/ccl_core/build
+
+# Private helper recipes for ccl_test_loader package
+_check-ccl-test-loader:
+	@cd packages/ccl_test_loader && gleam check
+
+_test-ccl-test-loader:
+	@cd packages/ccl_test_loader && gleam test
+
+_build-ccl-test-loader:
+	@cd packages/ccl_test_loader && gleam build
+
+_format-ccl-test-loader:
+	@cd packages/ccl_test_loader && gleam format
+
+_format-check-ccl-test-loader:
+	@cd packages/ccl_test_loader && gleam format --check
+
+_clean-ccl-test-loader:
+	@rm -rf packages/ccl_test_loader/build
+
+# Private helper recipes for ccl package
+_check-ccl:
+	@cd packages/ccl && gleam check
+
+_test-ccl:
+	@cd packages/ccl && gleam test
+
+_build-ccl:
+	@cd packages/ccl && gleam build
+
+_format-ccl:
+	@cd packages/ccl && gleam format
+
+_format-check-ccl:
+	@cd packages/ccl && gleam format --check
+
+_clean-ccl:
+	@rm -rf packages/ccl/build
+
+# Private helper recipe for root clean
+_clean-root:
+	@rm -rf build
