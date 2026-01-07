@@ -32,7 +32,7 @@ pub type TestSuite {
   )
 }
 
-/// Simplified CCL test filtering focused on official approach
+/// CCL test filtering per the official test runner implementation guide
 pub type TestFilter {
   /// Filter by implementation completeness level (for backward compatibility)
   ByLevel(Int)
@@ -40,8 +40,12 @@ pub type TestFilter {
   ByFunction(String)
   /// Filter by feature tags (feature:comments, feature:dotted-keys, etc.)
   ByFeature(String)
-  /// Filter by behavior/variant tags (variant:proposed-behavior, etc.)
+  /// Filter by behavior tags (behavior:crlf_normalize_to_lf, etc.)
+  ByBehavior(String)
+  /// Filter by variant tags (variant:proposed-behavior, etc.)
   ByVariant(String)
+  /// Exclude tests with specific behavior (for conflict resolution)
+  ExcludeBehavior(String)
   /// No filtering - return all tests
   All
 }
@@ -131,7 +135,7 @@ fn test_meta_decoder() -> decode.Decoder(TestMeta) {
 // All test cases are loaded directly from the JSON files in ccl-test-data/tests/
 // No hardcoded test data remains in this codebase.
 
-/// Filter test cases using simplified CCL-focused approach
+/// Filter test cases per the official test runner implementation guide
 pub fn filter_tests(tests: List(TestCase), filter: TestFilter) -> List(TestCase) {
   case filter {
     All -> tests
@@ -149,9 +153,19 @@ pub fn filter_tests(tests: List(TestCase), filter: TestFilter) -> List(TestCase)
         has_feature_tag(test_case.meta.tags, feature_name)
       })
 
+    ByBehavior(behavior_name) ->
+      list.filter(tests, fn(test_case) {
+        has_behavior_tag(test_case.meta.tags, behavior_name)
+      })
+
     ByVariant(variant_name) ->
       list.filter(tests, fn(test_case) {
         has_variant_tag(test_case.meta.tags, variant_name)
+      })
+
+    ExcludeBehavior(behavior_name) ->
+      list.filter(tests, fn(test_case) {
+        !has_behavior_tag(test_case.meta.tags, behavior_name)
       })
   }
 }
@@ -163,6 +177,54 @@ pub fn load_filtered_tests(
 ) -> Result(List(TestCase), String) {
   use suite <- result.try(load_test_suite(file_path))
   Ok(filter_tests(suite.tests, filter))
+}
+
+/// Apply multiple filters sequentially (AND logic)
+pub fn filter_tests_multi(
+  tests: List(TestCase),
+  filters: List(TestFilter),
+) -> List(TestCase) {
+  list.fold(filters, tests, fn(current_tests, filter) {
+    filter_tests(current_tests, filter)
+  })
+}
+
+/// Extract functions from test case tags
+pub fn get_required_functions(test_case: TestCase) -> List(String) {
+  list.filter_map(test_case.meta.tags, fn(tag) {
+    case string.starts_with(tag, "function:") {
+      True -> Ok(string.drop_start(tag, 9))
+      False -> Error(Nil)
+    }
+  })
+}
+
+/// Extract features from test case tags
+pub fn get_required_features(test_case: TestCase) -> List(String) {
+  list.filter_map(test_case.meta.tags, fn(tag) {
+    case string.starts_with(tag, "feature:") {
+      True -> Ok(string.drop_start(tag, 8))
+      False -> Error(Nil)
+    }
+  })
+}
+
+/// Extract behaviors from test case tags
+pub fn get_required_behaviors(test_case: TestCase) -> List(String) {
+  list.filter_map(test_case.meta.tags, fn(tag) {
+    case string.starts_with(tag, "behavior:") {
+      True -> Ok(string.drop_start(tag, 9))
+      False -> Error(Nil)
+    }
+  })
+}
+
+/// Get conflicts from test case metadata
+pub fn get_test_conflicts(test_case: TestCase) -> List(String) {
+  case test_case.meta.conflicts {
+    option.Some(conflicts) -> conflicts
+    option.None -> []
+  }
 }
 
 // === FILTERING HELPER FUNCTIONS ===
@@ -179,6 +241,13 @@ fn has_function_tag(tags: List(String), function_name: String) -> Bool {
 fn has_feature_tag(tags: List(String), feature_name: String) -> Bool {
   let feature_tag = "feature:" <> feature_name
   list.contains(tags, feature_tag) || list.contains(tags, feature_name)
+  // Support both prefixed and unprefixed
+}
+
+/// Check if tags include a behavior tag (behavior:name)
+fn has_behavior_tag(tags: List(String), behavior_name: String) -> Bool {
+  let behavior_tag = "behavior:" <> behavior_name
+  list.contains(tags, behavior_tag) || list.contains(tags, behavior_name)
   // Support both prefixed and unprefixed
 }
 
@@ -269,11 +338,7 @@ fn test_object_construction(
     list.filter(entries, fn(entry) { string.contains(entry.key, ".") })
 
   case test_dotted_key_access(ccl, dotted_keys) {
-    Ok(_) ->
-      Pass(
-        test_case.name,
-        "Entry parsing + object construction passed",
-      )
+    Ok(_) -> Pass(test_case.name, "Entry parsing + object construction passed")
     Error(error) ->
       Fail(test_case.name, "Object construction failed: " <> error)
   }

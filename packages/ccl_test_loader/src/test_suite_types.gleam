@@ -446,13 +446,17 @@ fn optimized_error_validation_decoder() -> decode.Decoder(ErrorValidation) {
   ))
 }
 
-fn optimized_round_trip_validation_decoder() -> decode.Decoder(CountedRoundTripSpec) {
+fn optimized_round_trip_validation_decoder() -> decode.Decoder(
+  CountedRoundTripSpec,
+) {
   use count <- decode.field("count", decode.int)
   use property <- decode.field("property", decode.string)
   decode.success(CountedRoundTripSpec(count: count, property: property))
 }
 
-fn optimized_pretty_print_validation_decoder() -> decode.Decoder(CountedPrettyPrintSpec) {
+fn optimized_pretty_print_validation_decoder() -> decode.Decoder(
+  CountedPrettyPrintSpec,
+) {
   use count <- decode.field("count", decode.int)
   use expected <- decode.field("expected", decode.string)
   decode.success(CountedPrettyPrintSpec(count: count, expected: expected))
@@ -481,7 +485,6 @@ fn optimized_combine_spec_decoder() -> decode.Decoder(CombineSpec) {
   use expected <- decode.field("expected", decode.list(entry_decoder()))
   decode.success(CombineSpec(left: left, right: right, expected: expected))
 }
-
 
 fn optimized_section_group_decoder() -> decode.Decoder(SectionGroup) {
   use header <- decode.optional_field(
