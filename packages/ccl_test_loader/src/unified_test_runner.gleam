@@ -1018,7 +1018,9 @@ fn extract_functions(test_case: TestCase) -> List(String) {
 }
 
 /// Extract feature tags from test case
-fn extract_features(test_case: TestCase) -> List(String) {
+/// NOTE: Features are INFORMATIONAL ONLY and should NOT be used for filtering
+/// This function is kept for reporting purposes only (gap analysis)
+pub fn extract_features(test_case: TestCase) -> List(String) {
   list.filter_map(test_case.meta.tags, fn(tag) {
     case string.starts_with(tag, "feature:") {
       True -> Ok(string.drop_start(tag, 8))
@@ -1037,7 +1039,7 @@ fn extract_behaviors(test_case: TestCase) -> List(String) {
   })
 }
 
-/// Get conflicts from test metadata
+/// Get conflicts from test metadata (legacy - returns all conflicts)
 fn extract_conflicts(test_case: TestCase) -> List(String) {
   case test_case.meta.conflicts {
     Some(conflicts) -> conflicts
@@ -1045,15 +1047,38 @@ fn extract_conflicts(test_case: TestCase) -> List(String) {
   }
 }
 
+/// Extract behavior conflicts from test metadata
+/// Looks for conflicts in the format "behavior:name" in tags or direct conflicts list
+fn extract_conflict_behaviors(test_case: TestCase) -> List(String) {
+  // The legacy format uses a flat conflicts list
+  // For now, treat all conflicts as potential behavior conflicts
+  extract_conflicts(test_case)
+}
+
+/// Extract variant conflicts from test metadata
+/// Looks for variant conflicts (proposed_behavior, reference_compliant)
+fn extract_conflict_variants(test_case: TestCase) -> List(String) {
+  // Check if any conflicts look like variant names
+  let all_conflicts = extract_conflicts(test_case)
+  list.filter(all_conflicts, fn(c) {
+    c == "proposed_behavior" || c == "reference_compliant"
+  })
+}
+
 /// Check if a test case is compatible with the implementation config
+/// Per the official test-selection-guide.md:
+/// - Functions: Filter - skip tests requiring unsupported functions
+/// - Features: INFORMATIONAL ONLY - do NOT filter (used for gap reporting)
+/// - Behaviors: Filter via conflicts field
+/// - Variants: Filter via conflicts field
 pub fn is_test_compatible(
   config: ImplementationConfig,
   test_case: TestCase,
 ) -> Result(Nil, String) {
   let required_functions = extract_functions(test_case)
-  let required_features = extract_features(test_case)
   let required_behaviors = extract_behaviors(test_case)
-  let test_conflicts = extract_conflicts(test_case)
+  let test_conflicts_behaviors = extract_conflict_behaviors(test_case)
+  let test_conflicts_variants = extract_conflict_variants(test_case)
 
   // Check all required functions are supported
   let missing_functions =
@@ -1064,36 +1089,40 @@ pub fn is_test_compatible(
     False ->
       Error("Missing functions: " <> string.join(missing_functions, ", "))
     True -> {
-      // Check all required features are supported
-      let missing_features =
-        list.filter(required_features, fn(f) {
-          !ccl_implementation_config.supports_feature(config, f)
+      // NOTE: Features are INFORMATIONAL ONLY - do NOT filter based on features
+      // See test-selection-guide.md: "Features are for reporting, not filtering"
+
+      // Check all required behaviors are supported
+      let missing_behaviors =
+        list.filter(required_behaviors, fn(b) {
+          !ccl_implementation_config.supports_behavior(config, b)
         })
-      case list.is_empty(missing_features) {
+      case list.is_empty(missing_behaviors) {
         False ->
-          Error("Missing features: " <> string.join(missing_features, ", "))
+          Error("Missing behaviors: " <> string.join(missing_behaviors, ", "))
         True -> {
-          // Check all required behaviors are supported
-          let missing_behaviors =
-            list.filter(required_behaviors, fn(b) {
-              !ccl_implementation_config.supports_behavior(config, b)
+          // Check for behavior conflicts: our behaviors vs test conflict list
+          let conflicting_behaviors =
+            list.filter(config.supported_behaviors, fn(our_behavior) {
+              list.contains(test_conflicts_behaviors, our_behavior)
             })
-          case list.is_empty(missing_behaviors) {
+          case list.is_empty(conflicting_behaviors) {
             False ->
               Error(
-                "Missing behaviors: " <> string.join(missing_behaviors, ", "),
+                "Behavior conflict: "
+                <> string.join(conflicting_behaviors, ", "),
               )
             True -> {
-              // Check for conflicts: our behaviors vs test conflicts
-              let conflicting_behaviors =
-                list.filter(config.supported_behaviors, fn(our_behavior) {
-                  list.contains(test_conflicts, our_behavior)
+              // Check for variant conflicts: our variants vs test conflict list
+              let conflicting_variants =
+                list.filter(config.supported_variants, fn(our_variant) {
+                  list.contains(test_conflicts_variants, our_variant)
                 })
-              case list.is_empty(conflicting_behaviors) {
+              case list.is_empty(conflicting_variants) {
                 False ->
                   Error(
-                    "Behavior conflict: "
-                    <> string.join(conflicting_behaviors, ", "),
+                    "Variant conflict: "
+                    <> string.join(conflicting_variants, ", "),
                   )
                 True -> {
                   // Check that none of the required behaviors are in skip list
