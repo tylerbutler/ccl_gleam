@@ -38,11 +38,23 @@ run *ARGS:
 
 # Run tests with default config (parse-only)
 run-tests DIR="../ccl-test-data/generated_tests/":
-    gleam run -- {{ DIR }}
+    gleam run -- run {{ DIR }}
 
 # Run tests for specific functions
 run-tests-with-functions DIR="../ccl-test-data/generated_tests/" FUNCTIONS="parse,print":
-    gleam run -- {{ DIR }} --functions {{ FUNCTIONS }}
+    gleam run -- run {{ DIR }} --functions {{ FUNCTIONS }}
+
+# List test files with counts
+list DIR="../ccl-test-data/generated_tests/":
+    gleam run -- list {{ DIR }}
+
+# Show test suite statistics
+stats DIR="../ccl-test-data/generated_tests/":
+    gleam run -- stats {{ DIR }}
+
+# Launch interactive TUI viewer
+view DIR="../ccl-test-data/generated_tests/":
+    gleam run -- view {{ DIR }}
 
 # Run the debug parser to check JSON parsing
 debug-parse:
