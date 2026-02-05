@@ -1,6 +1,6 @@
 # CCL Test Runner
 
-A test runner for CCL (Colon Config Language) implementations in Gleam. Loads and runs tests from the [ccl-test-data](https://github.com/tylerbutler/ccl-test-data) JSON test suite.
+A test runner for CCL (Categorical Configuration Language) implementations in Gleam. Loads and runs tests from the [ccl-test-data](https://github.com/CatConfLang/ccl-test-data) JSON test suite.
 
 ## Usage
 
