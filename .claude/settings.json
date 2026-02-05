@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": { "tools": ["Edit", "Write"] },
+        "hooks": [{ "type": "command", "command": "gleam check 2>&1 | head -20" }]
+      }
+    ]
+  },
+  "enabledPlugins": {
+    "claude-md-management@claude-plugins-official": true,
+    "feature-dev@claude-plugins-official": true
+  }
+}
