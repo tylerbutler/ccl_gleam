@@ -7,7 +7,9 @@ import gleam/result
 import gleam/string
 import render/ccl_input
 import render/entries
+import render/list as render_list
 import render/theme
+import render/typed
 import render/value as render_value
 import shore
 import shore/style
@@ -175,10 +177,8 @@ fn render_expected(expected: Expected) -> shore.Node(Msg) {
           ui.text_styled("count: ", Some(style.Cyan), None),
           ui.text(int.to_string(count)),
         ]),
-        ui.row([
-          ui.text_styled("list: ", Some(style.Cyan), None),
-          ui.text("[" <> string.join(items, ", ") <> "]"),
-        ]),
+        ui.text_styled("list:", Some(style.Cyan), None),
+        render_list.to_shore(items, default_theme),
       ])
 
     ExpectedInt(count, value) ->
@@ -189,7 +189,7 @@ fn render_expected(expected: Expected) -> shore.Node(Msg) {
         ]),
         ui.row([
           ui.text_styled("value: ", Some(style.Cyan), None),
-          ui.text(int.to_string(value)),
+          typed.int_to_shore(value, default_theme),
         ]),
       ])
 
@@ -201,7 +201,7 @@ fn render_expected(expected: Expected) -> shore.Node(Msg) {
         ]),
         ui.row([
           ui.text_styled("value: ", Some(style.Cyan), None),
-          ui.text(float_to_string(value)),
+          typed.float_to_shore(value, default_theme),
         ]),
       ])
 
@@ -213,7 +213,7 @@ fn render_expected(expected: Expected) -> shore.Node(Msg) {
         ]),
         ui.row([
           ui.text_styled("value: ", Some(style.Cyan), None),
-          ui.text(bool_to_string(value)),
+          typed.bool_to_shore(value, default_theme),
         ]),
       ])
 
@@ -225,7 +225,7 @@ fn render_expected(expected: Expected) -> shore.Node(Msg) {
         ]),
         ui.row([
           ui.text_styled("boolean: ", Some(style.Cyan), None),
-          ui.text(bool_to_string(boolean)),
+          typed.bool_to_shore(boolean, default_theme),
         ]),
       ])
 
@@ -294,32 +294,4 @@ fn get_filename(path: String) -> String {
   |> string.split("/")
   |> list.last
   |> result.unwrap(path)
-}
-
-fn bool_to_string(b: Bool) -> String {
-  case b {
-    True -> "true"
-    False -> "false"
-  }
-}
-
-fn float_to_string(f: Float) -> String {
-  // Use Erlang's float_to_list for proper formatting
-  erlang_float_to_string(f)
-}
-
-@external(erlang, "erlang", "float_to_list")
-fn erlang_float_to_list(f: Float) -> List(Int)
-
-fn erlang_float_to_string(f: Float) -> String {
-  f
-  |> erlang_float_to_list
-  |> list.map(fn(c) { string.utf_codepoint(c) })
-  |> list.filter_map(fn(r) {
-    case r {
-      Ok(cp) -> Ok(cp)
-      Error(_) -> Error(Nil)
-    }
-  })
-  |> string.from_utf_codepoints
 }

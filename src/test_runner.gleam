@@ -7,7 +7,9 @@ import gleam/option
 import gleam/result
 import gleam/string
 import render/entries as render_entries
+import render/list as render_list
 import render/theme
+import render/typed
 import render/value as render_value
 import test_filter
 import test_loader
@@ -348,15 +350,17 @@ fn run_get_int_test(
             Ok(value) -> {
               case value == expected_value {
                 True -> TestPassed(name, count)
-                False ->
+                False -> {
+                  let default_theme = theme.default()
                   TestFailed(
                     name,
                     "Value mismatch: expected "
-                      <> int.to_string(expected_value)
+                      <> typed.int_to_ansi(expected_value, default_theme)
                       <> ", got "
-                      <> int.to_string(value),
+                      <> typed.int_to_ansi(value, default_theme),
                     count,
                   )
+                }
               }
             }
             Error(e) -> TestFailed(name, "get_int error: " <> e, count)
@@ -400,15 +404,17 @@ fn run_get_bool_test(
             Ok(value) -> {
               case value == expected_value {
                 True -> TestPassed(name, count)
-                False ->
+                False -> {
+                  let default_theme = theme.default()
                   TestFailed(
                     name,
                     "Value mismatch: expected "
-                      <> string.inspect(expected_value)
+                      <> typed.bool_to_ansi(expected_value, default_theme)
                       <> ", got "
-                      <> string.inspect(value),
+                      <> typed.bool_to_ansi(value, default_theme),
                     count,
                   )
+                }
               }
             }
             Error(e) -> TestFailed(name, "get_bool error: " <> e, count)
@@ -454,15 +460,17 @@ fn run_get_float_test(
               let diff = float_abs(value -. expected_value)
               case diff <. 0.0001 {
                 True -> TestPassed(name, count)
-                False ->
+                False -> {
+                  let default_theme = theme.default()
                   TestFailed(
                     name,
                     "Value mismatch: expected "
-                      <> string.inspect(expected_value)
+                      <> typed.float_to_ansi(expected_value, default_theme)
                       <> ", got "
-                      <> string.inspect(value),
+                      <> typed.float_to_ansi(value, default_theme),
                     count,
                   )
+                }
               }
             }
             Error(e) -> TestFailed(name, "get_float error: " <> e, count)
@@ -513,15 +521,17 @@ fn run_get_list_test(
             Ok(value) -> {
               case value == expected_list {
                 True -> TestPassed(name, count)
-                False ->
+                False -> {
+                  let default_theme = theme.default()
                   TestFailed(
                     name,
-                    "List mismatch: expected "
-                      <> string.inspect(expected_list)
-                      <> ", got "
-                      <> string.inspect(value),
+                    "List mismatch:\n  expected:\n"
+                      <> render_list.to_ansi(expected_list, default_theme)
+                      <> "\n  got:\n"
+                      <> render_list.to_ansi(value, default_theme),
                     count,
                   )
+                }
               }
             }
             Error(e) -> TestFailed(name, "get_list error: " <> e, count)
