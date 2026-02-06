@@ -8,6 +8,7 @@ import gleam/result
 import gleam/string
 import render/entries as render_entries
 import render/list as render_list
+import render/object as render_object
 import render/theme
 import render/typed
 import render/value as render_value
@@ -259,15 +260,17 @@ fn run_hierarchy_test(
           let obj = impl.build_hierarchy(entries)
           case compare_objects(obj, expected_obj) {
             True -> TestPassed(name, count)
-            False ->
+            False -> {
+              let default_theme = theme.default()
               TestFailed(
                 name,
-                "Object mismatch:\n  expected: "
-                  <> format_expected_object(expected_obj)
-                  <> "\n  actual: "
+                "Object mismatch:\n  expected:\n"
+                  <> render_object.to_ansi(expected_obj, default_theme)
+                  <> "\n  actual:\n"
                   <> format_ccl(obj),
                 count,
               )
+            }
           }
         }
         Error(e) -> TestFailed(name, "Parse error: " <> e, count)
@@ -582,26 +585,6 @@ fn compare_values(actual: CCLValue, expected: ExpectedNode) -> Bool {
     CclList(l), NodeList(el) -> l == el
     CclObject(obj), NodeObject(eobj) -> compare_objects(obj, eobj)
     _, _ -> False
-  }
-}
-
-/// Format expected object for error messages
-fn format_expected_object(obj: Dict(String, ExpectedNode)) -> String {
-  obj
-  |> dict.to_list
-  |> list.map(fn(pair) {
-    let #(k, v) = pair
-    k <> ": " <> format_expected_node(v)
-  })
-  |> string.join(", ")
-  |> fn(s) { "{" <> s <> "}" }
-}
-
-fn format_expected_node(node: ExpectedNode) -> String {
-  case node {
-    NodeString(s) -> string.inspect(s)
-    NodeList(l) -> string.inspect(l)
-    NodeObject(obj) -> format_expected_object(obj)
   }
 }
 

@@ -8,6 +8,7 @@ import gleam/string
 import render/ccl_input
 import render/entries
 import render/list as render_list
+import render/object as render_object
 import render/theme
 import render/typed
 import render/value as render_value
@@ -16,9 +17,9 @@ import shore/style
 import shore/ui
 import test_filter
 import test_types.{
-  type Expected, type ExpectedNode, type TestCase, ExpectedBool, ExpectedBoolean,
-  ExpectedCountOnly, ExpectedEntries, ExpectedError, ExpectedFloat, ExpectedInt,
-  ExpectedList, ExpectedObject, ExpectedValue, NodeList, NodeObject, NodeString,
+  type Expected, type TestCase, ExpectedBool, ExpectedBoolean, ExpectedCountOnly,
+  ExpectedEntries, ExpectedError, ExpectedFloat, ExpectedInt, ExpectedList,
+  ExpectedObject, ExpectedValue,
 }
 import tui/components
 import tui/model.{type Model}
@@ -168,7 +169,7 @@ fn render_expected(expected: Expected) -> shore.Node(Msg) {
           ui.text(int.to_string(count)),
         ]),
         ui.text_styled("object:", Some(style.Cyan), None),
-        render_object(object, 1),
+        render_object.to_shore(object, default_theme),
       ])
 
     ExpectedList(count, items) ->
@@ -245,30 +246,6 @@ fn render_expected(expected: Expected) -> shore.Node(Msg) {
         ui.text(int.to_string(count)),
       ])
   }
-}
-
-fn render_object(
-  object: dict.Dict(String, ExpectedNode),
-  indent: Int,
-) -> shore.Node(Msg) {
-  let prefix = string.repeat("  ", indent)
-  ui.col(
-    object
-    |> dict.to_list
-    |> list.map(fn(pair) {
-      let #(key, value) = pair
-      case value {
-        NodeString(s) -> ui.text(prefix <> key <> ": \"" <> s <> "\"")
-        NodeList(items) ->
-          ui.text(prefix <> key <> ": [" <> string.join(items, ", ") <> "]")
-        NodeObject(nested) ->
-          ui.col([
-            ui.text(prefix <> key <> ":"),
-            render_object(nested, indent + 1),
-          ])
-      }
-    }),
-  )
 }
 
 fn render_not_found(file_name: String) -> shore.Node(Msg) {
