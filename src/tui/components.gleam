@@ -9,11 +9,15 @@ import tui/msg.{type Msg}
 pub fn header(title: String, subtitle: String) -> shore.Node(Msg) {
   ui.box_styled(
     [
-      ui.row([
-        ui.text_styled(" " <> title <> " ", Some(style.White), Some(style.Blue)),
-        ui.text("  "),
-        ui.text(subtitle),
-      ]),
+      ui.text(
+        ansi_fg(style.Yellow)
+        <> " "
+        <> title
+        <> " "
+        <> ansi_reset()
+        <> "  "
+        <> subtitle,
+      ),
     ],
     Some("CCL Test Viewer"),
     Some(style.Cyan),
@@ -33,4 +37,24 @@ pub fn selection_marker(is_selected: Bool) -> String {
     True -> "> "
     False -> "  "
   }
+}
+
+// ANSI color helpers
+
+fn ansi_fg(color: style.Color) -> String {
+  let code = case color {
+    style.Black -> "30"
+    style.Red -> "31"
+    style.Green -> "32"
+    style.Yellow -> "33"
+    style.Blue -> "34"
+    style.Magenta -> "35"
+    style.Cyan -> "36"
+    style.White -> "37"
+  }
+  "\u{001b}[" <> code <> "m"
+}
+
+fn ansi_reset() -> String {
+  "\u{001b}[0m"
 }

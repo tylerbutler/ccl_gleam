@@ -62,68 +62,89 @@ fn render_test_case(
   let is_compatible = test_filter.is_compatible(model.config, tc)
   let position = int.to_string(index + 1) <> "/" <> int.to_string(total)
 
-  ui.col([
-    // Header
-    components.header(tc.name, position),
-    ui.br(),
-    // Metadata section
-    ui.row([
-      ui.text_styled("Validation: ", Some(style.Cyan), None),
-      ui.text(tc.validation),
-      ui.text("   "),
-      ui.text_styled("Compatible: ", Some(style.Cyan), None),
-      case is_compatible {
-        True -> ui.text_styled("Yes", Some(style.Green), None)
-        False -> ui.text_styled("No", Some(style.Red), None)
-      },
-    ]),
-    ui.br(),
-    // Functions
-    ui.row([
-      ui.text_styled("Functions: ", Some(style.Cyan), None),
-      ui.text(string.join(tc.functions, ", ")),
-    ]),
+  ui.col(list.flatten([
+    [
+      // Header
+      components.header(tc.name, position),
+      ui.br(),
+      // Metadata section
+      ui.text(
+        ansi_fg(style.Cyan)
+        <> "Validation: "
+        <> ansi_reset()
+        <> tc.validation
+        <> "   "
+        <> ansi_fg(style.Cyan)
+        <> "Compatible: "
+        <> ansi_reset()
+        <> case is_compatible {
+          True -> ansi_fg(style.Green) <> "Yes" <> ansi_reset()
+          False -> ansi_fg(style.Red) <> "No" <> ansi_reset()
+        },
+      ),
+      ui.br(),
+      // Functions
+      ui.text(
+        ansi_fg(style.Cyan)
+        <> "Functions: "
+        <> ansi_reset()
+        <> string.join(tc.functions, ", "),
+      ),
+    ],
     // Behaviors (if any)
     case tc.behaviors {
-      [] -> ui.text("")
-      behaviors ->
-        ui.row([
-          ui.text_styled("Behaviors: ", Some(style.Cyan), None),
-          ui.text(string.join(behaviors, ", ")),
-        ])
+      [] -> []
+      behaviors -> [
+        ui.text(
+          ansi_fg(style.Cyan)
+          <> "Behaviors: "
+          <> ansi_reset()
+          <> string.join(behaviors, ", "),
+        ),
+      ]
     },
     // Features (if any)
     case tc.features {
-      [] -> ui.text("")
-      features ->
-        ui.row([
-          ui.text_styled("Features: ", Some(style.Cyan), None),
-          ui.text(string.join(features, ", ")),
-        ])
+      [] -> []
+      features -> [
+        ui.text(
+          ansi_fg(style.Cyan)
+          <> "Features: "
+          <> ansi_reset()
+          <> string.join(features, ", "),
+        ),
+      ]
     },
-    ui.br(),
-    // Input section
-    ui.text_styled("INPUT (CCL)", Some(style.Yellow), None),
-    ui.hr_styled(style.Blue),
-    render_inputs(tc.inputs),
-    ui.br(),
-    // Expected section
-    ui.text_styled("EXPECTED", Some(style.Yellow), None),
-    ui.hr_styled(style.Blue),
-    render_expected(tc.expected),
+    [
+      ui.br(),
+      // Input section
+      ui.text_styled("INPUT (CCL)", Some(style.Yellow), None),
+      ui.hr_styled(style.Blue),
+      render_inputs(tc.inputs),
+      ui.br(),
+      // Expected section
+      ui.text_styled("EXPECTED", Some(style.Yellow), None),
+      ui.hr_styled(style.Blue),
+      render_expected(tc.expected),
+    ],
     // Path (if any)
     case tc.path {
-      Some(path) ->
-        ui.row([
-          ui.text_styled("Path: ", Some(style.Cyan), None),
-          ui.text(string.join(path, ".")),
-        ])
-      None -> ui.text("")
+      Some(path) -> [
+        ui.text(
+          ansi_fg(style.Cyan)
+          <> "Path: "
+          <> ansi_reset()
+          <> string.join(path, "."),
+        ),
+      ]
+      None -> []
     },
-    ui.br(),
-    // Footer
-    components.footer("[n/p] Next/Prev  [Esc] Back  [q] Quit"),
-  ])
+    [
+      ui.br(),
+      // Footer
+      components.footer("[n/p] Next/Prev  [Esc] Back  [q] Quit"),
+    ],
+  ]))
 }
 
 fn render_inputs(inputs: List(String)) -> shore.Node(Msg) {
@@ -131,9 +152,10 @@ fn render_inputs(inputs: List(String)) -> shore.Node(Msg) {
   case inputs {
     [] -> ui.text("(no input)")
     _ ->
-      ui.col(
+      ui.text(
         inputs
-        |> list.map(fn(input) { ccl_input.to_shore(input, default_theme) }),
+        |> list.map(fn(input) { ccl_input.to_ansi(input, default_theme) })
+        |> string.join("\n"),
       )
   }
 }
@@ -142,109 +164,126 @@ fn render_expected(expected: Expected) -> shore.Node(Msg) {
   let default_theme = theme.default()
   case expected {
     ExpectedEntries(count, entry_list) ->
-      ui.col([
-        ui.row([
-          ui.text_styled("count: ", Some(style.Cyan), None),
-          ui.text(int.to_string(count)),
-        ]),
-        ui.text_styled("entries:", Some(style.Cyan), None),
-        entries.to_shore(entry_list, default_theme),
-      ])
+      ui.text(
+        ansi_fg(style.Cyan)
+        <> "count: "
+        <> ansi_reset()
+        <> int.to_string(count)
+        <> "\n"
+        <> ansi_fg(style.Cyan)
+        <> "entries:"
+        <> ansi_reset()
+        <> "\n"
+        <> entries.to_ansi(entry_list, default_theme),
+      )
 
     ExpectedValue(count, value) ->
-      ui.col([
-        ui.row([
-          ui.text_styled("count: ", Some(style.Cyan), None),
-          ui.text(int.to_string(count)),
-        ]),
-        ui.row([
-          ui.text_styled("value: ", Some(style.Cyan), None),
-          render_value.to_shore(value, default_theme),
-        ]),
-      ])
+      ui.text(
+        ansi_fg(style.Cyan)
+        <> "count: "
+        <> ansi_reset()
+        <> int.to_string(count)
+        <> "\n"
+        <> ansi_fg(style.Cyan)
+        <> "value: "
+        <> ansi_reset()
+        <> render_value.to_ansi(value, default_theme),
+      )
 
     ExpectedObject(count, object) ->
-      ui.col([
-        ui.row([
-          ui.text_styled("count: ", Some(style.Cyan), None),
-          ui.text(int.to_string(count)),
-        ]),
-        ui.text_styled("object:", Some(style.Cyan), None),
-        render_object.to_shore(object, default_theme),
-      ])
+      ui.text(
+        ansi_fg(style.Cyan)
+        <> "count: "
+        <> ansi_reset()
+        <> int.to_string(count)
+        <> "\n"
+        <> ansi_fg(style.Cyan)
+        <> "object:"
+        <> ansi_reset()
+        <> "\n"
+        <> render_object.to_ansi(object, default_theme),
+      )
 
     ExpectedList(count, items) ->
-      ui.col([
-        ui.row([
-          ui.text_styled("count: ", Some(style.Cyan), None),
-          ui.text(int.to_string(count)),
-        ]),
-        ui.text_styled("list:", Some(style.Cyan), None),
-        render_list.to_shore(items, default_theme),
-      ])
+      ui.text(
+        ansi_fg(style.Cyan)
+        <> "count: "
+        <> ansi_reset()
+        <> int.to_string(count)
+        <> "\n"
+        <> ansi_fg(style.Cyan)
+        <> "list:"
+        <> ansi_reset()
+        <> "\n"
+        <> render_list.to_ansi(items, default_theme),
+      )
 
     ExpectedInt(count, value) ->
-      ui.col([
-        ui.row([
-          ui.text_styled("count: ", Some(style.Cyan), None),
-          ui.text(int.to_string(count)),
-        ]),
-        ui.row([
-          ui.text_styled("value: ", Some(style.Cyan), None),
-          typed.int_to_shore(value, default_theme),
-        ]),
-      ])
+      ui.text(
+        ansi_fg(style.Cyan)
+        <> "count: "
+        <> ansi_reset()
+        <> int.to_string(count)
+        <> "\n"
+        <> ansi_fg(style.Cyan)
+        <> "value: "
+        <> ansi_reset()
+        <> typed.int_to_ansi(value, default_theme),
+      )
 
     ExpectedFloat(count, value) ->
-      ui.col([
-        ui.row([
-          ui.text_styled("count: ", Some(style.Cyan), None),
-          ui.text(int.to_string(count)),
-        ]),
-        ui.row([
-          ui.text_styled("value: ", Some(style.Cyan), None),
-          typed.float_to_shore(value, default_theme),
-        ]),
-      ])
+      ui.text(
+        ansi_fg(style.Cyan)
+        <> "count: "
+        <> ansi_reset()
+        <> int.to_string(count)
+        <> "\n"
+        <> ansi_fg(style.Cyan)
+        <> "value: "
+        <> ansi_reset()
+        <> typed.float_to_ansi(value, default_theme),
+      )
 
     ExpectedBool(count, value) ->
-      ui.col([
-        ui.row([
-          ui.text_styled("count: ", Some(style.Cyan), None),
-          ui.text(int.to_string(count)),
-        ]),
-        ui.row([
-          ui.text_styled("value: ", Some(style.Cyan), None),
-          typed.bool_to_shore(value, default_theme),
-        ]),
-      ])
+      ui.text(
+        ansi_fg(style.Cyan)
+        <> "count: "
+        <> ansi_reset()
+        <> int.to_string(count)
+        <> "\n"
+        <> ansi_fg(style.Cyan)
+        <> "value: "
+        <> ansi_reset()
+        <> typed.bool_to_ansi(value, default_theme),
+      )
 
     ExpectedBoolean(count, boolean) ->
-      ui.col([
-        ui.row([
-          ui.text_styled("count: ", Some(style.Cyan), None),
-          ui.text(int.to_string(count)),
-        ]),
-        ui.row([
-          ui.text_styled("boolean: ", Some(style.Cyan), None),
-          typed.bool_to_shore(boolean, default_theme),
-        ]),
-      ])
+      ui.text(
+        ansi_fg(style.Cyan)
+        <> "count: "
+        <> ansi_reset()
+        <> int.to_string(count)
+        <> "\n"
+        <> ansi_fg(style.Cyan)
+        <> "boolean: "
+        <> ansi_reset()
+        <> typed.bool_to_ansi(boolean, default_theme),
+      )
 
     ExpectedError(count, _error) ->
-      ui.col([
-        ui.row([
-          ui.text_styled("count: ", Some(style.Cyan), None),
-          ui.text(int.to_string(count)),
-        ]),
-        render_error.to_shore(),
-      ])
+      ui.text(
+        ansi_fg(style.Cyan)
+        <> "count: "
+        <> ansi_reset()
+        <> int.to_string(count)
+        <> "\n"
+        <> render_error.to_ansi(),
+      )
 
     ExpectedCountOnly(count) ->
-      ui.row([
-        ui.text_styled("count: ", Some(style.Cyan), None),
-        ui.text(int.to_string(count)),
-      ])
+      ui.text(
+        ansi_fg(style.Cyan) <> "count: " <> ansi_reset() <> int.to_string(count),
+      )
   }
 }
 
@@ -262,6 +301,26 @@ fn render_loading(file_name: String) -> shore.Node(Msg) {
     ui.br(),
     ui.text("Loading test suite..."),
   ])
+}
+
+// ANSI color helpers
+
+fn ansi_fg(color: style.Color) -> String {
+  let code = case color {
+    style.Black -> "30"
+    style.Red -> "31"
+    style.Green -> "32"
+    style.Yellow -> "33"
+    style.Blue -> "34"
+    style.Magenta -> "35"
+    style.Cyan -> "36"
+    style.White -> "37"
+  }
+  "\u{001b}[" <> code <> "m"
+}
+
+fn ansi_reset() -> String {
+  "\u{001b}[0m"
 }
 
 // Helper functions
