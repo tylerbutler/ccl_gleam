@@ -12,16 +12,20 @@ pub type WhitespacePart {
 }
 
 /// Convert a string into parts with whitespace identified
+/// Uses utf_codepoints instead of graphemes so that \r\n is split
+/// into separate CarriageReturn and Newline parts.
 pub fn visualize(input: String) -> List(WhitespacePart) {
   input
-  |> string.to_graphemes
-  |> list.fold([], fn(acc, char) {
-    case char {
-      " " -> [Space, ..acc]
-      "\t" -> [Tab, ..acc]
-      "\n" -> [Newline, ..acc]
-      "\r" -> [CarriageReturn, ..acc]
+  |> string.to_utf_codepoints
+  |> list.map(string.utf_codepoint_to_int)
+  |> list.fold([], fn(acc, cp) {
+    case cp {
+      0x20 -> [Space, ..acc]
+      0x09 -> [Tab, ..acc]
+      0x0A -> [Newline, ..acc]
+      0x0D -> [CarriageReturn, ..acc]
       _ -> {
+        let char = codepoint_to_string(cp)
         // Merge consecutive text characters
         case acc {
           [Text(existing), ..rest] -> [Text(existing <> char), ..rest]
@@ -31,6 +35,11 @@ pub fn visualize(input: String) -> List(WhitespacePart) {
     }
   })
   |> list.reverse
+}
+
+fn codepoint_to_string(cp: Int) -> String {
+  let assert Ok(codepoint) = string.utf_codepoint(cp)
+  string.from_utf_codepoints([codepoint])
 }
 
 /// Get the display glyph for a whitespace character

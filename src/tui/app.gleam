@@ -1,4 +1,6 @@
 /// Shore TUI application setup for CCL test viewer
+import birch
+import birch/handler
 import gleam/erlang/process
 import gleam/int
 import gleam/list
@@ -18,6 +20,9 @@ pub fn start(
   test_dir: String,
   config: ImplementationConfig,
 ) -> Result(Nil, String) {
+  // Squelch birch logging so it doesn't corrupt TUI output
+  birch.configure([birch.config_handlers([handler.null()])])
+
   // Create exit subject
   let exit = process.new_subject()
 

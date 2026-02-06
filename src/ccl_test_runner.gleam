@@ -9,6 +9,7 @@
 ///   view <dir>   Launch interactive TUI viewer
 import argv
 import birch
+import birch/handler/console
 import birch/level
 import cli/commands.{type CommandResult, Failure, Success, build_config}
 import cli/flags
@@ -16,7 +17,10 @@ import glint
 import tui/app
 
 pub fn main() {
-  birch.configure([birch.config_level(level.Info)])
+  birch.configure([
+    birch.config_level(level.Info),
+    birch.config_handlers([console.fancy_handler()]),
+  ])
 
   glint.new()
   |> glint.with_name("ccl_test_runner")
