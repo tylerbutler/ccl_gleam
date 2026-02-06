@@ -5,6 +5,9 @@ import gleam/list
 import gleam/option.{None, Some}
 import gleam/result
 import gleam/string
+import render/ccl_input
+import render/entries
+import render/theme
 import shore
 import shore/style
 import shore/ui
@@ -119,37 +122,28 @@ fn render_test_case(
 }
 
 fn render_inputs(inputs: List(String)) -> shore.Node(Msg) {
+  let default_theme = theme.default()
   case inputs {
     [] -> ui.text("(no input)")
     _ ->
       ui.col(
         inputs
-        |> list.map(fn(input) { ui.text(format_input(input)) }),
+        |> list.map(fn(input) { ccl_input.to_shore(input, default_theme) }),
       )
   }
 }
 
-fn format_input(input: String) -> String {
-  // Show escape sequences visually
-  input
-  |> string.replace("\n", "\\n\n")
-  |> string.replace("\r", "\\r")
-  |> string.replace("\t", "\\t")
-}
-
 fn render_expected(expected: Expected) -> shore.Node(Msg) {
+  let default_theme = theme.default()
   case expected {
-    ExpectedEntries(count, entries) ->
+    ExpectedEntries(count, entry_list) ->
       ui.col([
         ui.row([
           ui.text_styled("count: ", Some(style.Cyan), None),
           ui.text(int.to_string(count)),
         ]),
         ui.text_styled("entries:", Some(style.Cyan), None),
-        ui.col(
-          entries
-          |> list.map(fn(e) { ui.text("  " <> e.key <> " = " <> e.value) }),
-        ),
+        entries.to_shore(entry_list, default_theme),
       ])
 
     ExpectedValue(count, value) ->

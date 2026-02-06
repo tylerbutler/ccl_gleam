@@ -6,6 +6,8 @@ import gleam/list
 import gleam/option
 import gleam/result
 import gleam/string
+import render/entries as render_entries
+import render/theme
 import test_filter
 import test_loader
 import test_types.{
@@ -173,15 +175,24 @@ fn run_parse_test(
             |> list.map(fn(e) { Entry(e.key, e.value) })
           case entries == expected_list {
             True -> TestPassed(name, count)
-            False ->
+            False -> {
+              let expected_tuples =
+                expected_list |> list.map(fn(e) { #(e.key, e.value) })
+              let actual_tuples =
+                entries |> list.map(fn(e) { #(e.key, e.value) })
+              let default_theme = theme.default()
               TestFailed(
                 name,
-                "Entries mismatch:\n  expected: "
-                  <> format_entries(expected_list)
-                  <> "\n  actual: "
-                  <> format_entries(entries),
+                "Entries mismatch:\n  expected:\n"
+                  <> render_entries.tuples_to_ansi(
+                  expected_tuples,
+                  default_theme,
+                )
+                  <> "\n  actual:\n"
+                  <> render_entries.tuples_to_ansi(actual_tuples, default_theme),
                 count,
               )
+            }
           }
         }
         Error(e) -> TestFailed(name, "Parse error: " <> e, count)
@@ -557,13 +568,6 @@ fn compare_values(actual: CCLValue, expected: ExpectedNode) -> Bool {
     CclObject(obj), NodeObject(eobj) -> compare_objects(obj, eobj)
     _, _ -> False
   }
-}
-
-/// Format entries for error messages
-fn format_entries(entries: List(Entry)) -> String {
-  entries
-  |> list.map(fn(e) { e.key <> " = " <> e.value })
-  |> string.join(", ")
 }
 
 /// Format expected object for error messages
