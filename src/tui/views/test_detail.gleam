@@ -7,6 +7,7 @@ import gleam/result
 import gleam/string
 import render/ccl_input
 import render/entries
+import render/error as render_error
 import render/list as render_list
 import render/object as render_object
 import render/theme
@@ -236,8 +237,7 @@ fn render_expected(expected: Expected) -> shore.Node(Msg) {
           ui.text_styled("count: ", Some(style.Cyan), None),
           ui.text(int.to_string(count)),
         ]),
-        ui.text_styled("error: ", Some(style.Red), None),
-        ui.text("true"),
+        render_error.to_shore(),
       ])
 
     ExpectedCountOnly(count) ->
