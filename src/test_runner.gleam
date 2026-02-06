@@ -8,6 +8,7 @@ import gleam/result
 import gleam/string
 import render/entries as render_entries
 import render/theme
+import render/value as render_value
 import test_filter
 import test_loader
 import test_types.{
@@ -222,15 +223,17 @@ fn run_print_test(
           let printed = impl.print(entries)
           case printed == expected_value {
             True -> TestPassed(name, count)
-            False ->
+            False -> {
+              let default_theme = theme.default()
               TestFailed(
                 name,
                 "Print mismatch:\n  expected: "
-                  <> string.inspect(expected_value)
+                  <> render_value.to_ansi(expected_value, default_theme)
                   <> "\n  actual: "
-                  <> string.inspect(printed),
+                  <> render_value.to_ansi(printed, default_theme),
                 count,
               )
+            }
           }
         }
         Error(e) -> TestFailed(name, "Parse error: " <> e, count)
@@ -291,15 +294,17 @@ fn run_get_string_test(
             Ok(value) -> {
               case value == expected_value {
                 True -> TestPassed(name, count)
-                False ->
+                False -> {
+                  let default_theme = theme.default()
                   TestFailed(
                     name,
                     "Value mismatch: expected "
-                      <> string.inspect(expected_value)
+                      <> render_value.to_ansi(expected_value, default_theme)
                       <> ", got "
-                      <> string.inspect(value),
+                      <> render_value.to_ansi(value, default_theme),
                     count,
                   )
+                }
               }
             }
             Error(e) -> TestFailed(name, "get_string error: " <> e, count)

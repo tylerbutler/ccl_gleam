@@ -8,6 +8,7 @@ import gleam/string
 import render/ccl_input
 import render/entries
 import render/theme
+import render/value as render_value
 import shore
 import shore/style
 import shore/ui
@@ -154,7 +155,7 @@ fn render_expected(expected: Expected) -> shore.Node(Msg) {
         ]),
         ui.row([
           ui.text_styled("value: ", Some(style.Cyan), None),
-          ui.text("\"" <> value <> "\""),
+          render_value.to_shore(value, default_theme),
         ]),
       ])
 
