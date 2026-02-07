@@ -65,3 +65,7 @@ all: build test
 
 # CI check - format, build, test
 ci: check-format build test
+
+# CI parity recipes
+alias pr := ci
+main: ci
