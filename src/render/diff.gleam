@@ -80,17 +80,25 @@ fn entry_to_lines(key: String, value: String, theme: Theme) -> List(String) {
 // ============================================================================
 
 /// Format an entries mismatch as a side-by-side diff.
+/// Includes entry counts in the column headers.
 pub fn entries_diff(
   expected: List(#(String, String)),
   actual: List(#(String, String)),
   theme: Theme,
 ) -> String {
+  let expected_count = list.length(expected)
+  let actual_count = list.length(actual)
   let expected_lines =
     expected |> list.flat_map(fn(t) { entry_to_lines(t.0, t.1, theme) })
   let actual_lines =
     actual |> list.flat_map(fn(t) { entry_to_lines(t.0, t.1, theme) })
 
-  side_by_side("expected", expected_lines, "actual", actual_lines)
+  side_by_side(
+    "expected (" <> int.to_string(expected_count) <> ")",
+    expected_lines,
+    "actual (" <> int.to_string(actual_count) <> ")",
+    actual_lines,
+  )
 }
 
 // ============================================================================
