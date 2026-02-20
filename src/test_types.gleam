@@ -56,6 +56,14 @@ pub type TestResult {
   TestSkipped(name: String, reason: String)
 }
 
+/// How to group failures in the report.
+pub type FailureGrouping {
+  /// Group failures by source file (default)
+  GroupByFile
+  /// Group failures by validation kind (parse, print, build_hierarchy, etc.)
+  GroupByValidation
+}
+
 /// Summary of running a test suite
 pub type TestSuiteResult {
   TestSuiteResult(

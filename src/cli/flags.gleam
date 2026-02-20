@@ -31,3 +31,10 @@ pub fn variants_flag() -> glint.Flag(List(String)) {
   |> glint.flag_default(["reference_compliant"])
   |> glint.flag_help("Comma-separated list of supported variants")
 }
+
+/// Flag for specifying how to group failures in the report
+pub fn group_by_flag() -> glint.Flag(String) {
+  glint.string_flag("group-by")
+  |> glint.flag_default("file")
+  |> glint.flag_help("How to group failures: file (default) or validation")
+}

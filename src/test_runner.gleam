@@ -6,7 +6,7 @@ import gleam/list
 import gleam/option
 import gleam/result
 import gleam/string
-import render/entries as render_entries
+import render/diff
 import render/list as render_list
 import render/object as render_object
 import render/report
@@ -188,13 +188,12 @@ fn run_parse_test(
               let default_theme = theme.default()
               TestFailed(
                 name,
-                "Entries mismatch:\n  expected:\n"
-                  <> render_entries.tuples_to_ansi(
+                "Entries mismatch:\n"
+                  <> diff.entries_diff(
                   expected_tuples,
+                  actual_tuples,
                   default_theme,
-                )
-                  <> "\n  actual:\n"
-                  <> render_entries.tuples_to_ansi(actual_tuples, default_theme),
+                ),
                 count,
               )
             }
@@ -231,10 +230,8 @@ fn run_print_test(
               let default_theme = theme.default()
               TestFailed(
                 name,
-                "Print mismatch:\n  expected: "
-                  <> render_value.to_ansi(expected_value, default_theme)
-                  <> "\n  actual: "
-                  <> render_value.to_ansi(printed, default_theme),
+                "Print mismatch:\n"
+                  <> diff.value_diff(expected_value, printed, default_theme),
                 count,
               )
             }
@@ -263,12 +260,15 @@ fn run_hierarchy_test(
             True -> TestPassed(name, count)
             False -> {
               let default_theme = theme.default()
+              let expected_lines =
+                render_object.to_ansi(expected_obj, default_theme)
+                |> string.split("\n")
+              let actual_lines =
+                format_ccl(obj) |> string.split("\n")
               TestFailed(
                 name,
-                "Object mismatch:\n  expected:\n"
-                  <> render_object.to_ansi(expected_obj, default_theme)
-                  <> "\n  actual:\n"
-                  <> format_ccl(obj),
+                "Object mismatch:\n"
+                  <> diff.block_diff(expected_lines, actual_lines),
                 count,
               )
             }
@@ -304,10 +304,11 @@ fn run_get_string_test(
                   let default_theme = theme.default()
                   TestFailed(
                     name,
-                    "Value mismatch: expected "
-                      <> render_value.to_ansi(expected_value, default_theme)
-                      <> ", got "
-                      <> render_value.to_ansi(value, default_theme),
+                    "Value mismatch:\n"
+                      <> diff.inline_diff(
+                      render_value.to_ansi(expected_value, default_theme),
+                      render_value.to_ansi(value, default_theme),
+                    ),
                     count,
                   )
                 }
@@ -358,10 +359,11 @@ fn run_get_int_test(
                   let default_theme = theme.default()
                   TestFailed(
                     name,
-                    "Value mismatch: expected "
-                      <> typed.int_to_ansi(expected_value, default_theme)
-                      <> ", got "
-                      <> typed.int_to_ansi(value, default_theme),
+                    "Value mismatch:\n"
+                      <> diff.inline_diff(
+                      typed.int_to_ansi(expected_value, default_theme),
+                      typed.int_to_ansi(value, default_theme),
+                    ),
                     count,
                   )
                 }
@@ -412,10 +414,11 @@ fn run_get_bool_test(
                   let default_theme = theme.default()
                   TestFailed(
                     name,
-                    "Value mismatch: expected "
-                      <> typed.bool_to_ansi(expected_value, default_theme)
-                      <> ", got "
-                      <> typed.bool_to_ansi(value, default_theme),
+                    "Value mismatch:\n"
+                      <> diff.inline_diff(
+                      typed.bool_to_ansi(expected_value, default_theme),
+                      typed.bool_to_ansi(value, default_theme),
+                    ),
                     count,
                   )
                 }
@@ -468,10 +471,11 @@ fn run_get_float_test(
                   let default_theme = theme.default()
                   TestFailed(
                     name,
-                    "Value mismatch: expected "
-                      <> typed.float_to_ansi(expected_value, default_theme)
-                      <> ", got "
-                      <> typed.float_to_ansi(value, default_theme),
+                    "Value mismatch:\n"
+                      <> diff.inline_diff(
+                      typed.float_to_ansi(expected_value, default_theme),
+                      typed.float_to_ansi(value, default_theme),
+                    ),
                     count,
                   )
                 }
@@ -527,12 +531,16 @@ fn run_get_list_test(
                 True -> TestPassed(name, count)
                 False -> {
                   let default_theme = theme.default()
+                  let expected_lines =
+                    render_list.to_ansi(expected_list, default_theme)
+                    |> string.split("\n")
+                  let actual_lines =
+                    render_list.to_ansi(value, default_theme)
+                    |> string.split("\n")
                   TestFailed(
                     name,
-                    "List mismatch:\n  expected:\n"
-                      <> render_list.to_ansi(expected_list, default_theme)
-                      <> "\n  got:\n"
-                      <> render_list.to_ansi(value, default_theme),
+                    "List mismatch:\n"
+                      <> diff.block_diff(expected_lines, actual_lines),
                     count,
                   )
                 }
@@ -614,6 +622,7 @@ pub fn print_results(
   results: List(TestSuiteResult),
   config: test_types.ImplementationConfig,
   test_dir: String,
+  grouping: test_types.FailureGrouping,
 ) -> Nil {
-  report.print_report(results, config, test_dir)
+  report.print_report_grouped(results, config, test_dir, grouping)
 }

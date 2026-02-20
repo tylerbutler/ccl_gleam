@@ -17,7 +17,8 @@ import test_runner.{
   CclObject, CclString, Entry,
 }
 import test_types.{
-  type ImplementationConfig, type TestCase, ImplementationConfig,
+  type FailureGrouping, type ImplementationConfig, type TestCase,
+  GroupByFile, GroupByValidation, ImplementationConfig,
 }
 
 /// Result type for commands
@@ -58,6 +59,7 @@ Executes the test suite and reports results with pass/fail/skip counts.",
   use behaviors <- glint.flag(flags.behaviors_flag())
   use features <- glint.flag(flags.features_flag())
   use variants <- glint.flag(flags.variants_flag())
+  use group_by <- glint.flag(flags.group_by_flag())
   use named, _args, flags <- glint.command()
 
   let dir = test_dir(named)
@@ -65,18 +67,32 @@ Executes the test suite and reports results with pass/fail/skip counts.",
   let assert Ok(behavs) = behaviors(flags)
   let assert Ok(feats) = features(flags)
   let assert Ok(vars) = variants(flags)
+  let assert Ok(group_by_str) = group_by(flags)
 
   let config = build_config(funcs, behavs, feats, vars)
-  run_tests(dir, config)
+  let grouping = parse_grouping(group_by_str)
+  run_tests(dir, config, grouping)
+}
+
+/// Parse a grouping string into a FailureGrouping value.
+fn parse_grouping(s: String) -> FailureGrouping {
+  case string.lowercase(s) {
+    "validation" | "kind" -> GroupByValidation
+    _ -> GroupByFile
+  }
 }
 
 /// Run tests and return result
-fn run_tests(test_dir: String, config: ImplementationConfig) -> CommandResult {
+fn run_tests(
+  test_dir: String,
+  config: ImplementationConfig,
+  grouping: FailureGrouping,
+) -> CommandResult {
   let impl = mock_implementation()
 
   case test_runner.run_test_directory(test_dir, config, impl) {
     Ok(results) -> {
-      test_runner.print_results(results, config, test_dir)
+      test_runner.print_results(results, config, test_dir, grouping)
 
       let total_failed =
         results

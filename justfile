@@ -37,8 +37,8 @@ run *ARGS:
     gleam run -- {{ ARGS }}
 
 # Run tests with default config (parse-only)
-run-tests DIR="../ccl-test-data/generated_tests/":
-    gleam run -- run {{ DIR }}
+run-tests DIR="../ccl-test-data/generated_tests/" GROUP_BY="file":
+    gleam run -- run {{ DIR }} --group-by={{ GROUP_BY }}
 
 # Run tests for specific functions
 run-tests-with-functions DIR="../ccl-test-data/generated_tests/" FUNCTIONS="parse,print":
