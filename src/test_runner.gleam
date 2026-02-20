@@ -18,9 +18,9 @@ import test_loader
 import test_types.{
   type Expected, type ExpectedNode, type ImplementationConfig, type TestCase,
   type TestResult, type TestSuite, type TestSuiteResult, ExpectedBool,
-  ExpectedEntries, ExpectedError, ExpectedFloat, ExpectedInt, ExpectedList,
-  ExpectedObject, ExpectedValue, NodeList, NodeObject, NodeString, TestFailed,
-  TestPassed, TestSkipped, TestSuiteResult,
+  ExpectedCountOnly, ExpectedEntries, ExpectedError, ExpectedFloat,
+  ExpectedInt, ExpectedList, ExpectedObject, ExpectedValue, NodeList,
+  NodeObject, NodeString, TestFailed, TestPassed, TestSkipped, TestSuiteResult,
 }
 
 /// Type alias for CCL entry
@@ -43,7 +43,10 @@ pub type CCLValue {
 pub type CclImplementation {
   CclImplementation(
     parse: fn(String) -> Result(List(Entry), String),
+    parse_indented: fn(String) -> Result(List(Entry), String),
     print: fn(List(Entry)) -> String,
+    filter: fn(List(Entry)) -> List(Entry),
+    compose: fn(List(Entry), List(Entry)) -> List(Entry),
     build_hierarchy: fn(List(Entry)) -> CCL,
     get_string: fn(CCL, List(String)) -> Result(String, String),
     get_int: fn(CCL, List(String)) -> Result(Int, String),
@@ -151,7 +154,19 @@ fn execute_test(tc: TestCase, impl: CclImplementation) -> TestResult {
 
   case tc.validation {
     "parse" -> run_parse_test(tc.name, input, tc.expected, impl)
+    "parse_indented" ->
+      run_parse_indented_test(tc.name, input, tc.expected, impl)
     "print" -> run_print_test(tc.name, input, tc.expected, impl)
+    "canonical_format" ->
+      run_canonical_format_test(tc.name, input, tc.expected, impl)
+    "round_trip" -> run_round_trip_test(tc.name, input, tc.expected, impl)
+    "filter" -> run_filter_test(tc.name, input, tc.expected, impl)
+    "compose_associative" ->
+      run_compose_associative_test(tc.name, tc.inputs, tc.expected, impl)
+    "identity_left" ->
+      run_identity_left_test(tc.name, tc.inputs, tc.expected, impl)
+    "identity_right" ->
+      run_identity_right_test(tc.name, tc.inputs, tc.expected, impl)
     "build_hierarchy" -> run_hierarchy_test(tc.name, input, tc.expected, impl)
     "get_string" ->
       run_get_string_test(tc.name, input, tc.path, tc.expected, impl)
@@ -241,6 +256,391 @@ fn run_print_test(
       }
     }
     _ -> TestFailed(name, "Invalid expected type for print test", 0)
+  }
+}
+
+/// Run a parse_indented test - like parse but uses the parse_indented function
+fn run_parse_indented_test(
+  name: String,
+  input: String,
+  expected: Expected,
+  impl: CclImplementation,
+) -> TestResult {
+  case expected {
+    ExpectedEntries(count, expected_entries) -> {
+      case impl.parse_indented(input) {
+        Ok(entries) -> {
+          let expected_list =
+            expected_entries
+            |> list.map(fn(e) { Entry(e.key, e.value) })
+          case entries == expected_list {
+            True -> TestPassed(name, count)
+            False -> {
+              let expected_tuples =
+                expected_list |> list.map(fn(e) { #(e.key, e.value) })
+              let actual_tuples =
+                entries |> list.map(fn(e) { #(e.key, e.value) })
+              let default_theme = theme.default()
+              TestFailed(
+                name,
+                "Entries mismatch:\n"
+                  <> diff.entries_diff(
+                  expected_tuples,
+                  actual_tuples,
+                  default_theme,
+                ),
+                count,
+              )
+            }
+          }
+        }
+        Error(e) -> TestFailed(name, "Parse error: " <> e, count)
+      }
+    }
+    ExpectedError(count, True) -> {
+      case impl.parse_indented(input) {
+        Ok(_) -> TestFailed(name, "Expected error but got success", count)
+        Error(_) -> TestPassed(name, count)
+      }
+    }
+    _ -> TestFailed(name, "Invalid expected type for parse_indented test", 0)
+  }
+}
+
+/// Run a canonical_format test - parse then print, compare output with expected
+fn run_canonical_format_test(
+  name: String,
+  input: String,
+  expected: Expected,
+  impl: CclImplementation,
+) -> TestResult {
+  case expected {
+    ExpectedValue(count, expected_value) -> {
+      case impl.parse(input) {
+        Ok(entries) -> {
+          let formatted = impl.print(entries)
+          case formatted == expected_value {
+            True -> TestPassed(name, count)
+            False -> {
+              let default_theme = theme.default()
+              TestFailed(
+                name,
+                "Canonical format mismatch:\n"
+                  <> diff.value_diff(
+                  expected_value,
+                  formatted,
+                  default_theme,
+                ),
+                count,
+              )
+            }
+          }
+        }
+        Error(e) -> TestFailed(name, "Parse error: " <> e, count)
+      }
+    }
+    _ ->
+      TestFailed(name, "Invalid expected type for canonical_format test", 0)
+  }
+}
+
+/// Run a round_trip test - parse(print(parse(x))) == parse(x)
+fn run_round_trip_test(
+  name: String,
+  input: String,
+  expected: Expected,
+  impl: CclImplementation,
+) -> TestResult {
+  case expected {
+    ExpectedBool(count, True) -> {
+      case impl.parse(input) {
+        Ok(parsed) -> {
+          let printed = impl.print(parsed)
+          case impl.parse(printed) {
+            Ok(reparsed) -> {
+              case parsed == reparsed {
+                True -> TestPassed(name, count)
+                False -> {
+                  let default_theme = theme.default()
+                  let original_tuples =
+                    parsed |> list.map(fn(e) { #(e.key, e.value) })
+                  let reparsed_tuples =
+                    reparsed |> list.map(fn(e) { #(e.key, e.value) })
+                  TestFailed(
+                    name,
+                    "Round-trip mismatch: parse(print(parse(x))) != parse(x)\n"
+                      <> diff.entries_diff(
+                      original_tuples,
+                      reparsed_tuples,
+                      default_theme,
+                    ),
+                    count,
+                  )
+                }
+              }
+            }
+            Error(e) ->
+              TestFailed(name, "Re-parse error: " <> e, count)
+          }
+        }
+        Error(e) -> TestFailed(name, "Parse error: " <> e, count)
+      }
+    }
+    ExpectedValue(count, _expected_value) -> {
+      // Some round_trip tests expect a specific printed value
+      case impl.parse(input) {
+        Ok(parsed) -> {
+          let printed = impl.print(parsed)
+          case impl.parse(printed) {
+            Ok(reparsed) -> {
+              case parsed == reparsed {
+                True -> TestPassed(name, count)
+                False -> {
+                  let default_theme = theme.default()
+                  let original_tuples =
+                    parsed |> list.map(fn(e) { #(e.key, e.value) })
+                  let reparsed_tuples =
+                    reparsed |> list.map(fn(e) { #(e.key, e.value) })
+                  TestFailed(
+                    name,
+                    "Round-trip mismatch: parse(print(parse(x))) != parse(x)\n"
+                      <> diff.entries_diff(
+                      original_tuples,
+                      reparsed_tuples,
+                      default_theme,
+                    ),
+                    count,
+                  )
+                }
+              }
+            }
+            Error(e) ->
+              TestFailed(name, "Re-parse error: " <> e, count)
+          }
+        }
+        Error(e) -> TestFailed(name, "Parse error: " <> e, count)
+      }
+    }
+    _ -> TestFailed(name, "Invalid expected type for round_trip test", 0)
+  }
+}
+
+/// Run a filter test - parse then filter (remove comments), compare entries
+fn run_filter_test(
+  name: String,
+  input: String,
+  expected: Expected,
+  impl: CclImplementation,
+) -> TestResult {
+  case expected {
+    ExpectedEntries(count, expected_entries) -> {
+      case impl.parse(input) {
+        Ok(entries) -> {
+          let filtered = impl.filter(entries)
+          let expected_list =
+            expected_entries
+            |> list.map(fn(e) { Entry(e.key, e.value) })
+          case filtered == expected_list {
+            True -> TestPassed(name, count)
+            False -> {
+              let expected_tuples =
+                expected_list |> list.map(fn(e) { #(e.key, e.value) })
+              let actual_tuples =
+                filtered |> list.map(fn(e) { #(e.key, e.value) })
+              let default_theme = theme.default()
+              TestFailed(
+                name,
+                "Filter mismatch:\n"
+                  <> diff.entries_diff(
+                  expected_tuples,
+                  actual_tuples,
+                  default_theme,
+                ),
+                count,
+              )
+            }
+          }
+        }
+        Error(e) -> TestFailed(name, "Parse error: " <> e, count)
+      }
+    }
+    ExpectedCountOnly(count) -> {
+      // Just verify filter doesn't crash
+      case impl.parse(input) {
+        Ok(entries) -> {
+          let _filtered = impl.filter(entries)
+          TestPassed(name, count)
+        }
+        Error(e) -> TestFailed(name, "Parse error: " <> e, count)
+      }
+    }
+    _ -> TestFailed(name, "Invalid expected type for filter test", 0)
+  }
+}
+
+/// Run a compose_associative test - verify (a·b)·c == a·(b·c)
+fn run_compose_associative_test(
+  name: String,
+  inputs: List(String),
+  expected: Expected,
+  impl: CclImplementation,
+) -> TestResult {
+  case expected {
+    ExpectedBool(count, True) -> {
+      case inputs {
+        [input_a, input_b, input_c] -> {
+          case impl.parse(input_a), impl.parse(input_b), impl.parse(input_c) {
+            Ok(a), Ok(b), Ok(c) -> {
+              // (a·b)·c
+              let ab = impl.compose(a, b)
+              let left = impl.compose(ab, c)
+              // a·(b·c)
+              let bc = impl.compose(b, c)
+              let right = impl.compose(a, bc)
+              case left == right {
+                True -> TestPassed(name, count)
+                False -> {
+                  let default_theme = theme.default()
+                  let left_tuples =
+                    left |> list.map(fn(e) { #(e.key, e.value) })
+                  let right_tuples =
+                    right |> list.map(fn(e) { #(e.key, e.value) })
+                  TestFailed(
+                    name,
+                    "Compose not associative: (a·b)·c != a·(b·c)\n"
+                      <> diff.entries_diff(
+                      left_tuples,
+                      right_tuples,
+                      default_theme,
+                    ),
+                    count,
+                  )
+                }
+              }
+            }
+            _, _, _ ->
+              TestFailed(name, "Parse error on one or more inputs", count)
+          }
+        }
+        _ ->
+          TestFailed(
+            name,
+            "compose_associative requires exactly 3 inputs, got "
+              <> int.to_string(list.length(inputs)),
+            0,
+          )
+      }
+    }
+    _ ->
+      TestFailed(
+        name,
+        "Invalid expected type for compose_associative test",
+        0,
+      )
+  }
+}
+
+/// Run an identity_left test - verify compose(empty, x) == x
+fn run_identity_left_test(
+  name: String,
+  inputs: List(String),
+  expected: Expected,
+  impl: CclImplementation,
+) -> TestResult {
+  case expected {
+    ExpectedBool(count, True) -> {
+      case inputs {
+        [input_empty, input_x] -> {
+          case impl.parse(input_empty), impl.parse(input_x) {
+            Ok(empty), Ok(x) -> {
+              let result = impl.compose(empty, x)
+              case result == x {
+                True -> TestPassed(name, count)
+                False -> {
+                  let default_theme = theme.default()
+                  let expected_tuples =
+                    x |> list.map(fn(e) { #(e.key, e.value) })
+                  let actual_tuples =
+                    result |> list.map(fn(e) { #(e.key, e.value) })
+                  TestFailed(
+                    name,
+                    "Identity left failed: compose(empty, x) != x\n"
+                      <> diff.entries_diff(
+                      expected_tuples,
+                      actual_tuples,
+                      default_theme,
+                    ),
+                    count,
+                  )
+                }
+              }
+            }
+            _, _ -> TestFailed(name, "Parse error on one or more inputs", count)
+          }
+        }
+        _ ->
+          TestFailed(
+            name,
+            "identity_left requires exactly 2 inputs, got "
+              <> int.to_string(list.length(inputs)),
+            0,
+          )
+      }
+    }
+    _ ->
+      TestFailed(name, "Invalid expected type for identity_left test", 0)
+  }
+}
+
+/// Run an identity_right test - verify compose(x, empty) == x
+fn run_identity_right_test(
+  name: String,
+  inputs: List(String),
+  expected: Expected,
+  impl: CclImplementation,
+) -> TestResult {
+  case expected {
+    ExpectedBool(count, True) -> {
+      case inputs {
+        [input_x, input_empty] -> {
+          case impl.parse(input_x), impl.parse(input_empty) {
+            Ok(x), Ok(empty) -> {
+              let result = impl.compose(x, empty)
+              case result == x {
+                True -> TestPassed(name, count)
+                False -> {
+                  let default_theme = theme.default()
+                  let expected_tuples =
+                    x |> list.map(fn(e) { #(e.key, e.value) })
+                  let actual_tuples =
+                    result |> list.map(fn(e) { #(e.key, e.value) })
+                  TestFailed(
+                    name,
+                    "Identity right failed: compose(x, empty) != x\n"
+                      <> diff.entries_diff(
+                      expected_tuples,
+                      actual_tuples,
+                      default_theme,
+                    ),
+                    count,
+                  )
+                }
+              }
+            }
+            _, _ -> TestFailed(name, "Parse error on one or more inputs", count)
+          }
+        }
+        _ ->
+          TestFailed(
+            name,
+            "identity_right requires exactly 2 inputs, got "
+              <> int.to_string(list.length(inputs)),
+            0,
+          )
+      }
+    }
+    _ ->
+      TestFailed(name, "Invalid expected type for identity_right test", 0)
   }
 }
 

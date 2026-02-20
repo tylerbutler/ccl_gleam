@@ -357,7 +357,10 @@ fn count_tags(
 fn mock_implementation() -> CclImplementation {
   CclImplementation(
     parse: mock_parse,
+    parse_indented: mock_parse_indented,
     print: mock_print,
+    filter: mock_filter,
+    compose: mock_compose,
     build_hierarchy: mock_build_hierarchy,
     get_string: mock_get_string,
     get_int: mock_get_int,
@@ -387,6 +390,27 @@ fn parse_line(line: String) -> Result(Entry, String) {
       }
     }
   }
+}
+
+fn mock_parse_indented(input: String) -> Result(List(Entry), String) {
+  // Strip leading indentation then parse normally
+  let lines = string.split(input, "\n")
+  let dedented =
+    lines
+    |> list.map(fn(line) { string.trim_start(line) })
+    |> string.join("\n")
+  mock_parse(dedented)
+}
+
+fn mock_filter(entries: List(Entry)) -> List(Entry) {
+  // Remove comment entries (key == "/")
+  entries
+  |> list.filter(fn(e: Entry) { e.key != "/" })
+}
+
+fn mock_compose(left: List(Entry), right: List(Entry)) -> List(Entry) {
+  // Simple concatenation
+  list.append(left, right)
 }
 
 fn mock_print(entries: List(Entry)) -> String {
