@@ -72,16 +72,11 @@ Executes the test suite and reports results with pass/fail/skip counts.",
 
 /// Run tests and return result
 fn run_tests(test_dir: String, config: ImplementationConfig) -> CommandResult {
-  birch.info_m("Starting test runner", [
-    #("dir", test_dir),
-    #("functions", string.join(config.functions, ", ")),
-  ])
-
   let impl = mock_implementation()
 
   case test_runner.run_test_directory(test_dir, config, impl) {
     Ok(results) -> {
-      test_runner.print_results(results)
+      test_runner.print_results(results, config, test_dir)
 
       let total_failed =
         results

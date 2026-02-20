@@ -9,6 +9,7 @@ import gleam/string
 import render/entries as render_entries
 import render/list as render_list
 import render/object as render_object
+import render/report
 import render/theme
 import render/typed
 import render/value as render_value
@@ -60,7 +61,7 @@ pub fn run_test_directory(
 ) -> Result(List(TestSuiteResult), String) {
   use files <- result.try(test_loader.list_test_files(dir))
 
-  birch.info_m("Found test files", [
+  birch.debug_m("Found test files", [
     #("count", int.to_string(list.length(files))),
   ])
 
@@ -78,7 +79,7 @@ pub fn run_test_file(
   config: ImplementationConfig,
   impl: CclImplementation,
 ) -> Result(TestSuiteResult, String) {
-  birch.info_m("Loading test file", [#("path", path)])
+  birch.debug_m("Loading test file", [#("path", path)])
 
   use suite <- result.try(test_loader.load_test_file(path))
 
@@ -608,55 +609,11 @@ fn format_ccl_value(value: CCLValue) -> String {
   }
 }
 
-/// Print test results summary using birch
-pub fn print_results(results: List(TestSuiteResult)) -> Nil {
-  let total_passed =
-    results
-    |> list.map(fn(r) { r.passed })
-    |> list.fold(0, fn(acc, n) { acc + n })
-
-  let total_failed =
-    results
-    |> list.map(fn(r) { r.failed })
-    |> list.fold(0, fn(acc, n) { acc + n })
-
-  let total_skipped =
-    results
-    |> list.map(fn(r) { r.skipped })
-    |> list.fold(0, fn(acc, n) { acc + n })
-
-  let total =
-    results
-    |> list.map(fn(r) { r.total })
-    |> list.fold(0, fn(acc, n) { acc + n })
-
-  // Print per-file summaries
-  list.each(results, fn(r) {
-    birch.info_m("Suite complete", [
-      #("file", r.file),
-      #("passed", int.to_string(r.passed)),
-      #("failed", int.to_string(r.failed)),
-      #("skipped", int.to_string(r.skipped)),
-    ])
-
-    // Print failures
-    list.each(r.results, fn(test_result) {
-      case test_result {
-        TestFailed(name, reason, _) -> {
-          birch.error_m("Test failed", [#("test", name), #("reason", reason)])
-        }
-        _ -> Nil
-      }
-    })
-  })
-
-  // Print overall summary
-  birch.info_m("All tests complete", [
-    #("total", int.to_string(total)),
-    #("passed", int.to_string(total_passed)),
-    #("failed", int.to_string(total_failed)),
-    #("skipped", int.to_string(total_skipped)),
-  ])
-
-  Nil
+/// Print test results report
+pub fn print_results(
+  results: List(TestSuiteResult),
+  config: test_types.ImplementationConfig,
+  test_dir: String,
+) -> Nil {
+  report.print_report(results, config, test_dir)
 }
