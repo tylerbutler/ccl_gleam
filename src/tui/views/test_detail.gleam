@@ -62,89 +62,91 @@ fn render_test_case(
   let is_compatible = test_filter.is_compatible(model.config, tc)
   let position = int.to_string(index + 1) <> "/" <> int.to_string(total)
 
-  ui.col(list.flatten([
-    [
-      // Header
-      components.header(tc.name, position),
-      ui.br(),
-      // Metadata section
-      ui.text(
-        ansi_fg(style.Cyan)
-        <> "Validation: "
-        <> ansi_reset()
-        <> tc.validation
-        <> "   "
-        <> ansi_fg(style.Cyan)
-        <> "Compatible: "
-        <> ansi_reset()
-        <> case is_compatible {
-          True -> ansi_fg(style.Green) <> "Yes" <> ansi_reset()
-          False -> ansi_fg(style.Red) <> "No" <> ansi_reset()
-        },
-      ),
-      ui.br(),
-      // Functions
-      ui.text(
-        ansi_fg(style.Cyan)
-        <> "Functions: "
-        <> ansi_reset()
-        <> string.join(tc.functions, ", "),
-      ),
-    ],
-    // Behaviors (if any)
-    case tc.behaviors {
-      [] -> []
-      behaviors -> [
+  ui.col(
+    list.flatten([
+      [
+        // Header
+        components.header(tc.name, position),
+        ui.br(),
+        // Metadata section
         ui.text(
           ansi_fg(style.Cyan)
-          <> "Behaviors: "
+          <> "Validation: "
           <> ansi_reset()
-          <> string.join(behaviors, ", "),
+          <> tc.validation
+          <> "   "
+          <> ansi_fg(style.Cyan)
+          <> "Compatible: "
+          <> ansi_reset()
+          <> case is_compatible {
+            True -> ansi_fg(style.Green) <> "Yes" <> ansi_reset()
+            False -> ansi_fg(style.Red) <> "No" <> ansi_reset()
+          },
         ),
-      ]
-    },
-    // Features (if any)
-    case tc.features {
-      [] -> []
-      features -> [
+        ui.br(),
+        // Functions
         ui.text(
           ansi_fg(style.Cyan)
-          <> "Features: "
+          <> "Functions: "
           <> ansi_reset()
-          <> string.join(features, ", "),
+          <> string.join(tc.functions, ", "),
         ),
-      ]
-    },
-    [
-      ui.br(),
-      // Input section
-      ui.text_styled("INPUT (CCL)", Some(style.Yellow), None),
-      ui.hr_styled(style.Blue),
-      render_inputs(tc.inputs),
-      ui.br(),
-      // Expected section
-      ui.text_styled("EXPECTED", Some(style.Yellow), None),
-      ui.hr_styled(style.Blue),
-      render_expected(tc.expected),
-    ],
-    // Path (if any)
-    case tc.path {
-      Some(path) -> [
-        ui.text(
-          ansi_fg(style.Cyan)
-          <> "Path: "
-          <> ansi_reset()
-          <> string.join(path, "."),
-        ),
-      ]
-      None -> []
-    },
-    [
-      ui.br(),
-      // Footer
-      components.footer("[n/p] Next/Prev  [Esc] Back  [q] Quit"),
-    ],
-  ]))
+      ],
+      // Behaviors (if any)
+      case tc.behaviors {
+        [] -> []
+        behaviors -> [
+          ui.text(
+            ansi_fg(style.Cyan)
+            <> "Behaviors: "
+            <> ansi_reset()
+            <> string.join(behaviors, ", "),
+          ),
+        ]
+      },
+      // Features (if any)
+      case tc.features {
+        [] -> []
+        features -> [
+          ui.text(
+            ansi_fg(style.Cyan)
+            <> "Features: "
+            <> ansi_reset()
+            <> string.join(features, ", "),
+          ),
+        ]
+      },
+      [
+        ui.br(),
+        // Input section
+        ui.text_styled("INPUT (CCL)", Some(style.Yellow), None),
+        ui.hr_styled(style.Blue),
+        render_inputs(tc.inputs),
+        ui.br(),
+        // Expected section
+        ui.text_styled("EXPECTED", Some(style.Yellow), None),
+        ui.hr_styled(style.Blue),
+        render_expected(tc.expected),
+      ],
+      // Path (if any)
+      case tc.path {
+        Some(path) -> [
+          ui.text(
+            ansi_fg(style.Cyan)
+            <> "Path: "
+            <> ansi_reset()
+            <> string.join(path, "."),
+          ),
+        ]
+        None -> []
+      },
+      [
+        ui.br(),
+        // Footer
+        components.footer("[n/p] Next/Prev  [Esc] Back  [q] Quit"),
+      ],
+    ]),
+  )
 }
 
 fn render_inputs(inputs: List(String)) -> shore.Node(Msg) {

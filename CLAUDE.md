@@ -2,43 +2,73 @@
 
 CCL (Categorical Configuration Language) test runner implementation in Gleam, targeting the Erlang VM (BEAM).
 
-## Build Commands
+## Commands
 
 ```bash
-gleam build              # Compile project
-gleam test               # Run unit tests
-gleam check              # Type check without building
-gleam format             # Format code
-gleam run -- <args>      # Run test runner
-```
-
-## Just Commands
-
-```bash
+# Core development
 just deps                # Install dependencies
 just build               # Build project
 just test                # Run unit tests
 just format              # Format code
 just check               # Type check
-just run <dir>           # Run test runner against directory
-just run-tests           # Run against default test data
 just ci                  # Full CI check (format, build, test)
+just clean               # Clean build artifacts
+
+# Running the test runner
+just run-tests [dir]     # Run against test data (default: ../ccl-test-data/generated_tests/)
+just run-tests-with-functions [dir] [funcs]  # Run with specific functions
+just list [dir]          # List test files with counts
+just stats [dir]         # Show test suite statistics
+just view [dir]          # Launch interactive TUI viewer
+just run <args>          # Run test runner with raw arguments
+just debug-parse         # Run debug JSON parser
 ```
 
 ## Project Structure
 
 ```
 src/
-├── ccl_test_runner.gleam   # CLI entry point with mock implementation
-├── test_runner.gleam       # Core test execution logic
-├── test_loader.gleam       # JSON test suite loading
-├── test_filter.gleam       # Test filtering by capabilities
-├── test_types.gleam        # Type definitions for test data
-└── debug_parse.gleam       # Debug utilities
+├── ccl_test_runner.gleam      # CLI entry point (glint-based)
+├── test_runner.gleam          # Core test execution logic
+├── test_loader.gleam          # JSON test suite loading
+├── test_filter.gleam          # Test filtering by capabilities
+├── test_types.gleam           # Type definitions for test data
+├── debug_parse.gleam          # Debug utilities
+├── cli/
+│   ├── commands.gleam         # CLI subcommands (run, list, stats, view)
+│   └── flags.gleam            # CLI flag definitions
+├── render/
+│   ├── ccl_input.gleam        # CCL input rendering
+│   ├── entries.gleam          # Entry list rendering
+│   ├── error.gleam            # Expected error rendering
+│   ├── list.gleam             # List value rendering
+│   ├── object.gleam           # Nested object rendering (JSON format)
+│   ├── theme.gleam            # Color/style theming
+│   ├── typed.gleam            # Typed value rendering
+│   ├── value.gleam            # Single value rendering with visible whitespace
+│   └── whitespace.gleam       # Whitespace visualization utilities
+└── tui/
+    ├── app.gleam              # TUI application entry point
+    ├── components.gleam       # Reusable TUI components
+    ├── model.gleam            # Application state (Elm architecture)
+    ├── msg.gleam              # Message types
+    ├── update.gleam           # State transitions
+    ├── view.gleam             # Main view dispatcher
+    └── views/
+        ├── file_list.gleam    # Test file browser
+        ├── test_detail.gleam  # Individual test detail view
+        └── test_list.gleam    # Test list within a file
 test/
-└── ccl_test_runner_test.gleam
-packages/
-└── ccl_types/              # Shared type definitions
+├── ccl_test_runner_test.gleam
+└── render/
+    ├── ccl_input_test.gleam
+    ├── entries_test.gleam
+    ├── error_test.gleam
+    ├── list_test.gleam
+    ├── object_test.gleam
+    ├── typed_test.gleam
+    ├── value_test.gleam
+    └── whitespace_test.gleam
 ```
 
 ## Integration with ccl-test-data
@@ -47,10 +77,19 @@ This test runner consumes the JSON test suite from `../ccl-test-data/generated_t
 
 ```bash
 # Run with default parse-only config
-gleam run -- ../ccl-test-data/generated_tests/
+just run-tests
 
 # Run with specific functions
-gleam run -- ../ccl-test-data/generated_tests/ --functions parse,print,build_hierarchy
+just run-tests-with-functions ../ccl-test-data/generated_tests/ parse,print,build_hierarchy
+
+# List test files with counts
+just list
+
+# Show test suite statistics
+just stats
+
+# Launch interactive TUI viewer
+just view
 ```
 
 ### Available CCL Functions
@@ -107,6 +146,10 @@ Tests use feature-based tagging for capability filtering:
 - `simplifile` - File system operations
 - `birch` - Structured logging
 - `argv` - CLI argument parsing
+- `glint` - CLI framework with subcommands and flags
+- `shore` - Terminal UI framework (Elm architecture)
+- `gleam_erlang` / `gleam_otp` - BEAM interop
+- `filepath` - File path utilities
 - `gleeunit` - Testing framework (dev)
 
 ## Development Guidelines
