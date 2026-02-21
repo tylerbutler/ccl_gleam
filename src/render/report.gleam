@@ -407,6 +407,9 @@ fn print_summary(results: List(TestSuiteResult)) -> Nil {
     False -> ""
   }
 
+  let ran = total_passed + total_failed
+  let ran_f = int.to_float(ran)
+
   let body =
     "Files:    "
     <> int.to_string(files_count)
@@ -417,19 +420,29 @@ fn print_summary(results: List(TestSuiteResult)) -> Nil {
     <> "\n"
     <> "Passed:   "
     <> util.pad_left(int.to_string(total_passed), 4)
-    <> "  ("
+    <> "  "
     <> format_pct(total_passed, total_f)
-    <> ")\n"
+    <> " overall, "
+    <> format_pct(total_passed, ran_f)
+    <> " of run"
+    <> "\n"
     <> "Failed:   "
     <> util.pad_left(int.to_string(total_failed), 4)
-    <> "  ("
+    <> "  "
     <> format_pct(total_failed, total_f)
-    <> ")\n"
+    <> " overall, "
+    <> format_pct(total_failed, ran_f)
+    <> " of run"
+    <> "\n"
     <> "Skipped:  "
     <> util.pad_left(int.to_string(total_skipped), 4)
-    <> "  ("
+    <> "  "
     <> format_pct(total_skipped, total_f)
-    <> ")"
+    <> "\n"
+    <> "Ran:      "
+    <> util.pad_left(int.to_string(ran), 4)
+    <> "  "
+    <> format_pct(ran, total_f)
 
   console.write_box_with_title(body, "Summary")
 }
