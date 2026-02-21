@@ -71,6 +71,11 @@ pub type FailureGrouping {
   GroupByValidation
 }
 
+/// A test case paired with its execution result
+pub type TestCaseResult {
+  TestCaseResult(test_case: TestCase, result: TestResult)
+}
+
 /// Summary of running a test suite
 pub type TestSuiteResult {
   TestSuiteResult(
@@ -79,7 +84,7 @@ pub type TestSuiteResult {
     passed: Int,
     failed: Int,
     skipped: Int,
-    results: List(TestResult),
+    results: List(TestCaseResult),
   )
 }
 

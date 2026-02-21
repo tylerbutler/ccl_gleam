@@ -17,10 +17,11 @@ import test_filter
 import test_loader
 import test_types.{
   type Expected, type ExpectedNode, type ImplementationConfig, type TestCase,
-  type TestResult, type TestSuite, type TestSuiteResult, ExpectedBool,
-  ExpectedCountOnly, ExpectedEntries, ExpectedError, ExpectedFloat, ExpectedInt,
-  ExpectedList, ExpectedObject, ExpectedValue, NodeList, NodeObject, NodeString,
-  TestFailed, TestPassed, TestSkipped, TestSuiteResult,
+  type TestCaseResult, type TestResult, type TestSuite, type TestSuiteResult,
+  ExpectedBool, ExpectedCountOnly, ExpectedEntries, ExpectedError,
+  ExpectedFloat, ExpectedInt, ExpectedList, ExpectedObject, ExpectedValue,
+  NodeList, NodeObject, NodeString, TestCaseResult, TestFailed, TestPassed,
+  TestSkipped, TestSuiteResult,
 }
 
 /// Type alias for CCL entry.
@@ -87,7 +88,8 @@ pub fn run_test_file(
   use suite <- result.try(test_loader.load_test_file(path))
 
   let results = run_test_suite(suite, config, impl)
-  let #(passed, failed, skipped) = count_results(results)
+  let #(passed, failed, skipped) =
+    results |> list.map(fn(r) { r.result }) |> count_results
 
   Ok(TestSuiteResult(
     file: path,
@@ -104,7 +106,7 @@ pub fn run_test_suite(
   suite: TestSuite,
   config: ImplementationConfig,
   impl: CclImplementation,
-) -> List(TestResult) {
+) -> List(TestCaseResult) {
   suite.tests
   |> list.map(fn(tc) { run_single_test(tc, config, impl) })
 }
@@ -114,11 +116,12 @@ pub fn run_single_test(
   tc: TestCase,
   config: ImplementationConfig,
   impl: CclImplementation,
-) -> TestResult {
-  case test_filter.get_skip_reason(config, tc) {
+) -> TestCaseResult {
+  let result = case test_filter.get_skip_reason(config, tc) {
     Error(reason) -> TestSkipped(tc.name, reason)
     Ok(Nil) -> execute_test(tc, impl)
   }
+  TestCaseResult(test_case: tc, result: result)
 }
 
 /// Print test results report.
@@ -202,7 +205,7 @@ fn count_results(results: List(TestResult)) -> #(Int, Int, Int) {
     let #(p, f, s) = acc
     case r {
       TestPassed(_, _) -> #(p + 1, f, s)
-      TestFailed(_, _, _) -> #(f + 1, f, s)
+      TestFailed(_, _, _) -> #(p, f + 1, s)
       TestSkipped(_, _) -> #(p, f, s + 1)
     }
   })

@@ -13,8 +13,9 @@ import gleam/string
 import render/ansi
 import shore/style
 import test_types.{
-  type FailureGrouping, type ImplementationConfig, type TestResult,
-  type TestSuiteResult, GroupByFile, GroupByValidation, TestFailed,
+  type FailureGrouping, type ImplementationConfig, type TestCaseResult,
+  type TestResult, type TestSuiteResult, GroupByFile, GroupByValidation,
+  TestFailed, TestPassed, TestSkipped,
 }
 import util
 
@@ -64,7 +65,10 @@ pub fn print_report_grouped(
       }
   }
 
-  // Phase 3: summary box
+  // Phase 3: feature breakdown
+  print_feature_breakdown(results)
+
+  // Phase 4: summary box
   print_summary(results)
 }
 
@@ -140,7 +144,7 @@ fn collect_failures_by_file(
 ) -> List(#(String, List(TestResult))) {
   results
   |> list.filter_map(fn(r) {
-    let failures = get_failures(r.results)
+    let failures = get_failure_results(r.results)
     case failures {
       [] -> Error(Nil)
       _ -> Ok(#(r.file, failures))
@@ -167,7 +171,8 @@ fn print_failures_by_validation(results: List(TestSuiteResult)) -> Nil {
 fn collect_failures_by_validation(
   results: List(TestSuiteResult),
 ) -> List(#(String, List(TestResult))) {
-  let all_failures = results |> list.flat_map(fn(r) { get_failures(r.results) })
+  let all_failures =
+    results |> list.flat_map(fn(r) { get_failure_results(r.results) })
 
   let grouped =
     list.fold(all_failures, dict.new(), fn(acc, failure) {
@@ -271,7 +276,114 @@ fn print_overflow(rest: List(TestResult)) -> Nil {
 }
 
 // ============================================================================
-// Phase 3: Summary box
+// Phase 3: Feature breakdown
+// ============================================================================
+
+/// Feature stats for a single feature tag
+type FeatureStats {
+  FeatureStats(passed: Int, failed: Int, skipped: Int)
+}
+
+fn print_feature_breakdown(results: List(TestSuiteResult)) -> Nil {
+  let all_case_results =
+    results |> list.flat_map(fn(r) { r.results })
+
+  // Collect unique features and their stats
+  let feature_stats = collect_feature_stats(all_case_results)
+
+  case dict.is_empty(feature_stats) {
+    True -> Nil
+    False -> {
+      console.with_group("By Feature", fn() {
+        feature_stats
+        |> dict.to_list
+        |> list.sort(fn(a, b) { string.compare(a.0, b.0) })
+        |> list.each(fn(pair) {
+          let #(feature, stats) = pair
+          let total = stats.passed + stats.failed + stats.skipped
+
+          let status_parts = []
+          let status_parts = case stats.passed > 0 {
+            True ->
+              list.append(status_parts, [
+                ansi.fg(int.to_string(stats.passed) <> " passed", style.Green),
+              ])
+            False -> status_parts
+          }
+          let status_parts = case stats.failed > 0 {
+            True ->
+              list.append(status_parts, [
+                ansi.fg(int.to_string(stats.failed) <> " failed", style.Red),
+              ])
+            False -> status_parts
+          }
+          let status_parts = case stats.skipped > 0 {
+            True ->
+              list.append(status_parts, [
+                ansi.dim(int.to_string(stats.skipped) <> " skipped"),
+              ])
+            False -> status_parts
+          }
+
+          let rate = case stats.passed + stats.failed {
+            0 -> ansi.dim("—")
+            ran ->
+              format_pct(stats.passed, int.to_float(ran))
+              |> fn(p) {
+                case stats.failed > 0 {
+                  True -> ansi.fg(p, style.Red)
+                  False -> ansi.fg(p, style.Green)
+                }
+              }
+          }
+
+          io.println(
+            "  "
+            <> util.pad_right(feature, 25)
+            <> " "
+            <> util.pad_left(int.to_string(total), 4)
+            <> " tests  "
+            <> rate
+            <> "  "
+            <> ansi.dim("(")
+            <> string.join(status_parts, ansi.dim(", "))
+            <> ansi.dim(")"),
+          )
+        })
+      })
+      io.println("")
+    }
+  }
+}
+
+fn collect_feature_stats(
+  case_results: List(TestCaseResult),
+) -> dict.Dict(String, FeatureStats) {
+  list.fold(case_results, dict.new(), fn(acc, cr) {
+    let features = cr.test_case.features
+    case features {
+      [] -> acc
+      _ ->
+        list.fold(features, acc, fn(inner_acc, feature) {
+          let current =
+            dict.get(inner_acc, feature)
+            |> result.unwrap(FeatureStats(passed: 0, failed: 0, skipped: 0))
+          let updated = case cr.result {
+            TestPassed(_, _) ->
+              FeatureStats(..current, passed: current.passed + 1)
+            TestFailed(_, _, _) ->
+              FeatureStats(..current, failed: current.failed + 1)
+            TestSkipped(_, _) ->
+              FeatureStats(..current, skipped: current.skipped + 1)
+          }
+          dict.insert(inner_acc, feature, updated)
+        })
+    }
+  })
+}
+
+// ============================================================================
+// Phase 4: Summary box
 // ============================================================================
 
 fn print_summary(results: List(TestSuiteResult)) -> Nil {
@@ -326,11 +438,13 @@ fn print_summary(results: List(TestSuiteResult)) -> Nil {
 // Helpers
 // ============================================================================
 
-fn get_failures(results: List(TestResult)) -> List(TestResult) {
-  list.filter(results, fn(r) {
-    case r {
-      TestFailed(_, _, _) -> True
-      _ -> False
+/// Extract just the TestResult failures from a list of TestCaseResults.
+fn get_failure_results(results: List(TestCaseResult)) -> List(TestResult) {
+  results
+  |> list.filter_map(fn(r) {
+    case r.result {
+      TestFailed(_, _, _) -> Ok(r.result)
+      _ -> Error(Nil)
     }
   })
 }
