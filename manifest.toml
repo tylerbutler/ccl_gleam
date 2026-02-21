@@ -24,6 +24,7 @@ packages = [
 argv = { version = ">= 1.0.0 and < 2.0.0" }
 birch = { version = ">= 0.2.1 and < 1.0.0" }
 filepath = { version = ">= 1.0.0 and < 2.0.0" }
+gleam_community_ansi = { version = ">= 1.4.0 and < 2.0.0" }
 gleam_erlang = { version = ">= 1.0.0 and < 2.0.0" }
 gleam_json = { version = ">= 3.0.0 and < 4.0.0" }
 gleam_otp = { version = ">= 1.0.0 and < 2.0.0" }

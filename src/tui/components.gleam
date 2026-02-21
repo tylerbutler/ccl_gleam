@@ -1,37 +1,32 @@
-/// Shared UI components for the CCL test viewer TUI
-import gleam/option.{Some}
+/// Shared UI components for the CCL test viewer TUI.
+import gleam/int
+import gleam/option.{None, Some}
+import render/ansi
 import shore
 import shore/style
 import shore/ui
+import tui/model.{type Model}
 import tui/msg.{type Msg}
 
-/// Render a header bar
+/// Render a header bar.
 pub fn header(title: String, subtitle: String) -> shore.Node(Msg) {
   ui.box_styled(
     [
-      ui.text(
-        ansi_fg(style.Yellow)
-        <> " "
-        <> title
-        <> " "
-        <> ansi_reset()
-        <> "  "
-        <> subtitle,
-      ),
+      ui.text(ansi.fg(" " <> title <> " ", style.Yellow) <> "  " <> subtitle),
     ],
     Some("CCL Test Viewer"),
     Some(style.Cyan),
   )
 }
 
-/// Render a footer with keybinding hints
+/// Render a footer with keybinding hints.
 pub fn footer(hints: String) -> shore.Node(Msg) {
   ui.row([
     ui.text_styled(" " <> hints <> " ", Some(style.Black), Some(style.White)),
   ])
 }
 
-/// Format a selection indicator
+/// Format a selection indicator.
 pub fn selection_marker(is_selected: Bool) -> String {
   case is_selected {
     True -> "> "
@@ -39,22 +34,16 @@ pub fn selection_marker(is_selected: Bool) -> String {
   }
 }
 
-// ANSI color helpers
-
-fn ansi_fg(color: style.Color) -> String {
-  let code = case color {
-    style.Black -> "30"
-    style.Red -> "31"
-    style.Green -> "32"
-    style.Yellow -> "33"
-    style.Blue -> "34"
-    style.Magenta -> "35"
-    style.Cyan -> "36"
-    style.White -> "37"
+/// Render scroll indicator (shared between file_list and test_list views).
+pub fn scroll_indicator(model: Model, total: Int) -> shore.Node(Msg) {
+  let visible = model.terminal_height - 5
+  case total > visible {
+    True -> {
+      let position = model.selected_index + 1
+      let indicator =
+        " (" <> int.to_string(position) <> "/" <> int.to_string(total) <> ")"
+      ui.text_styled(indicator, Some(style.Yellow), None)
+    }
+    False -> ui.text("")
   }
-  "\u{001b}[" <> code <> "m"
-}
-
-fn ansi_reset() -> String {
-  "\u{001b}[0m"
 }

@@ -1,8 +1,8 @@
-/// Theme definitions for rendering CCL content
+/// Theme definitions for rendering CCL content.
 import gleam/option.{type Option, None}
 import shore/style
 
-/// Theme for rendering CCL content
+/// Theme for rendering CCL content.
 pub type Theme {
   Theme(
     key: style.Color,
@@ -13,7 +13,7 @@ pub type Theme {
   )
 }
 
-/// Default theme for CCL rendering
+/// Default theme for CCL rendering.
 pub fn default() -> Theme {
   Theme(
     key: style.Cyan,
@@ -22,9 +22,4 @@ pub fn default() -> Theme {
     whitespace: style.White,
     punctuation: None,
   )
-}
-
-/// Get the color for a theme element, with fallback to default
-pub fn get_punctuation(theme: Theme) -> Option(style.Color) {
-  theme.punctuation
 }

@@ -1,11 +1,8 @@
-/// Shore TUI application setup for CCL test viewer
+/// Shore TUI application setup for CCL test viewer.
 import birch
 import birch/handler
 import gleam/erlang/process
-import gleam/int
 import gleam/list
-import gleam/result
-import gleam/string
 import shore
 import shore/key
 import simplifile
@@ -14,30 +11,25 @@ import test_types.{type ImplementationConfig}
 import tui/model.{type FileInfo, FileInfo, Model}
 import tui/update
 import tui/view
+import util
 
-/// Start the TUI application
+/// Start the TUI application.
 pub fn start(
   test_dir: String,
   config: ImplementationConfig,
 ) -> Result(Nil, String) {
-  // Squelch birch logging so it doesn't corrupt TUI output
   birch.configure([birch.config_handlers([handler.null()])])
 
-  // Create exit subject
   let exit = process.new_subject()
-
-  // Load files synchronously before starting TUI
   let files = load_files(test_dir)
 
   case files {
     [] -> Error("No test files found in directory: " <> test_dir)
     _ -> {
-      // Initialize model with files
       let initial_model =
         model.init(test_dir, config)
         |> fn(m) { Model(..m, files: files) }
 
-      // Start shore app
       let start_result =
         shore.spec(
           init: fn() { #(initial_model, []) },
@@ -51,7 +43,6 @@ pub fn start(
 
       case start_result {
         Ok(_actor) -> {
-          // Block until exit
           process.receive_forever(exit)
           Ok(Nil)
         }
@@ -64,7 +55,6 @@ pub fn start(
   }
 }
 
-/// Custom keybindings for the app
 fn custom_keybinds() {
   shore.keybinds(
     exit: key.Char("q"),
@@ -75,26 +65,18 @@ fn custom_keybinds() {
   )
 }
 
-/// Load file information from directory
 fn load_files(test_dir: String) -> List(FileInfo) {
   case test_loader.list_test_files(test_dir) {
     Ok(files) ->
       files
       |> list.map(fn(path) {
-        let name = get_filename(path)
+        let name = util.get_filename(path)
         let count = get_test_count(path)
         let size = get_file_size(path)
         FileInfo(path: path, name: name, test_count: count, size: size)
       })
     Error(_) -> []
   }
-}
-
-fn get_filename(path: String) -> String {
-  path
-  |> string.split("/")
-  |> list.last
-  |> result.unwrap(path)
 }
 
 fn get_test_count(file: String) -> Int {
@@ -106,21 +88,7 @@ fn get_test_count(file: String) -> Int {
 
 fn get_file_size(path: String) -> String {
   case simplifile.file_info(path) {
-    Ok(info) -> format_size(info.size)
+    Ok(info) -> util.format_size(info.size)
     Error(_) -> "?"
-  }
-}
-
-fn format_size(bytes: Int) -> String {
-  case bytes {
-    b if b < 1024 -> int.to_string(b) <> "B"
-    b if b < 1_048_576 -> {
-      let kb = b / 1024
-      int.to_string(kb) <> "K"
-    }
-    b -> {
-      let mb = b / 1_048_576
-      int.to_string(mb) <> "M"
-    }
   }
 }

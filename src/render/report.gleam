@@ -1,7 +1,5 @@
-/// Test report rendering for CLI output
+/// Test report rendering for CLI output.
 ///
-/// Hybrid approach: uses birch grouping for visual hierarchy and boxes for
-/// framing. Direct IO for content where birch's semantic types don't fit.
 /// Two-phase layout: compact overview, then detailed failures.
 /// Failures can be grouped by file (default) or by validation kind.
 import birch/handler/console
@@ -12,29 +10,15 @@ import gleam/io
 import gleam/list
 import gleam/result
 import gleam/string
+import render/ansi
+import shore/style
 import test_types.{
   type FailureGrouping, type ImplementationConfig, type TestResult,
   type TestSuiteResult, GroupByFile, GroupByValidation, TestFailed,
 }
-
-// ============================================================================
-// ANSI helpers (for content birch doesn't style)
-// ============================================================================
-
-const reset = "\u{001b}[0m"
-
-const bold = "\u{001b}[1m"
-
-const dim = "\u{001b}[2m"
-
-const green = "\u{001b}[32m"
-
-const red = "\u{001b}[31m"
-
-const yellow = "\u{001b}[33m"
+import util
 
 /// Maximum number of failures to show per group in the detail section.
-/// Remaining failures are listed by name only.
 const max_failures_per_group = 5
 
 // ============================================================================
@@ -70,8 +54,7 @@ pub fn print_report_grouped(
   print_results_overview(results)
 
   // Phase 2: failure details (grouped as requested)
-  let has_failures =
-    list.any(results, fn(r) { r.failed > 0 })
+  let has_failures = list.any(results, fn(r) { r.failed > 0 })
   case has_failures {
     False -> Nil
     True ->
@@ -90,19 +73,17 @@ pub fn print_report_grouped(
 // ============================================================================
 
 fn print_results_overview(results: List(TestSuiteResult)) -> Nil {
-  console.with_group("Results", fn() {
-    list.each(results, print_file_line)
-  })
+  console.with_group("Results", fn() { list.each(results, print_file_line) })
   io.println("")
 }
 
 fn print_file_line(r: TestSuiteResult) -> Nil {
-  let name = get_filename(r.file)
+  let name = util.get_filename(r.file)
   let counts = format_counts_inline(r)
 
   let icon = case r.failed > 0 {
-    True -> red <> "✖" <> reset
-    False -> green <> "✔" <> reset
+    True -> ansi.fg("✖", style.Red)
+    False -> ansi.fg("✔", style.Green)
   }
 
   io.println("  " <> icon <> " " <> name <> "  " <> counts)
@@ -114,7 +95,7 @@ fn format_counts_inline(r: TestSuiteResult) -> String {
   let parts = case r.passed > 0 {
     True ->
       list.append(parts, [
-        green <> int.to_string(r.passed) <> " passed" <> reset,
+        ansi.fg(int.to_string(r.passed) <> " passed", style.Green),
       ])
     False -> parts
   }
@@ -122,7 +103,7 @@ fn format_counts_inline(r: TestSuiteResult) -> String {
   let parts = case r.failed > 0 {
     True ->
       list.append(parts, [
-        red <> int.to_string(r.failed) <> " failed" <> reset,
+        ansi.fg(int.to_string(r.failed) <> " failed", style.Red),
       ])
     False -> parts
   }
@@ -130,18 +111,12 @@ fn format_counts_inline(r: TestSuiteResult) -> String {
   let parts = case r.skipped > 0 {
     True ->
       list.append(parts, [
-        dim <> int.to_string(r.skipped) <> " skipped" <> reset,
+        ansi.dim(int.to_string(r.skipped) <> " skipped"),
       ])
     False -> parts
   }
 
-  dim
-  <> "("
-  <> reset
-  <> string.join(parts, dim <> ", " <> reset)
-  <> dim
-  <> ")"
-  <> reset
+  ansi.dim("(") <> string.join(parts, ansi.dim(", ")) <> ansi.dim(")")
 }
 
 // ============================================================================
@@ -151,11 +126,10 @@ fn format_counts_inline(r: TestSuiteResult) -> String {
 fn print_failures_by_file(results: List(TestSuiteResult)) -> Nil {
   let file_failures = collect_failures_by_file(results)
 
-  console.with_group("Failures  " <> dim <> "(by file)" <> reset, fn() {
+  console.with_group("Failures  " <> ansi.dim("(by file)"), fn() {
     list.each(file_failures, fn(pair) {
       let #(file, failures) = pair
-      let name = get_filename(file)
-      print_failure_group(name, failures)
+      print_failure_group(util.get_filename(file), failures)
     })
   })
   io.println("")
@@ -181,29 +155,20 @@ fn collect_failures_by_file(
 fn print_failures_by_validation(results: List(TestSuiteResult)) -> Nil {
   let grouped = collect_failures_by_validation(results)
 
-  console.with_group(
-    "Failures  " <> dim <> "(by validation)" <> reset,
-    fn() {
-      list.each(grouped, fn(pair) {
-        let #(validation, failures) = pair
-        print_failure_group(validation, failures)
-      })
-    },
-  )
+  console.with_group("Failures  " <> ansi.dim("(by validation)"), fn() {
+    list.each(grouped, fn(pair) {
+      let #(validation, failures) = pair
+      print_failure_group(validation, failures)
+    })
+  })
   io.println("")
 }
 
-/// Collect all failures across all files, grouped by validation kind.
-/// Returns a sorted list of (validation_kind, failures) pairs.
 fn collect_failures_by_validation(
   results: List(TestSuiteResult),
 ) -> List(#(String, List(TestResult))) {
-  // Collect all failures with their validation kind
-  let all_failures =
-    results
-    |> list.flat_map(fn(r) { get_failures(r.results) })
+  let all_failures = results |> list.flat_map(fn(r) { get_failures(r.results) })
 
-  // Group by extracted validation kind
   let grouped =
     list.fold(all_failures, dict.new(), fn(acc, failure) {
       let validation = extract_validation(failure)
@@ -211,22 +176,17 @@ fn collect_failures_by_validation(
       dict.insert(acc, validation, list.append(existing, [failure]))
     })
 
-  // Sort by validation name for consistent output
   grouped
   |> dict.to_list
   |> list.sort(fn(a, b) { string.compare(a.0, b.0) })
 }
 
-/// Extract validation kind from a test result name.
-/// Test names follow the pattern `test_description_validation`,
-/// e.g. `deep_nested_objects_parse`, `round_trip_basic_round_trip`.
 fn extract_validation(result: TestResult) -> String {
   let name = case result {
     TestFailed(n, _, _) -> n
     _ -> ""
   }
 
-  // Known validation suffixes, longest first to match correctly
   let known = [
     "canonical_format", "build_hierarchy", "round_trip", "get_string",
     "get_float", "get_bool", "get_list", "get_int", "parse", "print",
@@ -247,29 +207,25 @@ fn find_suffix(name: String, suffixes: List(String)) -> String {
 }
 
 // ============================================================================
-// Shared: render a group of failures (used by both grouping modes)
+// Shared: render a group of failures
 // ============================================================================
 
-fn print_failure_group(
-  group_title: String,
-  failures: List(TestResult),
-) -> Nil {
+fn print_failure_group(group_title: String, failures: List(TestResult)) -> Nil {
   let count = list.length(failures)
   let title =
     group_title
     <> "  "
-    <> dim
-    <> "("
-    <> int.to_string(count)
-    <> " "
-    <> pluralize(count, "failure", "failures")
-    <> ")"
-    <> reset
+    <> ansi.dim(
+      "("
+      <> int.to_string(count)
+      <> " "
+      <> pluralize(count, "failure", "failures")
+      <> ")",
+    )
 
   console.with_group(title, fn() {
     let #(shown, rest) = list.split(failures, max_failures_per_group)
-
-    list.each(shown, fn(f) { print_single_failure(f) })
+    list.each(shown, print_single_failure)
 
     case rest {
       [] -> Nil
@@ -282,8 +238,7 @@ fn print_failure_group(
 fn print_single_failure(result: TestResult) -> Nil {
   case result {
     TestFailed(name, reason, _) -> {
-      io.println("    " <> red <> "✖ " <> reset <> bold <> name <> reset)
-
+      io.println("    " <> ansi.fg("✖ ", style.Red) <> ansi.bold(name))
       let indent = "      "
       reason
       |> string.split("\n")
@@ -298,17 +253,18 @@ fn print_overflow(rest: List(TestResult)) -> Nil {
   let rest_count = list.length(rest)
   io.println(
     "    "
-    <> yellow
-    <> "… and "
-    <> int.to_string(rest_count)
-    <> " more "
-    <> pluralize(rest_count, "failure", "failures")
-    <> ":"
-    <> reset,
+    <> ansi.fg(
+      "… and "
+        <> int.to_string(rest_count)
+        <> " more "
+        <> pluralize(rest_count, "failure", "failures")
+        <> ":",
+      style.Yellow,
+    ),
   )
   list.each(rest, fn(r) {
     case r {
-      TestFailed(n, _, _) -> io.println("      " <> dim <> "• " <> n <> reset)
+      TestFailed(n, _, _) -> io.println("      " <> ansi.dim("• " <> n))
       _ -> Nil
     }
   })
@@ -331,10 +287,6 @@ fn print_summary(results: List(TestSuiteResult)) -> Nil {
 
   let total_f = int.to_float(total)
 
-  let pass_pct = format_pct(total_passed, total_f)
-  let fail_pct = format_pct(total_failed, total_f)
-  let skip_pct = format_pct(total_skipped, total_f)
-
   let files_count = list.length(results)
   let failed_files = list.count(results, fn(r) { r.failed > 0 })
 
@@ -352,19 +304,19 @@ fn print_summary(results: List(TestSuiteResult)) -> Nil {
     <> int.to_string(total)
     <> "\n"
     <> "Passed:   "
-    <> pad_left(int.to_string(total_passed), 4)
+    <> util.pad_left(int.to_string(total_passed), 4)
     <> "  ("
-    <> pass_pct
+    <> format_pct(total_passed, total_f)
     <> ")\n"
     <> "Failed:   "
-    <> pad_left(int.to_string(total_failed), 4)
+    <> util.pad_left(int.to_string(total_failed), 4)
     <> "  ("
-    <> fail_pct
+    <> format_pct(total_failed, total_f)
     <> ")\n"
     <> "Skipped:  "
-    <> pad_left(int.to_string(total_skipped), 4)
+    <> util.pad_left(int.to_string(total_skipped), 4)
     <> "  ("
-    <> skip_pct
+    <> format_pct(total_skipped, total_f)
     <> ")"
 
   console.write_box_with_title(body, "Summary")
@@ -381,21 +333,6 @@ fn get_failures(results: List(TestResult)) -> List(TestResult) {
       _ -> False
     }
   })
-}
-
-fn get_filename(path: String) -> String {
-  path
-  |> string.split("/")
-  |> list.last
-  |> result.unwrap(path)
-}
-
-fn pad_left(s: String, width: Int) -> String {
-  let len = string.length(s)
-  case len >= width {
-    True -> s
-    False -> string.repeat(" ", width - len) <> s
-  }
 }
 
 fn format_pct(count: Int, total: Float) -> String {
