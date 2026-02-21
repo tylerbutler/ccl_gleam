@@ -2,10 +2,12 @@
 /// 
 /// Follows the CCL test runner implementation guide:
 /// - Check that all required functions are implemented
-/// - Check that all required features are supported
 /// - Check behavior compatibility (test requires at least one matching behavior)
 /// - Check variant compatibility
 /// - Check behavior conflicts (skip tests that conflict with chosen behaviors)
+/// 
+/// Note: Features are NOT filter criteria. They are metadata used for
+/// reporting only (e.g. showing how many tests per feature ran/passed).
 import gleam/list
 import gleam/string
 import test_types.{
@@ -14,18 +16,17 @@ import test_types.{
 }
 
 /// Check if a test case is compatible with the implementation config.
+/// Checks functions, behaviors, variants, and conflicts.
+/// Features are NOT filter criteria — they are metadata for reporting only.
 pub fn is_compatible(config: ImplementationConfig, tc: TestCase) -> Bool {
   let has_functions =
     list.all(tc.functions, fn(f) { list.contains(config.functions, f) })
-
-  let has_features =
-    list.all(tc.features, fn(f) { list.contains(config.features, f) })
 
   let behavior_ok = check_behaviors(config.behaviors, tc.behaviors)
   let variant_ok = check_variants_bool(config.variants, tc.variants)
   let no_conflicts = check_no_conflicts(config.behaviors, tc.conflicts)
 
-  has_functions && has_features && behavior_ok && variant_ok && no_conflicts
+  has_functions && behavior_ok && variant_ok && no_conflicts
 }
 
 fn check_behaviors(
@@ -84,21 +85,6 @@ pub fn get_skip_reason(
   case missing_functions {
     [_, ..] ->
       Error("Missing functions: " <> string.join(missing_functions, ", "))
-    [] -> check_features_skip(config, tc)
-  }
-}
-
-fn check_features_skip(
-  config: ImplementationConfig,
-  tc: TestCase,
-) -> Result(Nil, String) {
-  let missing_features =
-    tc.features
-    |> list.filter(fn(f) { !list.contains(config.features, f) })
-
-  case missing_features {
-    [_, ..] ->
-      Error("Missing features: " <> string.join(missing_features, ", "))
     [] -> check_behaviors_skip(config, tc)
   }
 }

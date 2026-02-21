@@ -83,7 +83,9 @@ pub type TestSuiteResult {
   )
 }
 
-/// Configuration for what functions/behaviors the implementation supports
+/// Configuration for what functions/behaviors the implementation supports.
+/// Functions, behaviors, and variants are used for test filtering.
+/// Features are NOT used for filtering — they are metadata for reporting only.
 pub type ImplementationConfig {
   ImplementationConfig(
     functions: List(String),
