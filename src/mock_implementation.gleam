@@ -9,6 +9,20 @@ import test_runner.{
   type CCL, type CclImplementation, type Entry, CclImplementation, CclList,
   CclObject, CclString, Entry,
 }
+import test_types.{type ImplementationConfig, ImplementationConfig}
+
+/// Implementation capabilities config.
+/// Declares which functions, behaviors, features, and variants
+/// this implementation supports. The test runner uses this to
+/// filter tests — only compatible tests are run.
+pub fn config() -> ImplementationConfig {
+  ImplementationConfig(
+    functions: ["parse", "print", "build_hierarchy"],
+    behaviors: ["crlf_normalize_to_lf", "toplevel_indent_strip"],
+    variants: ["reference_compliant"],
+    features: [],
+  )
+}
 
 /// Create a mock CCL implementation.
 pub fn new() -> CclImplementation {
@@ -71,11 +85,8 @@ fn mock_print(entries: List(Entry)) -> String {
   |> string.join("\n")
 }
 
-fn mock_build_hierarchy(entries: List(Entry)) -> CCL {
-  entries
-  |> list.fold(dict.new(), fn(acc, entry: Entry) {
-    dict.insert(acc, entry.key, CclString(entry.value))
-  })
+fn mock_build_hierarchy(_entries: List(Entry)) -> CCL {
+  dict.new()
 }
 
 fn mock_get_string(ccl: CCL, path: List(String)) -> Result(String, String) {

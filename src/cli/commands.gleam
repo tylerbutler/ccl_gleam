@@ -25,23 +25,44 @@ pub type CommandResult {
 }
 
 /// Build implementation config from flag values.
+/// When no flags are provided, all fields default to empty lists —
+/// the test runner assumes nothing is implemented. Pass an implementation's
+/// config via `merge_with_impl_config` to use its declared capabilities
+/// as the baseline.
 pub fn build_config(
   functions: List(String),
   behaviors: List(String),
   features: List(String),
   variants: List(String),
 ) -> ImplementationConfig {
-  let final_functions = case functions {
-    [] -> ["parse", "print"]
-    funcs -> funcs
-  }
-
   ImplementationConfig(
-    functions: final_functions,
+    functions: functions,
     behaviors: behaviors,
     variants: variants,
     features: features,
   )
+}
+
+/// Merge CLI flag overrides with an implementation's declared config.
+/// If a CLI flag list is non-empty, it overrides the implementation default;
+/// otherwise the implementation's declared value is used.
+pub fn merge_with_impl_config(
+  cli_config: ImplementationConfig,
+  impl_config: ImplementationConfig,
+) -> ImplementationConfig {
+  ImplementationConfig(
+    functions: pick_non_empty(cli_config.functions, impl_config.functions),
+    behaviors: pick_non_empty(cli_config.behaviors, impl_config.behaviors),
+    variants: pick_non_empty(cli_config.variants, impl_config.variants),
+    features: pick_non_empty(cli_config.features, impl_config.features),
+  )
+}
+
+fn pick_non_empty(override: List(String), default: List(String)) -> List(String) {
+  case override {
+    [] -> default
+    vals -> vals
+  }
 }
 
 /// Run command - executes tests against the implementation.
@@ -66,7 +87,8 @@ Executes the test suite and reports results with pass/fail/skip counts.",
   let assert Ok(vars) = variants(flags)
   let assert Ok(group_by_str) = group_by(flags)
 
-  let config = build_config(funcs, behavs, feats, vars)
+  let cli_config = build_config(funcs, behavs, feats, vars)
+  let config = merge_with_impl_config(cli_config, mock_implementation.config())
   let grouping = parse_grouping(group_by_str)
   run_tests(dir, config, grouping)
 }
@@ -180,7 +202,8 @@ Displays counts by validation type, function tags, and behaviors.",
   let assert Ok(feats) = features(flags)
   let assert Ok(vars) = variants(flags)
 
-  let config = build_config(funcs, behavs, feats, vars)
+  let cli_config = build_config(funcs, behavs, feats, vars)
+  let config = merge_with_impl_config(cli_config, mock_implementation.config())
   show_stats(dir, config)
 }
 

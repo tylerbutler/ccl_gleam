@@ -7,10 +7,11 @@ import gleam/option.{None}
 import gleam/string
 import simplifile
 import test_types.{
-  type Expected, type ExpectedNode, type TestCase, type TestSuite, ExpectedBool,
-  ExpectedBoolean, ExpectedCountOnly, ExpectedEntries, ExpectedError,
-  ExpectedFloat, ExpectedInt, ExpectedList, ExpectedObject, ExpectedValue,
-  NodeList, NodeObject, NodeString, TestCase, TestEntry, TestSuite,
+  type Expected, type ExpectedNode, type TestCase, type TestSuite, Conflicts,
+  ExpectedBool, ExpectedBoolean, ExpectedCountOnly, ExpectedEntries,
+  ExpectedError, ExpectedFloat, ExpectedInt, ExpectedList, ExpectedObject,
+  ExpectedValue, NoConflicts, NodeList, NodeObject, NodeString, TestCase,
+  TestEntry, TestSuite,
 }
 
 /// Load a test suite from a JSON file
@@ -51,6 +52,11 @@ fn test_case_decoder() -> decode.Decoder(TestCase) {
     None,
     decode.optional(decode.list(decode.string)),
   )
+  use conflicts <- decode.optional_field(
+    "conflicts",
+    NoConflicts,
+    conflicts_decoder(),
+  )
 
   decode.success(TestCase(
     name: name,
@@ -63,7 +69,14 @@ fn test_case_decoder() -> decode.Decoder(TestCase) {
     features: features,
     expected: expected,
     path: path,
+    conflicts: conflicts,
   ))
+}
+
+/// Decoder for behavior conflicts
+fn conflicts_decoder() -> decode.Decoder(test_types.Conflicts) {
+  use behaviors <- decode.field("behaviors", decode.list(decode.string))
+  decode.success(Conflicts(behaviors: behaviors))
 }
 
 /// Decoder for expected results (polymorphic)

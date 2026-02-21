@@ -11,7 +11,10 @@ import argv
 import birch
 import birch/handler/console
 import birch/level
-import cli/commands.{type CommandResult, Failure, Success, build_config}
+import cli/commands.{
+  type CommandResult, Failure, Success, build_config, merge_with_impl_config,
+}
+import mock_implementation
 import cli/flags
 import glint
 import tui/app
@@ -64,7 +67,8 @@ Keys:
   let assert Ok(feats) = features(cmd_flags)
   let assert Ok(vars) = variants(cmd_flags)
 
-  let config = build_config(funcs, behavs, feats, vars)
+  let cli_config = build_config(funcs, behavs, feats, vars)
+  let config = merge_with_impl_config(cli_config, mock_implementation.config())
 
   case app.start(dir, config) {
     Ok(_) -> Success

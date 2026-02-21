@@ -28,6 +28,12 @@ pub type ExpectedNode {
   NodeObject(Dict(String, ExpectedNode))
 }
 
+/// Behavior conflicts - behaviors that would cause this test to fail
+pub type Conflicts {
+  Conflicts(behaviors: List(String))
+  NoConflicts
+}
+
 /// A single test case from the JSON test suite
 pub type TestCase {
   TestCase(
@@ -41,6 +47,7 @@ pub type TestCase {
     features: List(String),
     expected: Expected,
     path: Option(List(String)),
+    conflicts: Conflicts,
   )
 }
 
