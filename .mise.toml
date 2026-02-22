@@ -3,3 +3,6 @@ erlang = "28"
 gleam = "latest"
 just = "latest"
 rebar = "latest"
+
+[env]
+LC_ALL = "en_US.UTF-8"

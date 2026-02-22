@@ -1,36 +1,91 @@
 # CCL Test Runner justfile
 
+# === ALIASES ===
+alias b := build
+alias t := test
+alias f := format
+alias c := check
+alias d := docs
+alias cl := change
+
 # Default recipe - show available commands
 default:
     @just --list
+
+# === DEPENDENCIES ===
 
 # Install dependencies
 deps:
     gleam deps download
 
+# === BUILD ===
+
 # Build the project
 build:
     gleam build
+
+# Build with warnings as errors
+build-strict:
+    gleam build --warnings-as-errors
+
+# === TESTING ===
 
 # Run unit tests
 test:
     gleam test
 
+# === CODE QUALITY ===
+
 # Format code
 format:
-    gleam format
+    gleam format src test
 
 # Check formatting without modifying
-check-format:
-    gleam format --check
+format-check:
+    gleam format --check src test
 
 # Type check without building
 check:
     gleam check
 
+# === DOCUMENTATION ===
+
+# Build documentation
+docs:
+    gleam docs build
+
+# === CHANGELOG ===
+
+# Create a new changelog entry
+change:
+    changie new
+
+# Preview unreleased changelog
+changelog-preview:
+    changie batch auto --dry-run
+
+# Generate CHANGELOG.md
+changelog:
+    changie merge
+
+# === MAINTENANCE ===
+
 # Clean build artifacts
 clean:
     gleam clean
+
+# === CI ===
+
+# Run all CI checks (format, check, test, build)
+ci: format-check check test build-strict
+
+# Alias for PR checks
+alias pr := ci
+
+# Run extended checks for main branch
+main: ci docs
+
+# === CCL TEST RUNNER ===
 
 # Run the test runner against ccl-test-data
 run *ARGS:
@@ -62,10 +117,3 @@ debug-parse:
 
 # Build and run tests in one step
 all: build test
-
-# CI check - format, build, test
-ci: check-format build test
-
-# CI parity recipes
-alias pr := ci
-main: ci
