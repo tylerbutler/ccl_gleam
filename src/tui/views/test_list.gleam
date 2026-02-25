@@ -8,8 +8,8 @@ import gleam/string
 import shore
 import shore/style
 import shore/ui
-import test_filter
-import test_types.{type TestCase}
+import test_runner/filter
+import test_runner/types.{type TestCase}
 import tui/components
 import tui/model.{type Model}
 import tui/msg.{type Msg}
@@ -36,7 +36,7 @@ pub fn render(model: Model, file_path: String) -> shore.Node(Msg) {
           |> list.map(fn(pair) {
             let #(tc, idx) = pair
             let is_selected = idx == model.selected_index
-            let is_compatible = test_filter.is_compatible(model.config, tc)
+            let is_compatible = filter.is_compatible(model.config, tc)
             render_test_row(tc, is_selected, is_compatible)
           }),
         ),

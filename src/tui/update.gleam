@@ -1,7 +1,7 @@
 /// Update function for the CCL test viewer TUI
 import gleam/dict
 import gleam/list
-import test_loader
+import test_runner/loader
 import tui/model.{type Model, FileListView, Model, TestDetailView, TestListView}
 import tui/msg.{
   type Msg, Back, CancelFilter, ClearFilter, GoToBottom, GoToFileList,
@@ -181,7 +181,7 @@ fn handle_go_to_test_list(
     Error(_) -> {
       // Load suite asynchronously
       let load_task = fn() {
-        let result = test_loader.load_test_file(path)
+        let result = loader.load_test_file(path)
         SuiteLoaded(path, result)
       }
       #(

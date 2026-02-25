@@ -1,6 +1,6 @@
 /// Model types for the CCL test viewer TUI
 import gleam/dict.{type Dict}
-import test_types.{type ImplementationConfig, type TestSuite}
+import test_runner/types.{type ImplementationConfig, type TestSuite}
 
 /// Current view state
 pub type View {

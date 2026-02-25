@@ -6,7 +6,7 @@ import gleam/list
 import gleam/option.{None}
 import gleam/string
 import simplifile
-import test_types.{
+import test_runner/types.{
   type Expected, type ExpectedNode, type TestCase, type TestSuite, ExpectedBool,
   ExpectedBoolean, ExpectedCountOnly, ExpectedEntries, ExpectedError,
   ExpectedFloat, ExpectedInt, ExpectedList, ExpectedObject, ExpectedValue,
@@ -51,6 +51,11 @@ fn test_case_decoder() -> decode.Decoder(TestCase) {
     None,
     decode.optional(decode.list(decode.string)),
   )
+  use args <- decode.optional_field(
+    "args",
+    None,
+    decode.optional(decode.list(decode.string)),
+  )
 
   decode.success(TestCase(
     name: name,
@@ -63,6 +68,7 @@ fn test_case_decoder() -> decode.Decoder(TestCase) {
     features: features,
     expected: expected,
     path: path,
+    args: args,
   ))
 }
 
@@ -89,7 +95,7 @@ fn entries_expected_decoder() -> decode.Decoder(Expected) {
   decode.success(ExpectedEntries(count: count, entries: entries))
 }
 
-fn test_entry_decoder() -> decode.Decoder(test_types.TestEntry) {
+fn test_entry_decoder() -> decode.Decoder(types.TestEntry) {
   use key <- decode.field("key", decode.string)
   use value <- decode.field("value", decode.string)
   decode.success(TestEntry(key: key, value: value))

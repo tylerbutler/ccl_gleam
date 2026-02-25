@@ -41,6 +41,7 @@ pub type TestCase {
     features: List(String),
     expected: Expected,
     path: Option(List(String)),
+    args: Option(List(String)),
   )
 }
 

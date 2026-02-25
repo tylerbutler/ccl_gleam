@@ -1,6 +1,6 @@
-# ccl_gleam - Gleam CCL Test Runner
+# ccl_gleam - Gleam CCL Implementation & Test Runner
 
-CCL (Categorical Configuration Language) test runner implementation in Gleam, targeting the Erlang VM (BEAM).
+CCL (Categorical Configuration Language) implementation and test runner in Gleam, targeting the Erlang VM (BEAM).
 
 ## Build Commands
 
@@ -29,76 +29,79 @@ just ci                  # Full CI check (format, build, test)
 
 ```
 src/
-├── ccl_test_runner.gleam   # CLI entry point with mock implementation
-├── test_runner.gleam       # Core test execution logic
-├── test_loader.gleam       # JSON test suite loading
-├── test_filter.gleam       # Test filtering by capabilities
-├── test_types.gleam        # Type definitions for test data
-└── debug_parse.gleam       # Debug utilities
-test/
-└── ccl_test_runner_test.gleam
-packages/
-└── ccl_types/              # Shared type definitions
+├── ccl/                       # CCL library (the real implementation)
+│   ├── types.gleam            # Entry, CCLValue (String|Object|List), CCL type alias
+│   ├── parser.gleam           # parse() — indentation-aware, two-context parsing
+│   ├── hierarchy.gleam        # build_hierarchy() — recursive fixed-point
+│   ├── access.gleam           # get_string, get_int, get_bool, get_float, get_list
+│   └── format.gleam           # print (structure-preserving), canonical_format
+├── test_runner/               # Test runner (calls ccl/ directly)
+│   ├── runner.gleam           # Test execution against ccl/ library
+│   ├── loader.gleam           # JSON test suite loading
+│   ├── filter.gleam           # Capability-based test filtering
+│   └── types.gleam            # Test-specific types (TestCase, Expected, etc.)
+├── cli/                       # CLI commands
+│   ├── commands.gleam         # run/list/stats commands
+│   └── flags.gleam            # CLI flag definitions
+├── tui/                       # Interactive TUI viewer
+│   ├── app.gleam              # Shore TUI application
+│   ├── model.gleam            # TUI state model
+│   ├── update.gleam           # TUI update logic
+│   ├── view.gleam             # TUI view rendering
+│   └── views/                 # Individual view components
+└── ccl_test_runner.gleam      # CLI entry point
 ```
 
-## Integration with ccl-test-data
+## CCL Library (`src/ccl/`)
 
-This test runner consumes the JSON test suite from `../ccl-test-data/generated_tests/`:
+The core CCL implementation follows the docs at ccl.tylerbutler.com:
 
-```bash
-# Run with default parse-only config
-gleam run -- ../ccl-test-data/generated_tests/
+### Core Functions (Required)
+- **`parser.parse(text)`** — Indentation-aware entry parsing with `toplevel_indent_strip` behavior (N=0 at top level, N=first content line indent for nested)
+- **`hierarchy.build_hierarchy(entries)`** — Recursive fixed-point: values containing `=` are re-parsed until no more structure remains
 
-# Run with specific functions
-gleam run -- ../ccl-test-data/generated_tests/ --functions parse,print,build_hierarchy
-```
+### Typed Access (Optional)
+- **`access.get_string(ccl, path)`** — Navigate path, return string
+- **`access.get_int(ccl, path)`** — Parse integer
+- **`access.get_bool(ccl, path)`** — Parse boolean (`boolean_strict`: only true/false)
+- **`access.get_float(ccl, path)`** — Parse float
+- **`access.get_list(ccl, path)`** — Extract list (handles `{"": CclList}` pattern)
 
-### Available CCL Functions
+### Formatting (Optional)
+- **`format.print(entries)`** — Structure-preserving: `print(parse(x)) == x` for standard inputs
+- **`format.canonical_format(ccl)`** — Semantic-preserving normalized output
 
-- `parse` - Basic key-value parsing
-- `print` - Print entries back to CCL format
-- `build_hierarchy` - Convert flat entries to nested objects
-- `get_string` - Get string value at path
-- `get_int` - Get integer value at path
-- `get_bool` - Get boolean value at path
-- `get_float` - Get float value at path
-- `get_list` - Get list value at path
-
-## Architecture
-
-### Test Flow
-
-1. **Load**: `test_loader` reads JSON test files into `TestSuite` structures
-2. **Filter**: `test_filter` selects tests matching implementation capabilities
-3. **Execute**: `test_runner` runs tests against a `CclImplementation`
-4. **Report**: Results aggregated with pass/fail/skip counts
-
-### Implementation Interface
-
-The `CclImplementation` type defines the contract for CCL implementations:
-
+### Internal Representation
+Uses tagged union per CCL docs recommendation for Gleam:
 ```gleam
-type CclImplementation {
-  CclImplementation(
-    parse: fn(String) -> Result(List(Entry), String),
-    print: fn(List(Entry)) -> String,
-    build_hierarchy: fn(List(Entry)) -> CCL,
-    get_string: fn(CCL, List(String)) -> Result(String, String),
-    get_int: fn(CCL, List(String)) -> Result(Int, String),
-    get_bool: fn(CCL, List(String)) -> Result(Bool, String),
-    get_float: fn(CCL, List(String)) -> Result(Float, String),
-    get_list: fn(CCL, List(String)) -> Result(List(String), String),
-  )
+pub type CCLValue {
+  CclString(String)          // Terminal value (no = in content)
+  CclObject(Dict(String, CCLValue))  // Nested structure
+  CclList(List(CCLValue))    // List from empty-key entries
 }
 ```
 
-### Test Case Structure
+### Implemented Behaviors
+- `toplevel_indent_strip` — Top-level baseline N=0
+- `crlf_normalize_to_lf` — Normalize CRLF before parsing
+- `tabs_as_whitespace` — Spaces and tabs count as whitespace
+- `boolean_strict` — Only true/false (case-insensitive)
+- `list_coercion_disabled` — get_list errors on non-lists
+- `array_order_insertion` — Preserve insertion order
+- `indent_spaces` — 2-space indentation in output
 
-Tests use feature-based tagging for capability filtering:
-- **functions**: Required CCL functions (`parse`, `build_hierarchy`, etc.)
-- **behaviors**: Runtime behaviors (`crlf_normalize_to_lf`, `toplevel_indent_strip`)
-- **variants**: Implementation variants (`reference_compliant`)
-- **features**: Optional features (`comments`, `dotted-keys`)
+## Integration with ccl-test-data
+
+```bash
+# Run with full capabilities
+gleam run -- run ./ccl-test-data/
+
+# Run with specific functions only
+gleam run -- run ./ccl-test-data/ --functions parse,print
+
+# Launch interactive TUI viewer
+gleam run -- view ./ccl-test-data/
+```
 
 ## Dependencies
 
@@ -107,6 +110,8 @@ Tests use feature-based tagging for capability filtering:
 - `simplifile` - File system operations
 - `birch` - Structured logging
 - `argv` - CLI argument parsing
+- `glint` - CLI framework
+- `shore` - TUI framework
 - `gleeunit` - Testing framework (dev)
 
 ## Development Guidelines
@@ -114,5 +119,5 @@ Tests use feature-based tagging for capability filtering:
 - Use Result types for error handling, not exceptions
 - Pattern match exhaustively
 - Follow Gleam's built-in formatter output
-- Test both happy path and error cases
-- Keep functions small and focused
+- The test runner calls `ccl/` modules directly — no interface indirection
+- When adding CCL features, update both `ccl/` library and `test_runner/runner.gleam`

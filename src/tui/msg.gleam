@@ -1,5 +1,5 @@
 /// Message types for the CCL test viewer TUI
-import test_types.{type TestSuite}
+import test_runner/types.{type TestSuite}
 
 /// Messages for TUI state updates
 pub type Msg {

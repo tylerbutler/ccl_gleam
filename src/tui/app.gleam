@@ -7,8 +7,8 @@ import gleam/string
 import shore
 import shore/key
 import simplifile
-import test_loader
-import test_types.{type ImplementationConfig}
+import test_runner/loader
+import test_runner/types.{type ImplementationConfig}
 import tui/model.{type FileInfo, FileInfo, Model}
 import tui/update
 import tui/view
@@ -72,7 +72,7 @@ fn custom_keybinds() {
 
 /// Load file information from directory
 fn load_files(test_dir: String) -> List(FileInfo) {
-  case test_loader.list_test_files(test_dir) {
+  case loader.list_test_files(test_dir) {
     Ok(files) ->
       files
       |> list.map(fn(path) {
@@ -93,7 +93,7 @@ fn get_filename(path: String) -> String {
 }
 
 fn get_test_count(file: String) -> Int {
-  case test_loader.load_test_file(file) {
+  case loader.load_test_file(file) {
     Ok(suite) -> list.length(suite.tests)
     Error(_) -> 0
   }

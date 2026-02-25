@@ -1,8 +1,9 @@
-/// CLI command implementations for CCL test runner
+/// CLI command implementations for CCL test runner.
+///
+/// No more mock implementation — calls ccl/ library directly via test_runner.
 import birch
 import cli/flags
 import gleam/dict
-import gleam/float
 import gleam/int
 import gleam/io
 import gleam/list
@@ -10,13 +11,10 @@ import gleam/result
 import gleam/string
 import glint
 import simplifile
-import test_filter
-import test_loader
-import test_runner.{
-  type CCL, type CclImplementation, type Entry, CclImplementation, CclList,
-  CclObject, CclString, Entry,
-}
-import test_types.{
+import test_runner/filter
+import test_runner/loader
+import test_runner/runner
+import test_runner/types.{
   type ImplementationConfig, type TestCase, ImplementationConfig,
 }
 
@@ -34,13 +32,25 @@ pub fn build_config(
   variants: List(String),
 ) -> ImplementationConfig {
   let final_functions = case functions {
-    [] -> ["parse", "print"]
+    [] -> [
+      "parse", "print", "build_hierarchy", "canonical_format", "get_string",
+      "get_int", "get_bool", "get_float", "get_list",
+    ]
     funcs -> funcs
+  }
+
+  let final_behaviors = case behaviors {
+    [] -> [
+      "crlf_normalize_to_lf", "toplevel_indent_strip", "boolean_strict",
+      "tabs_as_whitespace", "list_coercion_disabled", "array_order_insertion",
+      "indent_spaces",
+    ]
+    behavs -> behavs
   }
 
   ImplementationConfig(
     functions: final_functions,
-    behaviors: behaviors,
+    behaviors: final_behaviors,
     variants: variants,
     features: features,
   )
@@ -49,7 +59,7 @@ pub fn build_config(
 /// Run command - executes tests against the implementation
 pub fn run_command() -> glint.Command(CommandResult) {
   use <- glint.command_help(
-    "Run CCL tests against an implementation.
+    "Run CCL tests against the implementation.
 
 Executes the test suite and reports results with pass/fail/skip counts.",
   )
@@ -58,13 +68,13 @@ Executes the test suite and reports results with pass/fail/skip counts.",
   use behaviors <- glint.flag(flags.behaviors_flag())
   use features <- glint.flag(flags.features_flag())
   use variants <- glint.flag(flags.variants_flag())
-  use named, _args, flags <- glint.command()
+  use named, _args, cmd_flags <- glint.command()
 
   let dir = test_dir(named)
-  let assert Ok(funcs) = functions(flags)
-  let assert Ok(behavs) = behaviors(flags)
-  let assert Ok(feats) = features(flags)
-  let assert Ok(vars) = variants(flags)
+  let assert Ok(funcs) = functions(cmd_flags)
+  let assert Ok(behavs) = behaviors(cmd_flags)
+  let assert Ok(feats) = features(cmd_flags)
+  let assert Ok(vars) = variants(cmd_flags)
 
   let config = build_config(funcs, behavs, feats, vars)
   run_tests(dir, config)
@@ -77,11 +87,9 @@ fn run_tests(test_dir: String, config: ImplementationConfig) -> CommandResult {
     #("functions", string.join(config.functions, ", ")),
   ])
 
-  let impl = mock_implementation()
-
-  case test_runner.run_test_directory(test_dir, config, impl) {
+  case runner.run_test_directory(test_dir, config) {
     Ok(results) -> {
-      test_runner.print_results(results)
+      runner.print_results(results)
 
       let total_failed =
         results
@@ -116,7 +124,7 @@ Displays each JSON test file with its number of tests.",
 
 /// List test files with counts
 fn list_files(test_dir: String) -> CommandResult {
-  case test_loader.list_test_files(test_dir) {
+  case loader.list_test_files(test_dir) {
     Ok(files) -> {
       io.println("")
       io.println("CCL Test Files")
@@ -167,13 +175,13 @@ Displays counts by validation type, function tags, and behaviors.",
   use behaviors <- glint.flag(flags.behaviors_flag())
   use features <- glint.flag(flags.features_flag())
   use variants <- glint.flag(flags.variants_flag())
-  use named, _args, flags <- glint.command()
+  use named, _args, cmd_flags <- glint.command()
 
   let dir = test_dir(named)
-  let assert Ok(funcs) = functions(flags)
-  let assert Ok(behavs) = behaviors(flags)
-  let assert Ok(feats) = features(flags)
-  let assert Ok(vars) = variants(flags)
+  let assert Ok(funcs) = functions(cmd_flags)
+  let assert Ok(behavs) = behaviors(cmd_flags)
+  let assert Ok(feats) = features(cmd_flags)
+  let assert Ok(vars) = variants(cmd_flags)
 
   let config = build_config(funcs, behavs, feats, vars)
   show_stats(dir, config)
@@ -181,18 +189,17 @@ Displays counts by validation type, function tags, and behaviors.",
 
 /// Show detailed statistics
 fn show_stats(test_dir: String, config: ImplementationConfig) -> CommandResult {
-  case test_loader.list_test_files(test_dir) {
+  case loader.list_test_files(test_dir) {
     Ok(files) -> {
       io.println("")
       io.println("CCL Test Suite Statistics")
       io.println("=========================")
       io.println("")
 
-      // Load all tests
-      let all_suites: List(#(String, test_types.TestSuite)) =
+      let all_suites: List(#(String, types.TestSuite)) =
         files
         |> list.filter_map(fn(file) {
-          case test_loader.load_test_file(file) {
+          case loader.load_test_file(file) {
             Ok(suite) -> Ok(#(file, suite))
             Error(_) -> Error(Nil)
           }
@@ -200,13 +207,12 @@ fn show_stats(test_dir: String, config: ImplementationConfig) -> CommandResult {
 
       let all_tests: List(TestCase) =
         all_suites
-        |> list.flat_map(fn(pair: #(String, test_types.TestSuite)) {
+        |> list.flat_map(fn(pair: #(String, types.TestSuite)) {
           { pair.1 }.tests
         })
 
       let total_count = list.length(all_tests)
 
-      // Count by validation type
       let validations: dict.Dict(String, List(TestCase)) =
         all_tests
         |> list.group(fn(tc: TestCase) { tc.validation })
@@ -226,7 +232,6 @@ fn show_stats(test_dir: String, config: ImplementationConfig) -> CommandResult {
 
       io.println("")
 
-      // Count by function
       let function_counts =
         count_tags(all_tests, fn(tc: TestCase) { tc.functions })
       io.println("By Function:")
@@ -238,10 +243,9 @@ fn show_stats(test_dir: String, config: ImplementationConfig) -> CommandResult {
 
       io.println("")
 
-      // Count compatible/incompatible
       let compatible =
         all_tests
-        |> list.filter(fn(tc) { test_filter.is_compatible(config, tc) })
+        |> list.filter(fn(tc) { filter.is_compatible(config, tc) })
       let compatible_count = list.length(compatible)
       let skipped_count = total_count - compatible_count
 
@@ -277,7 +281,7 @@ fn show_stats(test_dir: String, config: ImplementationConfig) -> CommandResult {
 // Helper functions
 
 fn get_test_count(file: String) -> Int {
-  case test_loader.load_test_file(file) {
+  case loader.load_test_file(file) {
     Ok(suite) -> list.length(suite.tests)
     Error(_) -> 0
   }
@@ -339,126 +343,4 @@ fn count_tags(
     #(pair.0, list.length(pair.1))
   })
   |> list.sort(fn(a, b) { string.compare(a.0, b.0) })
-}
-
-// Mock implementation
-
-fn mock_implementation() -> CclImplementation {
-  CclImplementation(
-    parse: mock_parse,
-    print: mock_print,
-    build_hierarchy: mock_build_hierarchy,
-    get_string: mock_get_string,
-    get_int: mock_get_int,
-    get_bool: mock_get_bool,
-    get_float: mock_get_float,
-    get_list: mock_get_list,
-  )
-}
-
-fn mock_parse(input: String) -> Result(List(Entry), String) {
-  let normalized = string.replace(input, "\r\n", "\n")
-  let lines = string.split(normalized, "\n")
-
-  lines
-  |> list.filter(fn(line) { !string.is_empty(string.trim(line)) })
-  |> list.try_map(parse_line)
-}
-
-fn parse_line(line: String) -> Result(Entry, String) {
-  case string.split_once(line, " = ") {
-    Ok(#(key, value)) -> Ok(Entry(key: key, value: value))
-    Error(_) -> {
-      case string.split_once(line, "=") {
-        Ok(#(key, value)) ->
-          Ok(Entry(key: string.trim(key), value: string.trim(value)))
-        Error(_) -> Error("Invalid line: " <> line)
-      }
-    }
-  }
-}
-
-fn mock_print(entries: List(Entry)) -> String {
-  entries
-  |> list.map(fn(e: Entry) { e.key <> " = " <> e.value })
-  |> string.join("\n")
-}
-
-fn mock_build_hierarchy(entries: List(Entry)) -> CCL {
-  entries
-  |> list.fold(dict.new(), fn(acc, entry: Entry) {
-    dict.insert(acc, entry.key, CclString(entry.value))
-  })
-}
-
-fn mock_get_string(ccl: CCL, path: List(String)) -> Result(String, String) {
-  case path {
-    [] -> Error("Empty path")
-    [key] -> {
-      case dict.get(ccl, key) {
-        Ok(CclString(s)) -> Ok(s)
-        Ok(CclList([first, ..])) -> Ok(first)
-        Ok(_) -> Error("Not a string: " <> key)
-        Error(_) -> Error("Key not found: " <> key)
-      }
-    }
-    [key, ..rest] -> {
-      case dict.get(ccl, key) {
-        Ok(CclObject(obj)) -> mock_get_string(obj, rest)
-        Ok(_) -> Error("Not an object: " <> key)
-        Error(_) -> Error("Key not found: " <> key)
-      }
-    }
-  }
-}
-
-fn mock_get_int(ccl: CCL, path: List(String)) -> Result(Int, String) {
-  use str <- result.try(mock_get_string(ccl, path))
-  case int.parse(str) {
-    Ok(n) -> Ok(n)
-    Error(_) -> Error("Not an integer: " <> str)
-  }
-}
-
-fn mock_get_bool(ccl: CCL, path: List(String)) -> Result(Bool, String) {
-  use str <- result.try(mock_get_string(ccl, path))
-  case string.lowercase(str) {
-    "true" -> Ok(True)
-    "false" -> Ok(False)
-    _ -> Error("Not a boolean: " <> str)
-  }
-}
-
-fn mock_get_float(ccl: CCL, path: List(String)) -> Result(Float, String) {
-  use str <- result.try(mock_get_string(ccl, path))
-  case float.parse(str) {
-    Ok(f) -> Ok(f)
-    Error(_) -> {
-      case int.parse(str) {
-        Ok(n) -> Ok(int.to_float(n))
-        Error(_) -> Error("Not a float: " <> str)
-      }
-    }
-  }
-}
-
-fn mock_get_list(ccl: CCL, path: List(String)) -> Result(List(String), String) {
-  case path {
-    [] -> Error("Empty path")
-    [key] -> {
-      case dict.get(ccl, key) {
-        Ok(CclList(l)) -> Ok(l)
-        Ok(CclString(s)) -> Ok([s])
-        Ok(_) -> Error("Not a list: " <> key)
-        Error(_) -> Error("Key not found: " <> key)
-      }
-    }
-    [key, ..rest] -> {
-      case dict.get(ccl, key) {
-        Ok(CclObject(obj)) -> mock_get_list(obj, rest)
-        Ok(_) -> Error("Not an object: " <> key)
-        Error(_) -> Error("Key not found: " <> key)
-      }
-    }
-  }
 }

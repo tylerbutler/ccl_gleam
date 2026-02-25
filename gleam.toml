@@ -1,6 +1,6 @@
 name = "ccl_test_runner"
 version = "1.0.0"
-description = "Test runner for CCL implementations using JSON test data"
+description = "CCL implementation and test runner in Gleam"
 licences = ["MIT"]
 repository = { type = "github", user = "tylerbutler", repo = "ccl_gleam" }
 target = "erlang"

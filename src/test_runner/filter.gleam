@@ -1,6 +1,6 @@
 /// Filter tests based on implementation capabilities
 import gleam/list
-import test_types.{type ImplementationConfig, type TestCase}
+import test_runner/types.{type ImplementationConfig, type TestCase}
 
 /// Check if a test case is compatible with the implementation config
 pub fn is_compatible(config: ImplementationConfig, tc: TestCase) -> Bool {
@@ -101,7 +101,7 @@ fn format_list(items: List(String)) -> String {
 
 /// Create a basic config for parse-only implementations
 pub fn parse_only_config() -> ImplementationConfig {
-  test_types.ImplementationConfig(
+  types.ImplementationConfig(
     functions: ["parse", "print"],
     behaviors: ["crlf_normalize_to_lf", "toplevel_indent_strip"],
     variants: ["reference_compliant"],
@@ -111,7 +111,7 @@ pub fn parse_only_config() -> ImplementationConfig {
 
 /// Create a config for implementations with object construction
 pub fn basic_config() -> ImplementationConfig {
-  test_types.ImplementationConfig(
+  types.ImplementationConfig(
     functions: ["parse", "print", "build_hierarchy"],
     behaviors: ["crlf_normalize_to_lf", "toplevel_indent_strip"],
     variants: ["reference_compliant"],
@@ -121,7 +121,7 @@ pub fn basic_config() -> ImplementationConfig {
 
 /// Create a full implementation config
 pub fn full_config() -> ImplementationConfig {
-  test_types.ImplementationConfig(
+  types.ImplementationConfig(
     functions: [
       "parse", "print", "canonical_format", "build_hierarchy", "get_string",
       "get_int", "get_bool", "get_float", "get_list", "filter", "compose",
@@ -130,7 +130,10 @@ pub fn full_config() -> ImplementationConfig {
       "crlf_normalize_to_lf",
       "toplevel_indent_strip",
       "boolean_strict",
+      "tabs_as_whitespace",
       "list_coercion_disabled",
+      "array_order_insertion",
+      "indent_spaces",
     ],
     variants: ["reference_compliant"],
     features: ["comments", "multiline", "empty_keys", "unicode"],

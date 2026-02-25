@@ -8,8 +8,8 @@ import gleam/string
 import shore
 import shore/style
 import shore/ui
-import test_filter
-import test_types.{
+import test_runner/filter
+import test_runner/types.{
   type Expected, type ExpectedNode, type TestCase, ExpectedBool, ExpectedBoolean,
   ExpectedCountOnly, ExpectedEntries, ExpectedError, ExpectedFloat, ExpectedInt,
   ExpectedList, ExpectedObject, ExpectedValue, NodeList, NodeObject, NodeString,
@@ -51,7 +51,7 @@ fn render_test_case(
   index: Int,
   total: Int,
 ) -> shore.Node(Msg) {
-  let is_compatible = test_filter.is_compatible(model.config, tc)
+  let is_compatible = filter.is_compatible(model.config, tc)
   let position = int.to_string(index + 1) <> "/" <> int.to_string(total)
 
   ui.col([
