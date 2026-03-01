@@ -1,5 +1,5 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$schema": "https://raw.githubusercontent.com/CatConfLang/ccl-test-data/v0.6.1/schemas/generated-format.json",
   "tests": [
     {
       "behaviors": [],
@@ -122,7 +122,7 @@
       "behaviors": [],
       "expected": {
         "count": 1,
-        "value": "server = \n  database =\n    host = localhost\n    port = 5432\n  cache =\n    enabled = true"
+        "value": "server =\n  database =\n    host = localhost\n    port = 5432\n  cache =\n    enabled = true"
       },
       "features": [],
       "functions": [
@@ -262,7 +262,7 @@
       "behaviors": [],
       "expected": {
         "count": 1,
-        "value": "config = \n  server = web1\n  server = web2\n  port = 80"
+        "value": "config =\n  server = web1\n  server = web2\n  port = 80"
       },
       "features": [],
       "functions": [
@@ -336,7 +336,7 @@
       "behaviors": [],
       "expected": {
         "count": 1,
-        "value": "name = Alice\nconfig = \n  debug = true\n  timeout = 30\nversion = 1.0"
+        "value": "name = Alice\nconfig =\n  debug = true\n  timeout = 30\nversion = 1.0"
       },
       "features": [],
       "functions": [
@@ -409,7 +409,7 @@
       "behaviors": [],
       "expected": {
         "count": 1,
-        "value": "environments = \n  prod =\n    server = web1\n    server = web2\n    port = 80\n  dev =\n    server = localhost\n    port = 3000"
+        "value": "environments =\n  prod =\n    server = web1\n    server = web2\n    port = 80\n  dev =\n    server = localhost\n    port = 3000"
       },
       "features": [],
       "functions": [

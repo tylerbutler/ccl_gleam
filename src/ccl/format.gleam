@@ -32,11 +32,15 @@ pub fn print(entries: List(Entry)) -> String {
 fn format_entry(entry: Entry) -> String {
   case entry.key, entry.value {
     // Empty key, empty value
-    "", "" -> "= "
+    "", "" -> "="
+    // Empty key, value starts with newline (nested content)
+    "", "\n" <> _ as value -> "=" <> value
     // Empty key with value
     "", value -> "= " <> value
     // Non-empty key, empty value
-    key, "" -> key <> " = "
+    key, "" -> key <> " ="
+    // Non-empty key, value starts with newline (nested content)
+    key, "\n" <> _ as value -> key <> " =" <> value
     // Non-empty key with value
     key, value -> key <> " = " <> value
   }

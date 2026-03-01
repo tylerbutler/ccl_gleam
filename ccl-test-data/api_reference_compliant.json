@@ -1,5 +1,5 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$schema": "https://raw.githubusercontent.com/CatConfLang/ccl-test-data/v0.6.1/schemas/generated-format.json",
   "tests": [
     {
       "behaviors": [],
@@ -725,7 +725,7 @@
           },
           {
             "key": "symbols",
-            "value": "!^\u0026*()"
+            "value": "!^&*()"
           },
           {
             "key": "symbols",
@@ -738,7 +738,7 @@
         "parse"
       ],
       "inputs": [
-        "symbols = @#$%\nsymbols = !^\u0026*()\nsymbols = []{}|"
+        "symbols = @#$%\nsymbols = !^&*()\nsymbols = []{}|"
       ],
       "name": "list_with_special_characters_reference_parse",
       "source_test": "list_with_special_characters_reference",
@@ -758,7 +758,7 @@
         "count": 1,
         "object": {
           "symbols": [
-            "!^\u0026*()",
+            "!^&*()",
             "@#$%",
             "[]{}|"
           ]
@@ -769,7 +769,7 @@
         "build_hierarchy"
       ],
       "inputs": [
-        "symbols = @#$%\nsymbols = !^\u0026*()\nsymbols = []{}|"
+        "symbols = @#$%\nsymbols = !^&*()\nsymbols = []{}|"
       ],
       "name": "list_with_special_characters_reference_build_hierarchy",
       "source_test": "list_with_special_characters_reference",
@@ -798,7 +798,7 @@
         "get_list"
       ],
       "inputs": [
-        "symbols = @#$%\nsymbols = !^\u0026*()\nsymbols = []{}|"
+        "symbols = @#$%\nsymbols = !^&*()\nsymbols = []{}|"
       ],
       "name": "list_with_special_characters_reference_get_list",
       "source_test": "list_with_special_characters_reference",
@@ -1011,7 +1011,8 @@
       "features": [],
       "functions": [
         "parse",
-        "print"
+        "print",
+        "canonical_format"
       ],
       "inputs": [
         "empty_key ="
@@ -1039,7 +1040,8 @@
       "features": [],
       "functions": [
         "parse",
-        "print"
+        "print",
+        "canonical_format"
       ],
       "inputs": [
         "value_with_tabs = text\t\twith\ttabs\t"
@@ -1062,7 +1064,8 @@
       ],
       "functions": [
         "parse",
-        "print"
+        "print",
+        "canonical_format"
       ],
       "inputs": [
         "unicode = 你好世界\nemo = 🌟✨"
@@ -1126,7 +1129,8 @@
       "features": [],
       "functions": [
         "parse",
-        "print"
+        "print",
+        "canonical_format"
       ],
       "inputs": [
         "key1 = value1\r\nkey2 = value2\r\n"
@@ -1147,7 +1151,8 @@
       "features": [],
       "functions": [
         "parse",
-        "print"
+        "print",
+        "canonical_format"
       ],
       "inputs": [
         "key1=value1\nkey2  =  value2\nkey3\t=\tvalue3"
@@ -1168,7 +1173,8 @@
       "features": [],
       "functions": [
         "parse",
-        "print"
+        "print",
+        "canonical_format"
       ],
       "inputs": [
         "z = last\na = first\nm = middle"

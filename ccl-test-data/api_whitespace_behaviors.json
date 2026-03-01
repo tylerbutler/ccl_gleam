@@ -1,5 +1,5 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$schema": "https://raw.githubusercontent.com/CatConfLang/ccl-test-data/v0.6.1/schemas/generated-format.json",
   "tests": [
     {
       "behaviors": [
@@ -442,7 +442,8 @@
       ],
       "functions": [
         "parse",
-        "print"
+        "print",
+        "canonical_format"
       ],
       "inputs": [
         "key = \tvalue"
@@ -470,7 +471,8 @@
       ],
       "functions": [
         "parse",
-        "print"
+        "print",
+        "canonical_format"
       ],
       "inputs": [
         "key = \tvalue"
@@ -501,7 +503,8 @@
       ],
       "functions": [
         "parse",
-        "print"
+        "print",
+        "canonical_format"
       ],
       "inputs": [
         "section =\n\t\tindented\n\t\tanother"
@@ -558,7 +561,8 @@
       ],
       "functions": [
         "parse",
-        "print"
+        "print",
+        "canonical_format"
       ],
       "inputs": [
         "package =\n  = brew\n  = scoop\n  = nix"
@@ -587,7 +591,8 @@
       ],
       "functions": [
         "parse",
-        "print"
+        "print",
+        "canonical_format"
       ],
       "inputs": [
         "app =\n  = item1\n  config =\n    = nested1\n    = nested2\n    deep =\n      = level3a\n      = level3b\n  = item2"
@@ -997,7 +1002,14 @@
       "variants": []
     },
     {
-      "behaviors": [],
+      "behaviors": [
+        "crlf_normalize_to_lf"
+      ],
+      "conflicts": {
+        "behaviors": [
+          "crlf_preserve_literal"
+        ]
+      },
       "expected": {
         "count": 0
       },
@@ -1050,7 +1062,14 @@
       "variants": []
     },
     {
-      "behaviors": [],
+      "behaviors": [
+        "crlf_preserve_literal"
+      ],
+      "conflicts": {
+        "behaviors": [
+          "crlf_normalize_to_lf"
+        ]
+      },
       "expected": {
         "count": 0
       },
@@ -1115,7 +1134,14 @@
       "variants": []
     },
     {
-      "behaviors": [],
+      "behaviors": [
+        "crlf_normalize_to_lf"
+      ],
+      "conflicts": {
+        "behaviors": [
+          "crlf_preserve_literal"
+        ]
+      },
       "expected": {
         "count": 2,
         "entries": [
@@ -1225,7 +1251,14 @@
       "variants": []
     },
     {
-      "behaviors": [],
+      "behaviors": [
+        "crlf_preserve_literal"
+      ],
+      "conflicts": {
+        "behaviors": [
+          "crlf_normalize_to_lf"
+        ]
+      },
       "expected": {
         "count": 2,
         "entries": [
@@ -1331,7 +1364,14 @@
       "variants": []
     },
     {
-      "behaviors": [],
+      "behaviors": [
+        "crlf_normalize_to_lf"
+      ],
+      "conflicts": {
+        "behaviors": [
+          "crlf_preserve_literal"
+        ]
+      },
       "expected": {
         "count": 0
       },
@@ -1392,7 +1432,14 @@
       "variants": []
     },
     {
-      "behaviors": [],
+      "behaviors": [
+        "crlf_preserve_literal"
+      ],
+      "conflicts": {
+        "behaviors": [
+          "crlf_normalize_to_lf"
+        ]
+      },
       "expected": {
         "count": 0
       },

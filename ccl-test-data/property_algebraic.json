@@ -1,5 +1,5 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$schema": "https://raw.githubusercontent.com/CatConfLang/ccl-test-data/v0.6.1/schemas/generated-format.json",
   "tests": [
     {
       "behaviors": [],
@@ -272,7 +272,7 @@
       "behaviors": [],
       "expected": {
         "count": 1,
-        "value": "config = \n  host = localhost\n  port = 8080\n  db =\n    name = mydb\n    user = admin"
+        "value": "config =\n  host = localhost\n  port = 8080\n  db =\n    name = mydb\n    user = admin"
       },
       "features": [],
       "functions": [
@@ -346,7 +346,7 @@
       "behaviors": [],
       "expected": {
         "count": 1,
-        "value": "= item1\n= item2\nconfig = \n  nested =\n    deep = value\n  list =\n    = a\n    = b\n    = c\nfinal = end"
+        "value": "= item1\n= item2\nconfig =\n  nested =\n    deep = value\n  list =\n    = a\n    = b\n    = c\nfinal = end"
       },
       "features": [
         "empty_keys"

@@ -1,5 +1,5 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$schema": "https://raw.githubusercontent.com/CatConfLang/ccl-test-data/v0.6.1/schemas/generated-format.json",
   "tests": [
     {
       "behaviors": [],
@@ -2441,7 +2441,7 @@
         "count": 1,
         "entries": [
           {
-            "key": "https://api.example.com/search?q=test\u0026page=1",
+            "key": "https://api.example.com/search?q=test&page=1",
             "value": "search_results"
           }
         ]
@@ -2451,7 +2451,7 @@
         "parse"
       ],
       "inputs": [
-        "https://api.example.com/search?q=test\u0026page=1 = search_results"
+        "https://api.example.com/search?q=test&page=1 = search_results"
       ],
       "name": "url_with_query_params_as_key_parse",
       "source_test": "url_with_query_params_as_key",
@@ -2470,7 +2470,7 @@
       "expected": {
         "count": 1,
         "object": {
-          "https://api.example.com/search?q=test\u0026page=1": "search_results"
+          "https://api.example.com/search?q=test&page=1": "search_results"
         }
       },
       "features": [],
@@ -2478,7 +2478,7 @@
         "build_hierarchy"
       ],
       "inputs": [
-        "https://api.example.com/search?q=test\u0026page=1 = search_results"
+        "https://api.example.com/search?q=test&page=1 = search_results"
       ],
       "name": "url_with_query_params_as_key_build_hierarchy",
       "source_test": "url_with_query_params_as_key",
@@ -2499,7 +2499,7 @@
         "entries": [
           {
             "key": "https://api.example.com/search?q",
-            "value": "test\u0026page=1 = search_results"
+            "value": "test&page=1 = search_results"
           }
         ]
       },
@@ -2508,7 +2508,7 @@
         "parse"
       ],
       "inputs": [
-        "https://api.example.com/search?q=test\u0026page=1 = search_results"
+        "https://api.example.com/search?q=test&page=1 = search_results"
       ],
       "name": "delimiter_first_url_with_query_params_parse",
       "source_test": "delimiter_first_url_with_query_params",
@@ -2527,7 +2527,7 @@
       "expected": {
         "count": 1,
         "object": {
-          "https://api.example.com/search?q": "test\u0026page=1 = search_results"
+          "https://api.example.com/search?q": "test&page=1 = search_results"
         }
       },
       "features": [],
@@ -2535,7 +2535,7 @@
         "build_hierarchy"
       ],
       "inputs": [
-        "https://api.example.com/search?q=test\u0026page=1 = search_results"
+        "https://api.example.com/search?q=test&page=1 = search_results"
       ],
       "name": "delimiter_first_url_with_query_params_build_hierarchy",
       "source_test": "delimiter_first_url_with_query_params",
