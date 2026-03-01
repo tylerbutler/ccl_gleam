@@ -75,7 +75,13 @@ gleam test -- ccl_json_suite                        # Run only the JSON suite fi
 
 Test output uses startest's hierarchical format, grouped by validation type:
 ```
-CCL JSON Suite ❯ parse ❯ api_core_ccl_parsing.json ❯ basic_key_value_pairs_parse
+CCL JSON Suite ❯ parse ❯ basic_key_value_pairs_parse
+```
+
+On failure, the source filename is included in the error message:
+```
+FAIL CCL JSON Suite ❯ parse ❯ some_failing_test
+[api_core_ccl_parsing.json] Entries mismatch
 ```
 
 ### `gleam run -- run` — CLI test runner (for CI, TUI, stats)

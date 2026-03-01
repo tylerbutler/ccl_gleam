@@ -3,11 +3,14 @@
 /// Loads all JSON test files from ccl-test-data/, converts each test case
 /// into a startest `it`/`xit` node, and runs them through `gleam test`.
 ///
-/// Tests are grouped by **validation type**, then by **source file**, so
-/// related assertions cluster together regardless of which JSON file they
-/// originate from while still showing provenance.
+/// Tests are grouped by **validation type** (parse, build_hierarchy,
+/// get_string, etc.) so that related assertions cluster together regardless
+/// of which JSON file they originate from.
 ///
-/// Structure: `CCL JSON Suite ❯ <validation> ❯ <filename> ❯ <test name>`
+/// Structure: `CCL JSON Suite ❯ <validation> ❯ <test name>`
+///
+/// On failure the source filename is included in the error message so you
+/// can locate the test definition quickly.
 ///
 /// The CLI test runner (`gleam run -- run`) is still available for the TUI,
 /// stats, and other specialized use cases.
@@ -33,9 +36,9 @@ pub fn main() {
   startest.run(startest.default_config())
 }
 
-/// Generates a startest `describe` tree grouped by validation, then filename.
+/// Generates a startest `describe` tree grouped by validation type.
 ///
-/// Structure: `CCL JSON Suite ❯ <validation> ❯ <filename> ❯ <test name>`
+/// Structure: `CCL JSON Suite ❯ <validation> ❯ <test name>`
 ///
 /// Tests that are incompatible with the current implementation config
 /// are marked as skipped via `xit`.
@@ -64,49 +67,36 @@ pub fn ccl_json_suite_tests() {
       }
     })
 
-  // Group by validation type, then by source filename
+  // Group tests by validation type
   let by_validation =
     group_by(all_tests, fn(tagged) { tagged.test_case.validation })
 
-  let sorted_validations =
+  // Sort validation groups alphabetically for stable output
+  let sorted_groups =
     by_validation
     |> dict.to_list
     |> list.sort(fn(a, b) { string.compare(a.0, b.0) })
 
   startest.describe(
     "CCL JSON Suite",
-    sorted_validations
+    sorted_groups
       |> list.map(fn(group) {
         let #(validation, tagged_tests) = group
-
-        let by_file = group_by(tagged_tests, fn(t) { t.file })
-        let sorted_files =
-          by_file
-          |> dict.to_list
-          |> list.sort(fn(a, b) { string.compare(a.0, b.0) })
-
         startest.describe(
           validation,
-          sorted_files
-            |> list.map(fn(file_group) {
-              let #(filename, tests) = file_group
-              startest.describe(
-                filename,
-                tests
-                  |> list.map(fn(tagged) {
-                    let tc = tagged.test_case
-                    case filter.get_skip_reason(config, tc) {
-                      // Incompatible — skip it
-                      Error(_reason) -> startest.xit(tc.name, fn() { Nil })
-                      // Compatible — run through the existing runner
-                      Ok(Nil) ->
-                        startest.it(tc.name, fn() {
-                          let result = runner.run_single_test(tc, config)
-                          assert_test_result(result)
-                        })
-                    }
-                  }),
-              )
+          tagged_tests
+            |> list.map(fn(tagged) {
+              let tc = tagged.test_case
+              case filter.get_skip_reason(config, tc) {
+                // Incompatible — skip it
+                Error(_reason) -> startest.xit(tc.name, fn() { Nil })
+                // Compatible — run through the existing runner
+                Ok(Nil) ->
+                  startest.it(tc.name, fn() {
+                    let result = runner.run_single_test(tc, config)
+                    assert_test_result(result, tagged.file)
+                  })
+              }
             }),
         )
       }),
@@ -117,13 +107,15 @@ pub fn ccl_json_suite_tests() {
 ///
 /// Passed tests succeed silently. Failed tests raise an `AssertionError` with
 /// separate actual/expected fields so startest renders its coloured diff output.
+/// The source filename is prepended to the reason so failures show provenance.
 /// Skipped results should not reach here (handled by `xit` above), but are
 /// tolerated as a pass.
-fn assert_test_result(result: types.TestResult) -> Nil {
+fn assert_test_result(result: types.TestResult, file: String) -> Nil {
   case result {
     TestPassed(_, _) -> Nil
     TestFailed(_name, detail) -> {
-      AssertionError(detail.reason, detail.actual, detail.expected)
+      let reason = "[" <> file <> "] " <> detail.reason
+      AssertionError(reason, detail.actual, detail.expected)
       |> assertion_error.raise
     }
     TestSkipped(_, _) -> Nil
