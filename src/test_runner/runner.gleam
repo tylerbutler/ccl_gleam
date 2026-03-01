@@ -17,12 +17,12 @@ import gleam/string
 import test_runner/filter
 import test_runner/loader
 import test_runner/types.{
-  type Expected, type ExpectedNode, type ImplementationConfig,
-  type TestCase, type TestResult, type TestSuite, type TestSuiteResult,
-  ExpectedBool, ExpectedBoolean, ExpectedCountOnly, ExpectedEntries,
-  ExpectedError, ExpectedFloat, ExpectedInt, ExpectedList, ExpectedObject,
-  ExpectedValue, FailureDetail, NodeList, NodeObject, NodeString, TestFailed,
-  TestPassed, TestSkipped, TestSuiteResult,
+  type Expected, type ExpectedNode, type ImplementationConfig, type TestCase,
+  type TestResult, type TestSuite, type TestSuiteResult, ExpectedBool,
+  ExpectedBoolean, ExpectedCountOnly, ExpectedEntries, ExpectedError,
+  ExpectedFloat, ExpectedInt, ExpectedList, ExpectedObject, ExpectedValue,
+  FailureDetail, NodeList, NodeObject, NodeString, TestFailed, TestPassed,
+  TestSkipped, TestSuiteResult,
 }
 
 // --- Failure helpers ---
@@ -37,7 +37,12 @@ fn mismatch(
 ) -> TestResult {
   TestFailed(
     name,
-    FailureDetail(reason: reason, actual: actual, expected: expected, assertions: count),
+    FailureDetail(
+      reason: reason,
+      actual: actual,
+      expected: expected,
+      assertions: count,
+    ),
   )
 }
 
@@ -45,7 +50,12 @@ fn mismatch(
 fn error_fail(name: String, reason: String, count: Int) -> TestResult {
   TestFailed(
     name,
-    FailureDetail(reason: reason, actual: reason, expected: "", assertions: count),
+    FailureDetail(
+      reason: reason,
+      actual: reason,
+      expected: "",
+      assertions: count,
+    ),
   )
 }
 
@@ -185,7 +195,13 @@ fn run_parse_test(name: String, input: String, expected: Expected) -> TestResult
     ExpectedError(count, True) -> {
       case parser.parse(input) {
         Ok(_) ->
-          mismatch(name, "Expected error but got success", "Ok(_)", "Error(_)", count)
+          mismatch(
+            name,
+            "Expected error but got success",
+            "Ok(_)",
+            "Error(_)",
+            count,
+          )
         Error(_) -> TestPassed(name, count)
       }
     }
@@ -309,8 +325,7 @@ fn run_round_trip_test(
               )
           }
         }
-        Error(e) ->
-          error_fail(name, "Round trip re-parse error: " <> e, count)
+        Error(e) -> error_fail(name, "Round trip re-parse error: " <> e, count)
       }
     }
     Error(e) -> error_fail(name, "Parse error: " <> e, count)
@@ -345,8 +360,7 @@ fn run_canonical_format_test(
         Error(e) -> error_fail(name, "Parse error: " <> e, count)
       }
     }
-    _ ->
-      error_fail(name, "Invalid expected type for canonical_format test", 0)
+    _ -> error_fail(name, "Invalid expected type for canonical_format test", 0)
   }
 }
 
@@ -401,10 +415,8 @@ fn run_get_string_test(
       case parse_and_build(input) {
         Ok(obj) -> {
           case access.get_string(obj, key_path) {
-            Ok(value) ->
-              check_value_match(name, value, expected_value, count)
-            Error(e) ->
-              error_fail(name, "get_string error: " <> e, count)
+            Ok(value) -> check_value_match(name, value, expected_value, count)
+            Error(e) -> error_fail(name, "get_string error: " <> e, count)
           }
         }
         Error(e) -> error_fail(name, "Parse error: " <> e, count)
@@ -418,8 +430,7 @@ fn run_get_string_test(
     ExpectedCountOnly(count) -> {
       TestPassed(name, count)
     }
-    _ ->
-      error_fail(name, "Invalid expected type for get_string test", 0)
+    _ -> error_fail(name, "Invalid expected type for get_string test", 0)
   }
 }
 
@@ -633,7 +644,13 @@ fn run_expected_error_test(
     Ok(obj) -> {
       case accessor(obj, path) {
         Ok(_) ->
-          mismatch(name, "Expected error but got success", "Ok(_)", "Error(_)", count)
+          mismatch(
+            name,
+            "Expected error but got success",
+            "Ok(_)",
+            "Error(_)",
+            count,
+          )
         Error(_) -> TestPassed(name, count)
       }
     }
@@ -780,7 +797,10 @@ fn format_expected_object_indent(
     |> list.sort(fn(a, b) { string.compare(a.0, b.0) })
     |> list.map(fn(pair) {
       let #(k, v) = pair
-      inner_pad <> string.inspect(k) <> ": " <> format_expected_node_indent(v, indent + 1)
+      inner_pad
+      <> string.inspect(k)
+      <> ": "
+      <> format_expected_node_indent(v, indent + 1)
     })
     |> string.join(",\n")
   "{\n" <> entries <> "\n" <> pad <> "}"
@@ -808,7 +828,10 @@ fn format_ccl_indent(obj: ccl_types.CCL, indent: Int) -> String {
     |> list.sort(fn(a, b) { string.compare(a.0, b.0) })
     |> list.map(fn(pair) {
       let #(k, v) = pair
-      inner_pad <> string.inspect(k) <> ": " <> format_ccl_value_indent(v, indent + 1)
+      inner_pad
+      <> string.inspect(k)
+      <> ": "
+      <> format_ccl_value_indent(v, indent + 1)
     })
     |> string.join(",\n")
   "{\n" <> entries <> "\n" <> pad <> "}"

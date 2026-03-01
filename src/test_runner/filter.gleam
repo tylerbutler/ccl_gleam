@@ -56,8 +56,7 @@ pub fn get_skip_reason(
   // Check validation type: the validation field is the actual function being
   // tested, so it must be in the supported functions list
   case list.contains(config.functions, tc.validation) {
-    False ->
-      Error("Unsupported validation function: " <> tc.validation)
+    False -> Error("Unsupported validation function: " <> tc.validation)
     True -> get_skip_reason_inner(config, tc)
   }
 }
@@ -97,8 +96,7 @@ fn get_skip_reason_inner(
                 })
               case has_variant {
                 True -> check_behaviors_compat(config, tc)
-                False ->
-                  Error("Missing variant: " <> format_list(req_variants))
+                False -> Error("Missing variant: " <> format_list(req_variants))
               }
             }
           }
@@ -159,8 +157,8 @@ pub fn basic_config() -> ImplementationConfig {
 pub fn full_config() -> ImplementationConfig {
   types.ImplementationConfig(
     functions: [
-      "parse", "print", "build_hierarchy", "get_string",
-      "get_int", "get_bool", "get_float", "get_list", "filter", "compose",
+      "parse", "print", "build_hierarchy", "get_string", "get_int", "get_bool",
+      "get_float", "get_list", "filter", "compose",
     ],
     behaviors: [
       "crlf_normalize_to_lf",
