@@ -6,10 +6,10 @@ CCL (Categorical Configuration Language) implementation and test runner in Gleam
 
 ```bash
 gleam build              # Compile project
-gleam test               # Run unit tests
+gleam test               # Run all tests (startest + JSON suite)
 gleam check              # Type check without building
 gleam format             # Format code
-gleam run -- <args>      # Run test runner
+gleam run -- <args>      # Run CLI test runner
 ```
 
 ## Just Commands
@@ -17,10 +17,10 @@ gleam run -- <args>      # Run test runner
 ```bash
 just deps                # Install dependencies
 just build               # Build project
-just test                # Run unit tests
+just test                # Run all tests (startest + JSON suite)
 just format              # Format code
 just check               # Type check
-just run <dir>           # Run test runner against directory
+just run <dir>           # Run CLI test runner against directory
 just run-tests           # Run against default test data
 just ci                  # Full CI check (format, build, test)
 ```
@@ -35,7 +35,7 @@ src/
 │   ├── hierarchy.gleam        # build_hierarchy() — recursive fixed-point
 │   ├── access.gleam           # get_string, get_int, get_bool, get_float, get_list
 │   └── format.gleam           # print (structure-preserving), canonical_format
-├── test_runner/               # Test runner (calls ccl/ directly)
+├── test_runner/               # Test runner infrastructure (used by both startest and CLI)
 │   ├── runner.gleam           # Test execution against ccl/ library
 │   ├── loader.gleam           # JSON test suite loading
 │   ├── filter.gleam           # Capability-based test filtering
@@ -50,6 +50,46 @@ src/
 │   ├── view.gleam             # TUI view rendering
 │   └── views/                 # Individual view components
 └── ccl_test_runner.gleam      # CLI entry point
+test/
+├── ccl_test_runner_test.gleam # Startest entry point + standalone unit tests
+└── ccl_json_suite_test.gleam  # Data-driven JSON suite via startest describe/it
+```
+
+## Testing
+
+Two complementary test entry points share the same underlying runner infrastructure:
+
+### `gleam test` — Startest integration (primary for development)
+
+Runs all JSON test cases as individual startest tests with per-test pass/fail/skip
+reporting. Powered by `test/ccl_json_suite_test.gleam` which loads JSON files,
+maps each `TestCase` to `it()` or `xit()`, and delegates execution to the
+existing `test_runner/runner.gleam`.
+
+```bash
+gleam test                                          # Run everything
+gleam test -- --test-name-filter="basic_key_value"  # Filter by test name
+gleam test -- --test-name-filter="hierarchy"        # Run hierarchy tests only
+gleam test -- ccl_json_suite                        # Run only the JSON suite file
+```
+
+Test output uses startest's hierarchical format:
+```
+CCL JSON Suite ❯ api_core_ccl_parsing.json ❯ basic_key_value_pairs_parse
+```
+
+### `gleam run -- run` — CLI test runner (for CI, TUI, stats)
+
+The original CLI runner with birch logging, summary statistics, TUI viewer, and
+configurable capability flags. Useful for CI pipelines, interactive exploration,
+and detailed statistics.
+
+```bash
+gleam run -- run ./ccl-test-data/                        # Run all tests
+gleam run -- run ./ccl-test-data/ --functions parse,print # Specific functions
+gleam run -- stats ./ccl-test-data/                      # Test statistics
+gleam run -- list ./ccl-test-data/                       # List test files
+gleam run -- view ./ccl-test-data/                       # Interactive TUI
 ```
 
 ## CCL Library (`src/ccl/`)
@@ -93,7 +133,10 @@ pub type CCLValue {
 ## Integration with ccl-test-data
 
 ```bash
-# Run with full capabilities
+# Via startest (development)
+gleam test
+
+# Via CLI runner (CI/exploration)
 gleam run -- run ./ccl-test-data/
 
 # Run with specific functions only
@@ -112,7 +155,7 @@ gleam run -- view ./ccl-test-data/
 - `argv` - CLI argument parsing
 - `glint` - CLI framework
 - `shore` - TUI framework
-- `gleeunit` - Testing framework (dev)
+- `startest` - Testing framework (dev) — describe/it API with test discovery
 
 ## Development Guidelines
 
@@ -121,3 +164,4 @@ gleam run -- view ./ccl-test-data/
 - Follow Gleam's built-in formatter output
 - The test runner calls `ccl/` modules directly — no interface indirection
 - When adding CCL features, update both `ccl/` library and `test_runner/runner.gleam`
+- Both `gleam test` and `gleam run -- run` use the same runner; no duplication needed
