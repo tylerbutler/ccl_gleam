@@ -1,5 +1,5 @@
 {
-  "$schema": "https://raw.githubusercontent.com/CatConfLang/ccl-test-data/v0.6.1/schemas/generated-format.json",
+  "$schema": "https://raw.githubusercontent.com/CatConfLang/ccl-test-data/v0.6.2/schemas/generated-format.json",
   "tests": [
     {
       "behaviors": [],
@@ -408,11 +408,11 @@
     },
     {
       "behaviors": [
-        "tabs_as_content"
+        "tabs_as_whitespace"
       ],
       "conflicts": {
         "behaviors": [
-          "tabs_as_whitespace"
+          "tabs_as_content"
         ]
       },
       "expected": {
