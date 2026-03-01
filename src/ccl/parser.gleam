@@ -11,19 +11,55 @@
 /// - `toplevel_indent_strip`: top-level baseline is always 0
 /// - `crlf_normalize_to_lf`: normalize \r\n to \n before parsing
 /// - `tabs_as_whitespace`: both spaces and tabs count as whitespace
-import ccl/types.{type Entry, Entry}
+import ccl/types.{
+  type Entry, type ParseOptions, Entry, IndentPreserve, IndentStrip,
+  NormalizeToLf, TabsAsContent, TabsAsWhitespace,
+}
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/string
 
-/// Parse top-level CCL text into flat entries.
-/// Uses `toplevel_indent_strip`: baseline N = 0.
-/// Applies `tabs_as_whitespace`: tabs count as whitespace for indentation
-/// detection and are stripped from continuation line indentation positions.
-/// Remaining tabs in content are replaced with spaces.
+/// Parse top-level CCL text into flat entries using default options.
 pub fn parse(text: String) -> Result(List(Entry), String) {
-  let normalized = normalize_line_endings(text)
-  parse_with_baseline(normalized, 0)
+  parse_with(text, types.default_parse_options())
+}
+
+/// Parse top-level CCL text into flat entries with configurable options.
+pub fn parse_with(
+  text: String,
+  options: ParseOptions,
+) -> Result(List(Entry), String) {
+  let normalized = case options.line_endings {
+    NormalizeToLf -> normalize_line_endings(text)
+    _ -> text
+  }
+  let baseline = case options.continuation_baseline {
+    IndentStrip -> 0
+    IndentPreserve -> detect_baseline(normalized)
+  }
+  parse_with_baseline(normalized, baseline, options)
+}
+
+/// Parse indented CCL text by auto-detecting the baseline indentation.
+/// Unlike `parse` which uses N=0, this detects the baseline from the first
+/// content line's indentation, allowing pre-indented text to be parsed correctly.
+@internal
+pub fn parse_indented(text: String) -> Result(List(Entry), String) {
+  parse_indented_with(text, types.default_parse_options())
+}
+
+/// Parse indented CCL text with configurable options.
+@internal
+pub fn parse_indented_with(
+  text: String,
+  options: ParseOptions,
+) -> Result(List(Entry), String) {
+  let normalized = case options.line_endings {
+    NormalizeToLf -> normalize_line_endings(text)
+    _ -> text
+  }
+  let baseline = detect_baseline(normalized)
+  parse_with_baseline(normalized, baseline, options)
 }
 
 /// Parse a nested value (called by build_hierarchy during recursive parsing).
@@ -31,15 +67,23 @@ pub fn parse(text: String) -> Result(List(Entry), String) {
 /// Otherwise parses as a single-line value.
 /// Matches OCaml's `parse_value` / `nested_kvs_p`.
 pub fn parse_value(text: String) -> Result(List(Entry), String) {
+  parse_value_with(text, types.default_parse_options())
+}
+
+/// Parse a nested value with configurable options.
+pub fn parse_value_with(
+  text: String,
+  options: ParseOptions,
+) -> Result(List(Entry), String) {
   case string.first(text) {
     // Nested context: skip leading newline, detect baseline from first content line
     Ok("\n") -> {
       let rest = string.drop_start(text, 1)
       let baseline = detect_baseline(rest)
-      parse_with_baseline(rest, baseline)
+      parse_with_baseline(rest, baseline, options)
     }
     // Single-line or empty: parse with baseline 0
-    Ok(_) -> parse_with_baseline(text, 0)
+    Ok(_) -> parse_with_baseline(text, 0, options)
     // Empty string
     Error(_) -> Ok([])
   }
@@ -50,9 +94,10 @@ pub fn parse_value(text: String) -> Result(List(Entry), String) {
 fn parse_with_baseline(
   text: String,
   baseline: Int,
+  options: ParseOptions,
 ) -> Result(List(Entry), String) {
   let lines = string.split(text, "\n")
-  parse_lines(lines, baseline, [], None, None)
+  parse_lines(lines, baseline, [], None, None, options)
 }
 
 /// State machine for parsing lines into entries.
@@ -67,11 +112,12 @@ fn parse_lines(
   acc: List(Entry),
   current: Option(#(String, List(String))),
   pending_key: Option(String),
+  options: ParseOptions,
 ) -> Result(List(Entry), String) {
   case lines {
     [] -> {
       // Flush any remaining entry (pending_key without `=` is discarded)
-      let final_acc = flush_entry(acc, current)
+      let final_acc = flush_entry(acc, current, options)
       Ok(list.reverse(final_acc))
     }
     [line, ..rest] -> {
@@ -88,18 +134,25 @@ fn parse_lines(
                 True -> {
                   // Preserve empty line within the value
                   let new_current = Some(#(key, list.append(value_lines, [""])))
-                  parse_lines(rest, baseline, acc, new_current, pending_key)
+                  parse_lines(
+                    rest,
+                    baseline,
+                    acc,
+                    new_current,
+                    pending_key,
+                    options,
+                  )
                 }
                 False -> {
                   // End of value, flush and continue
-                  let new_acc = flush_entry(acc, current)
-                  parse_lines(rest, baseline, new_acc, None, pending_key)
+                  let new_acc = flush_entry(acc, current, options)
+                  parse_lines(rest, baseline, new_acc, None, pending_key, options)
                 }
               }
             }
             None -> {
               // Skip standalone empty lines
-              parse_lines(rest, baseline, acc, None, pending_key)
+              parse_lines(rest, baseline, acc, None, pending_key, options)
             }
           }
         }
@@ -108,7 +161,7 @@ fn parse_lines(
             // Continuation line: append to current entry's value
             True, Some(#(key, value_lines)) -> {
               let new_current = Some(#(key, list.append(value_lines, [line])))
-              parse_lines(rest, baseline, acc, new_current, None)
+              parse_lines(rest, baseline, acc, new_current, None, options)
             }
             // Continuation line but no current entry: treat as new entry
             // This handles the case where indented text appears at the start
@@ -116,16 +169,16 @@ fn parse_lines(
               case split_on_equals(line) {
                 Ok(#(key, value)) -> {
                   let new_current = Some(#(key, [value]))
-                  parse_lines(rest, baseline, acc, new_current, None)
+                  parse_lines(rest, baseline, acc, new_current, None, options)
                 }
                 // Line without '=' — buffer as pending key
                 Error(_) ->
-                  parse_lines(rest, baseline, acc, None, Some(trimmed))
+                  parse_lines(rest, baseline, acc, None, Some(trimmed), options)
               }
             }
             // New entry (indent <= baseline): flush current, start new
             False, _ -> {
-              let new_acc = flush_entry(acc, current)
+              let new_acc = flush_entry(acc, current, options)
               case split_on_equals(line) {
                 Ok(#(key, value)) -> {
                   // If there's a pending key and the split key is empty,
@@ -135,11 +188,18 @@ fn parse_lines(
                     _, _ -> key
                   }
                   let new_current = Some(#(final_key, [value]))
-                  parse_lines(rest, baseline, new_acc, new_current, None)
+                  parse_lines(rest, baseline, new_acc, new_current, None, options)
                 }
                 // Line without '=' at entry level — buffer as pending key
                 Error(_) ->
-                  parse_lines(rest, baseline, new_acc, None, Some(trimmed))
+                  parse_lines(
+                    rest,
+                    baseline,
+                    new_acc,
+                    None,
+                    Some(trimmed),
+                    options,
+                  )
               }
             }
           }
@@ -153,11 +213,12 @@ fn parse_lines(
 fn flush_entry(
   acc: List(Entry),
   current: Option(#(String, List(String))),
+  options: ParseOptions,
 ) -> List(Entry) {
   case current {
     None -> acc
     Some(#(key, value_lines)) -> {
-      let value = build_value(value_lines)
+      let value = build_value(value_lines, options)
       [Entry(key: key, value: value), ..acc]
     }
   }
@@ -167,25 +228,33 @@ fn flush_entry(
 /// First line has leading whitespace already trimmed.
 /// Trailing whitespace on the final line is trimmed.
 ///
-/// Per `tabs_as_whitespace` behavior:
-/// - Continuation lines with tab-based indentation have their leading
-///   whitespace fully stripped (tabs are structural, not content)
-/// - Continuation lines with space-only indentation preserve their
-///   leading whitespace (spaces may be content structure)
-/// - Any remaining tabs in content are replaced with spaces
-fn build_value(lines: List(String)) -> String {
+/// Tab handling depends on options:
+/// - `TabsAsWhitespace`: tabs in indentation are structural, stripped;
+///   remaining tabs in content are replaced with spaces
+/// - `TabsAsContent`: tabs are preserved as-is
+fn build_value(lines: List(String), options: ParseOptions) -> String {
   let result = case lines {
     [] -> ""
     [single] -> trim_trailing(single)
     [first, ..rest] -> {
-      // Process continuation lines: strip tab-based indentation
-      let processed = [first, ..list.map(rest, strip_tab_indentation)]
+      let processed = case options.tab_handling {
+        TabsAsWhitespace -> {
+          // Strip tab-based indentation from continuation lines
+          [first, ..list.map(rest, strip_tab_indentation)]
+        }
+        TabsAsContent -> {
+          // Preserve tabs as content
+          [first, ..rest]
+        }
+      }
       let joined = string.join(processed, "\n")
       trim_trailing(joined)
     }
   }
-  // Replace remaining tabs in content with spaces
-  normalize_tabs(result)
+  case options.tab_handling {
+    TabsAsWhitespace -> normalize_tabs(result)
+    TabsAsContent -> result
+  }
 }
 
 /// Strip leading whitespace from a continuation line if it contains tabs.

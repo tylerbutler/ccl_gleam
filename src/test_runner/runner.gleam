@@ -25,6 +25,55 @@ import test_runner/types.{
   TestSkipped, TestSuiteResult,
 }
 
+/// Derive ParseOptions from a test case's behaviors list.
+fn parse_options_for_test(tc: TestCase) -> ccl_types.ParseOptions {
+  let line_endings = case
+    list.contains(tc.behaviors, "crlf_preserve_literal")
+  {
+    True -> ccl_types.PreserveLiteral
+    False -> ccl_types.NormalizeToLf
+  }
+  let tab_handling = case list.contains(tc.behaviors, "tabs_as_content") {
+    True -> ccl_types.TabsAsContent
+    False -> ccl_types.TabsAsWhitespace
+  }
+  let continuation_baseline = case
+    list.contains(tc.behaviors, "toplevel_indent_preserve")
+  {
+    True -> ccl_types.IndentPreserve
+    False -> ccl_types.IndentStrip
+  }
+  ccl_types.ParseOptions(line_endings:, tab_handling:, continuation_baseline:)
+}
+
+/// Derive AccessOptions from a test case's behaviors list.
+fn access_options_for_test(tc: TestCase) -> ccl_types.AccessOptions {
+  let boolean_parsing = case
+    list.contains(tc.behaviors, "boolean_lenient")
+  {
+    True -> ccl_types.BooleanLenient
+    False -> ccl_types.BooleanStrict
+  }
+  let list_coercion = case
+    list.contains(tc.behaviors, "list_coercion_enabled")
+  {
+    True -> ccl_types.CoercionEnabled
+    False -> ccl_types.CoercionDisabled
+  }
+  ccl_types.AccessOptions(boolean_parsing:, list_coercion:)
+}
+
+/// Derive BuildOptions from a test case's behaviors list.
+fn build_options_for_test(tc: TestCase) -> ccl_types.BuildOptions {
+  let array_order = case
+    list.contains(tc.behaviors, "array_order_lexicographic")
+  {
+    True -> ccl_types.LexicographicOrder
+    False -> ccl_types.InsertionOrder
+  }
+  ccl_types.BuildOptions(array_order:)
+}
+
 // --- Failure helpers ---
 
 /// Create a TestFailed with separate actual/expected for diff display.
@@ -147,32 +196,89 @@ fn execute_test(tc: TestCase) -> TestResult {
     [] -> ""
   }
 
+  let parse_opts = parse_options_for_test(tc)
+  let access_opts = access_options_for_test(tc)
+  let build_opts = build_options_for_test(tc)
+
   case tc.validation {
-    "parse" -> run_parse_test(tc.name, input, tc.expected)
-    "print" -> run_print_test(tc.name, input, tc.expected)
-    "build_hierarchy" -> run_hierarchy_test(tc.name, input, tc.expected)
+    "parse" -> run_parse_test(tc.name, input, tc.expected, parse_opts)
+    "parse_indented" ->
+      run_parse_indented_test(tc.name, input, tc.expected, parse_opts)
+    "print" -> run_print_test(tc.name, input, tc.expected, parse_opts)
+    "build_hierarchy" ->
+      run_hierarchy_test(tc.name, input, tc.expected, parse_opts, build_opts)
     "get_string" ->
-      run_get_string_test(tc.name, input, resolve_path(tc), tc.expected)
-    "get_int" -> run_get_int_test(tc.name, input, resolve_path(tc), tc.expected)
+      run_get_string_test(
+        tc.name,
+        input,
+        resolve_path(tc),
+        tc.expected,
+        parse_opts,
+        build_opts,
+      )
+    "get_int" ->
+      run_get_int_test(
+        tc.name,
+        input,
+        resolve_path(tc),
+        tc.expected,
+        parse_opts,
+        build_opts,
+      )
     "get_bool" ->
-      run_get_bool_test(tc.name, input, resolve_path(tc), tc.expected)
+      run_get_bool_test(
+        tc.name,
+        input,
+        resolve_path(tc),
+        tc.expected,
+        parse_opts,
+        build_opts,
+        access_opts,
+      )
     "get_float" ->
-      run_get_float_test(tc.name, input, resolve_path(tc), tc.expected)
+      run_get_float_test(
+        tc.name,
+        input,
+        resolve_path(tc),
+        tc.expected,
+        parse_opts,
+        build_opts,
+      )
     "get_list" ->
-      run_get_list_test(tc.name, input, resolve_path(tc), tc.expected)
-    "filter" -> run_filter_test(tc.name, input, tc.expected)
-    "round_trip" -> run_round_trip_test(tc.name, input, tc.expected)
-    "canonical_format" -> run_canonical_format_test(tc.name, input, tc.expected)
+      run_get_list_test(
+        tc.name,
+        input,
+        resolve_path(tc),
+        tc.expected,
+        parse_opts,
+        build_opts,
+        access_opts,
+      )
+    "filter" -> run_filter_test(tc.name, input, tc.expected, parse_opts)
+    "round_trip" -> run_round_trip_test(tc.name, input, tc.expected, parse_opts)
+    "canonical_format" ->
+      run_canonical_format_test(
+        tc.name,
+        input,
+        tc.expected,
+        parse_opts,
+        build_opts,
+      )
     other -> error_fail(tc.name, "Unknown validation: " <> other, 0)
   }
 }
 
 // --- Parse tests ---
 
-fn run_parse_test(name: String, input: String, expected: Expected) -> TestResult {
+fn run_parse_test(
+  name: String,
+  input: String,
+  expected: Expected,
+  parse_opts: ccl_types.ParseOptions,
+) -> TestResult {
   case expected {
     ExpectedEntries(count, expected_entries) -> {
-      case parser.parse(input) {
+      case parser.parse_with(input, parse_opts) {
         Ok(entries) -> {
           let expected_list =
             expected_entries
@@ -193,7 +299,7 @@ fn run_parse_test(name: String, input: String, expected: Expected) -> TestResult
       }
     }
     ExpectedError(count, True) -> {
-      case parser.parse(input) {
+      case parser.parse_with(input, parse_opts) {
         Ok(_) ->
           mismatch(
             name,
@@ -206,12 +312,65 @@ fn run_parse_test(name: String, input: String, expected: Expected) -> TestResult
       }
     }
     ExpectedCountOnly(count) -> {
-      case parser.parse(input) {
+      case parser.parse_with(input, parse_opts) {
         Ok(_) -> TestPassed(name, count)
         Error(e) -> error_fail(name, "Parse error: " <> e, count)
       }
     }
     _ -> error_fail(name, "Invalid expected type for parse test", 0)
+  }
+}
+
+// --- Parse indented tests ---
+
+fn run_parse_indented_test(
+  name: String,
+  input: String,
+  expected: Expected,
+  parse_opts: ccl_types.ParseOptions,
+) -> TestResult {
+  case expected {
+    ExpectedEntries(count, expected_entries) -> {
+      case parser.parse_indented_with(input, parse_opts) {
+        Ok(entries) -> {
+          let expected_list =
+            expected_entries
+            |> list.map(fn(e) { ccl_types.Entry(e.key, e.value) })
+          case entries == expected_list {
+            True -> TestPassed(name, count)
+            False ->
+              mismatch(
+                name,
+                "Entries mismatch",
+                format_entries(entries),
+                format_entries(expected_list),
+                count,
+              )
+          }
+        }
+        Error(e) -> error_fail(name, "Parse error: " <> e, count)
+      }
+    }
+    ExpectedError(count, True) -> {
+      case parser.parse_indented_with(input, parse_opts) {
+        Ok(_) ->
+          mismatch(
+            name,
+            "Expected error but got success",
+            "Ok(_)",
+            "Error(_)",
+            count,
+          )
+        Error(_) -> TestPassed(name, count)
+      }
+    }
+    ExpectedCountOnly(count) -> {
+      case parser.parse_indented_with(input, parse_opts) {
+        Ok(_) -> TestPassed(name, count)
+        Error(e) -> error_fail(name, "Parse error: " <> e, count)
+      }
+    }
+    _ -> error_fail(name, "Invalid expected type for parse_indented test", 0)
   }
 }
 
@@ -221,10 +380,11 @@ fn run_filter_test(
   name: String,
   input: String,
   expected: Expected,
+  parse_opts: ccl_types.ParseOptions,
 ) -> TestResult {
   case expected {
     ExpectedEntries(count, expected_entries) -> {
-      case parser.parse(input) {
+      case parser.parse_with(input, parse_opts) {
         Ok(entries) -> {
           let filtered =
             entries
@@ -248,7 +408,7 @@ fn run_filter_test(
       }
     }
     ExpectedCountOnly(count) -> {
-      case parser.parse(input) {
+      case parser.parse_with(input, parse_opts) {
         Ok(entries) -> {
           let filtered =
             entries
@@ -275,10 +435,15 @@ fn run_filter_test(
 
 // --- Print tests ---
 
-fn run_print_test(name: String, input: String, expected: Expected) -> TestResult {
+fn run_print_test(
+  name: String,
+  input: String,
+  expected: Expected,
+  parse_opts: ccl_types.ParseOptions,
+) -> TestResult {
   case expected {
     ExpectedValue(count, expected_value) -> {
-      case parser.parse(input) {
+      case parser.parse_with(input, parse_opts) {
         Ok(entries) -> {
           let printed = format.print(entries)
           case printed == expected_value {
@@ -306,12 +471,13 @@ fn run_round_trip_test(
   name: String,
   input: String,
   expected: Expected,
+  parse_opts: ccl_types.ParseOptions,
 ) -> TestResult {
   let count = get_expected_count(expected)
-  case parser.parse(input) {
+  case parser.parse_with(input, parse_opts) {
     Ok(entries) -> {
       let printed = format.print(entries)
-      case parser.parse(printed) {
+      case parser.parse_with(printed, parse_opts) {
         Ok(re_entries) -> {
           case entries == re_entries {
             True -> TestPassed(name, count)
@@ -338,12 +504,15 @@ fn run_canonical_format_test(
   name: String,
   input: String,
   expected: Expected,
+  parse_opts: ccl_types.ParseOptions,
+  build_opts: ccl_types.BuildOptions,
 ) -> TestResult {
   case expected {
     ExpectedValue(count, expected_value) -> {
-      case parser.parse(input) {
+      case parser.parse_with(input, parse_opts) {
         Ok(entries) -> {
-          let ccl = hierarchy.build_hierarchy(entries)
+          let ccl =
+            hierarchy.build_hierarchy_with(entries, build_opts, parse_opts)
           let formatted = format.canonical_format(ccl)
           case formatted == expected_value {
             True -> TestPassed(name, count)
@@ -370,12 +539,15 @@ fn run_hierarchy_test(
   name: String,
   input: String,
   expected: Expected,
+  parse_opts: ccl_types.ParseOptions,
+  build_opts: ccl_types.BuildOptions,
 ) -> TestResult {
   case expected {
     ExpectedObject(count, expected_obj) -> {
-      case parser.parse(input) {
+      case parser.parse_with(input, parse_opts) {
         Ok(entries) -> {
-          let obj = hierarchy.build_hierarchy(entries)
+          let obj =
+            hierarchy.build_hierarchy_with(entries, build_opts, parse_opts)
           case compare_objects(obj, expected_obj) {
             True -> TestPassed(name, count)
             False ->
@@ -392,7 +564,7 @@ fn run_hierarchy_test(
       }
     }
     ExpectedCountOnly(count) -> {
-      case parse_and_build(input) {
+      case parse_and_build_with(input, parse_opts, build_opts) {
         Ok(_) -> TestPassed(name, count)
         Error(e) -> error_fail(name, "Parse error: " <> e, count)
       }
@@ -408,11 +580,13 @@ fn run_get_string_test(
   input: String,
   path: List(String),
   expected: Expected,
+  parse_opts: ccl_types.ParseOptions,
+  build_opts: ccl_types.BuildOptions,
 ) -> TestResult {
   let key_path = path
   case expected {
     ExpectedValue(count, expected_value) -> {
-      case parse_and_build(input) {
+      case parse_and_build_with(input, parse_opts, build_opts) {
         Ok(obj) -> {
           case access.get_string(obj, key_path) {
             Ok(value) -> check_value_match(name, value, expected_value, count)
@@ -423,9 +597,15 @@ fn run_get_string_test(
       }
     }
     ExpectedError(count, True) -> {
-      run_expected_error_test(name, input, key_path, count, fn(obj, p) {
-        access.get_string(obj, p)
-      })
+      run_expected_error_test_with(
+        name,
+        input,
+        key_path,
+        count,
+        parse_opts,
+        build_opts,
+        fn(obj, p) { access.get_string(obj, p) },
+      )
     }
     ExpectedCountOnly(count) -> {
       TestPassed(name, count)
@@ -439,11 +619,13 @@ fn run_get_int_test(
   input: String,
   path: List(String),
   expected: Expected,
+  parse_opts: ccl_types.ParseOptions,
+  build_opts: ccl_types.BuildOptions,
 ) -> TestResult {
   let key_path = path
   case expected {
     ExpectedInt(count, expected_value) -> {
-      case parse_and_build(input) {
+      case parse_and_build_with(input, parse_opts, build_opts) {
         Ok(obj) -> {
           case access.get_int(obj, key_path) {
             Ok(value) -> {
@@ -466,9 +648,15 @@ fn run_get_int_test(
       }
     }
     ExpectedError(count, True) -> {
-      run_expected_error_test(name, input, key_path, count, fn(obj, p) {
-        access.get_int(obj, p) |> result.map(int.to_string)
-      })
+      run_expected_error_test_with(
+        name,
+        input,
+        key_path,
+        count,
+        parse_opts,
+        build_opts,
+        fn(obj, p) { access.get_int(obj, p) |> result.map(int.to_string) },
+      )
     }
     ExpectedCountOnly(count) -> {
       TestPassed(name, count)
@@ -482,13 +670,16 @@ fn run_get_bool_test(
   input: String,
   path: List(String),
   expected: Expected,
+  parse_opts: ccl_types.ParseOptions,
+  build_opts: ccl_types.BuildOptions,
+  access_opts: ccl_types.AccessOptions,
 ) -> TestResult {
   let key_path = path
   case expected {
     ExpectedBool(count, expected_value) -> {
-      case parse_and_build(input) {
+      case parse_and_build_with(input, parse_opts, build_opts) {
         Ok(obj) -> {
-          case access.get_bool(obj, key_path) {
+          case access.get_bool_with(obj, key_path, access_opts) {
             Ok(value) -> {
               case value == expected_value {
                 True -> TestPassed(name, count)
@@ -509,9 +700,9 @@ fn run_get_bool_test(
       }
     }
     ExpectedBoolean(count, expected_value) -> {
-      case parse_and_build(input) {
+      case parse_and_build_with(input, parse_opts, build_opts) {
         Ok(obj) -> {
-          case access.get_bool(obj, key_path) {
+          case access.get_bool_with(obj, key_path, access_opts) {
             Ok(value) -> {
               case value == expected_value {
                 True -> TestPassed(name, count)
@@ -532,9 +723,18 @@ fn run_get_bool_test(
       }
     }
     ExpectedError(count, True) -> {
-      run_expected_error_test(name, input, key_path, count, fn(obj, p) {
-        access.get_bool(obj, p) |> result.map(string.inspect)
-      })
+      run_expected_error_test_with(
+        name,
+        input,
+        key_path,
+        count,
+        parse_opts,
+        build_opts,
+        fn(obj, p) {
+          access.get_bool_with(obj, p, access_opts)
+          |> result.map(string.inspect)
+        },
+      )
     }
     ExpectedCountOnly(count) -> {
       // Count-only: accept either success or error
@@ -549,20 +749,46 @@ fn run_get_float_test(
   input: String,
   path: List(String),
   expected: Expected,
+  parse_opts: ccl_types.ParseOptions,
+  build_opts: ccl_types.BuildOptions,
 ) -> TestResult {
   let key_path = path
   case expected {
     ExpectedFloat(count, expected_value) -> {
-      run_float_comparison(name, input, key_path, count, expected_value)
+      run_float_comparison(
+        name,
+        input,
+        key_path,
+        count,
+        expected_value,
+        parse_opts,
+        build_opts,
+      )
     }
     ExpectedInt(count, expected_int) -> {
       let expected_value = int.to_float(expected_int)
-      run_float_comparison(name, input, key_path, count, expected_value)
+      run_float_comparison(
+        name,
+        input,
+        key_path,
+        count,
+        expected_value,
+        parse_opts,
+        build_opts,
+      )
     }
     ExpectedError(count, True) -> {
-      run_expected_error_test(name, input, key_path, count, fn(obj, p) {
-        access.get_float(obj, p) |> result.map(string.inspect)
-      })
+      run_expected_error_test_with(
+        name,
+        input,
+        key_path,
+        count,
+        parse_opts,
+        build_opts,
+        fn(obj, p) {
+          access.get_float(obj, p) |> result.map(string.inspect)
+        },
+      )
     }
     ExpectedCountOnly(count) -> {
       TestPassed(name, count)
@@ -576,13 +802,16 @@ fn run_get_list_test(
   input: String,
   path: List(String),
   expected: Expected,
+  parse_opts: ccl_types.ParseOptions,
+  build_opts: ccl_types.BuildOptions,
+  access_opts: ccl_types.AccessOptions,
 ) -> TestResult {
   let key_path = path
   case expected {
     ExpectedList(count, expected_list) -> {
-      case parse_and_build(input) {
+      case parse_and_build_with(input, parse_opts, build_opts) {
         Ok(obj) -> {
-          case access.get_list(obj, key_path) {
+          case access.get_list_with(obj, key_path, access_opts) {
             Ok(value) -> {
               case value == expected_list {
                 True -> TestPassed(name, count)
@@ -603,9 +832,18 @@ fn run_get_list_test(
       }
     }
     ExpectedError(count, True) -> {
-      run_expected_error_test(name, input, key_path, count, fn(obj, p) {
-        access.get_list(obj, p) |> result.map(string.inspect)
-      })
+      run_expected_error_test_with(
+        name,
+        input,
+        key_path,
+        count,
+        parse_opts,
+        build_opts,
+        fn(obj, p) {
+          access.get_list_with(obj, p, access_opts)
+          |> result.map(string.inspect)
+        },
+      )
     }
     ExpectedCountOnly(count) -> {
       TestPassed(name, count)
@@ -624,23 +862,30 @@ fn resolve_path(tc: TestCase) -> List(String) {
   }
 }
 
-/// Parse input and build hierarchy in one step.
-fn parse_and_build(input: String) -> Result(ccl_types.CCL, String) {
-  case parser.parse(input) {
-    Ok(entries) -> Ok(hierarchy.build_hierarchy(entries))
+/// Parse input and build hierarchy in one step with options.
+fn parse_and_build_with(
+  input: String,
+  parse_opts: ccl_types.ParseOptions,
+  build_opts: ccl_types.BuildOptions,
+) -> Result(ccl_types.CCL, String) {
+  case parser.parse_with(input, parse_opts) {
+    Ok(entries) ->
+      Ok(hierarchy.build_hierarchy_with(entries, build_opts, parse_opts))
     Error(e) -> Error(e)
   }
 }
 
-/// Run a test that expects an error result.
-fn run_expected_error_test(
+/// Run a test that expects an error result, with options.
+fn run_expected_error_test_with(
   name: String,
   input: String,
   path: List(String),
   count: Int,
+  parse_opts: ccl_types.ParseOptions,
+  build_opts: ccl_types.BuildOptions,
   accessor: fn(ccl_types.CCL, List(String)) -> Result(String, String),
 ) -> TestResult {
-  case parse_and_build(input) {
+  case parse_and_build_with(input, parse_opts, build_opts) {
     Ok(obj) -> {
       case accessor(obj, path) {
         Ok(_) ->
@@ -664,8 +909,10 @@ fn run_float_comparison(
   key_path: List(String),
   count: Int,
   expected_value: Float,
+  parse_opts: ccl_types.ParseOptions,
+  build_opts: ccl_types.BuildOptions,
 ) -> TestResult {
-  case parse_and_build(input) {
+  case parse_and_build_with(input, parse_opts, build_opts) {
     Ok(obj) -> {
       case access.get_float(obj, key_path) {
         Ok(value) -> {

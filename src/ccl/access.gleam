@@ -3,10 +3,13 @@
 /// These are optional library conveniences per the CCL docs.
 /// All navigate a CCL structure by path and extract typed values.
 ///
-/// Behaviors:
+/// Default behaviors (configurable via `_with` variants):
 /// - `boolean_strict`: only `true`/`false` (case-insensitive)
 /// - `list_coercion_disabled`: `get_list` errors on non-list values
-import ccl/types.{type CCL, type CCLValue, CclList, CclObject, CclString}
+import ccl/types.{
+  type AccessOptions, type CCL, type CCLValue, BooleanLenient, CclList,
+  CclObject, CclString, CoercionEnabled,
+}
 import gleam/dict
 import gleam/float
 import gleam/int
@@ -34,13 +37,32 @@ pub fn get_int(ccl: CCL, path: List(String)) -> Result(Int, String) {
 }
 
 /// Navigate to a path and parse value as boolean.
-/// `boolean_strict`: only `true`/`false`, case-insensitive.
+/// Uses `boolean_strict`: only `true`/`false`, case-insensitive.
 pub fn get_bool(ccl: CCL, path: List(String)) -> Result(Bool, String) {
+  get_bool_with(ccl, path, types.default_access_options())
+}
+
+/// Navigate to a path and parse value as boolean with configurable options.
+pub fn get_bool_with(
+  ccl: CCL,
+  path: List(String),
+  options: AccessOptions,
+) -> Result(Bool, String) {
   use str <- try_string(ccl, path)
-  case string.lowercase(str) {
-    "true" -> Ok(True)
-    "false" -> Ok(False)
-    _ -> Error("Not a boolean: " <> string.inspect(str))
+  let lower = string.lowercase(str)
+  case options.boolean_parsing {
+    BooleanLenient ->
+      case lower {
+        "true" | "yes" | "on" | "1" -> Ok(True)
+        "false" | "no" | "off" | "0" -> Ok(False)
+        _ -> Error("Not a boolean: " <> string.inspect(str))
+      }
+    _ ->
+      case lower {
+        "true" -> Ok(True)
+        "false" -> Ok(False)
+        _ -> Error("Not a boolean: " <> string.inspect(str))
+      }
   }
 }
 
@@ -60,11 +82,20 @@ pub fn get_float(ccl: CCL, path: List(String)) -> Result(Float, String) {
 }
 
 /// Navigate to a path and return list of string values.
-/// `list_coercion_disabled`: errors if value is not a list.
+/// Uses `list_coercion_disabled`: errors if value is not a list.
 ///
 /// Handles the CCL pattern where lists are stored as objects with empty-key entries:
 /// `items =\n  = a\n  = b` → `CclObject({"": CclList([CclString("a"), CclString("b")])})`
 pub fn get_list(ccl: CCL, path: List(String)) -> Result(List(String), String) {
+  get_list_with(ccl, path, types.default_access_options())
+}
+
+/// Navigate to a path and return list of string values with configurable options.
+pub fn get_list_with(
+  ccl: CCL,
+  path: List(String),
+  options: AccessOptions,
+) -> Result(List(String), String) {
   use value <- navigate(ccl, path)
   case value {
     CclList(items) -> extract_string_list(items, path)
@@ -75,10 +106,16 @@ pub fn get_list(ccl: CCL, path: List(String)) -> Result(List(String), String) {
         _ -> Error("Not a list at " <> format_path(path))
       }
     }
-    CclString(_) ->
-      Error(
-        "Not a list at " <> format_path(path) <> " (list_coercion_disabled)",
-      )
+    CclString(s) ->
+      case options.list_coercion {
+        CoercionEnabled -> Ok([s])
+        _ ->
+          Error(
+            "Not a list at "
+            <> format_path(path)
+            <> " (list_coercion_disabled)",
+          )
+      }
   }
 }
 

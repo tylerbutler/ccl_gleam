@@ -30,3 +30,97 @@ pub type CCLValue {
 /// A parsed CCL configuration. Top-level is always a string-keyed dict.
 pub type CCL =
   Dict(String, CCLValue)
+
+// --- Options types for configurable behaviors ---
+
+/// Controls how CRLF line endings are handled during parsing.
+pub type LineEndingBehavior {
+  /// Convert all \r\n to \n before parsing (cross-platform default).
+  NormalizeToLf
+  /// Preserve \r characters exactly as they appear.
+  PreserveLiteral
+}
+
+/// Controls how tab characters are handled during parsing.
+pub type TabBehavior {
+  /// Both spaces and tabs count as whitespace for indentation.
+  TabsAsWhitespace
+  /// Only spaces count as whitespace; tabs are preserved as content.
+  TabsAsContent
+}
+
+/// Controls top-level indentation baseline during parsing.
+pub type ContinuationBaseline {
+  /// Top-level baseline is always N=0 (OCaml reference behavior).
+  IndentStrip
+  /// Top-level baseline is detected from first content line.
+  IndentPreserve
+}
+
+/// Options for parsing behavior.
+pub type ParseOptions {
+  ParseOptions(
+    line_endings: LineEndingBehavior,
+    tab_handling: TabBehavior,
+    continuation_baseline: ContinuationBaseline,
+  )
+}
+
+/// Default parse options matching current hardcoded behavior.
+pub fn default_parse_options() -> ParseOptions {
+  ParseOptions(
+    line_endings: NormalizeToLf,
+    tab_handling: TabsAsWhitespace,
+    continuation_baseline: IndentStrip,
+  )
+}
+
+/// Controls which string values are accepted as booleans.
+pub type BooleanParsing {
+  /// Only true/false (case-insensitive).
+  BooleanStrict
+  /// Also accepts yes/no, on/off, 1/0 (case-insensitive).
+  BooleanLenient
+}
+
+/// Controls how get_list behaves on non-list values.
+pub type ListCoercion {
+  /// get_list errors on non-list values.
+  CoercionDisabled
+  /// get_list wraps single values in a list.
+  CoercionEnabled
+}
+
+/// Options for typed access functions.
+pub type AccessOptions {
+  AccessOptions(
+    boolean_parsing: BooleanParsing,
+    list_coercion: ListCoercion,
+  )
+}
+
+/// Default access options matching current hardcoded behavior.
+pub fn default_access_options() -> AccessOptions {
+  AccessOptions(
+    boolean_parsing: BooleanStrict,
+    list_coercion: CoercionDisabled,
+  )
+}
+
+/// Controls the order of list elements during hierarchy building.
+pub type ArrayOrder {
+  /// Elements appear in source order.
+  InsertionOrder
+  /// Elements are sorted lexicographically.
+  LexicographicOrder
+}
+
+/// Options for hierarchy building.
+pub type BuildOptions {
+  BuildOptions(array_order: ArrayOrder)
+}
+
+/// Default build options matching current hardcoded behavior.
+pub fn default_build_options() -> BuildOptions {
+  BuildOptions(array_order: InsertionOrder)
+}

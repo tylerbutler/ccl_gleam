@@ -9,30 +9,50 @@
 /// `Model.fix` function, but uses a tagged union instead of uniform `Fix` type.
 import ccl/parser
 import ccl/types.{
-  type CCL, type CCLValue, type Entry, CclList, CclObject, CclString,
+  type BuildOptions, type CCL, type CCLValue, type Entry, type ParseOptions,
+  CclList, CclObject, CclString, LexicographicOrder,
 }
 import gleam/dict
 import gleam/list
 import gleam/string
 
 /// Build nested CCL structure from flat entries via recursive parsing.
+/// Uses default options (insertion order, default parse options).
 ///
 /// For each entry:
 /// - If value contains `=` → parse recursively, build hierarchy (recurse)
 /// - If value has no `=` → terminal string (fixed point reached)
 /// - If key is `""` → accumulate as list item
 pub fn build_hierarchy(entries: List(Entry)) -> CCL {
-  build_entries(entries, dict.new())
+  build_hierarchy_with(
+    entries,
+    types.default_build_options(),
+    types.default_parse_options(),
+  )
+}
+
+/// Build nested CCL structure with configurable options.
+pub fn build_hierarchy_with(
+  entries: List(Entry),
+  build_options: BuildOptions,
+  parse_options: ParseOptions,
+) -> CCL {
+  build_entries(entries, dict.new(), build_options, parse_options)
 }
 
 /// Process entries into a CCL dict, accumulating values for duplicate keys.
-fn build_entries(entries: List(Entry), acc: CCL) -> CCL {
+fn build_entries(
+  entries: List(Entry),
+  acc: CCL,
+  build_options: BuildOptions,
+  parse_options: ParseOptions,
+) -> CCL {
   case entries {
     [] -> acc
     [entry, ..rest] -> {
-      let value = resolve_value(entry.value)
-      let new_acc = insert_value(acc, entry.key, value)
-      build_entries(rest, new_acc)
+      let value = resolve_value(entry.value, build_options, parse_options)
+      let new_acc = insert_value(acc, entry.key, value, build_options)
+      build_entries(rest, new_acc, build_options, parse_options)
     }
   }
 }
@@ -40,17 +60,26 @@ fn build_entries(entries: List(Entry), acc: CCL) -> CCL {
 /// Resolve a raw value string into a CCLValue.
 /// If the value contains `=`, try to parse it recursively (fixed-point step).
 /// Otherwise it's a terminal string.
-fn resolve_value(raw_value: String) -> CCLValue {
+fn resolve_value(
+  raw_value: String,
+  build_options: BuildOptions,
+  parse_options: ParseOptions,
+) -> CCLValue {
   case string.contains(raw_value, "=") {
     True -> {
       // Try recursive parsing
-      case parser.parse_value(raw_value) {
+      case parser.parse_value_with(raw_value, parse_options) {
         Ok(nested_entries) -> {
           case nested_entries {
             // Parsing succeeded but yielded nothing — treat as string
             [] -> CclString(raw_value)
             // Got nested entries — build hierarchy recursively
-            _ -> CclObject(build_hierarchy(nested_entries))
+            _ ->
+              CclObject(build_hierarchy_with(
+                nested_entries,
+                build_options,
+                parse_options,
+              ))
           }
         }
         // Parse failed — treat value as plain string
@@ -63,7 +92,12 @@ fn resolve_value(raw_value: String) -> CCLValue {
 }
 
 /// Insert a value into the CCL dict, handling duplicate keys and list accumulation.
-fn insert_value(acc: CCL, key: String, value: CCLValue) -> CCL {
+fn insert_value(
+  acc: CCL,
+  key: String,
+  value: CCLValue,
+  build_options: BuildOptions,
+) -> CCL {
   case key {
     // Empty key → list item
     "" -> {
@@ -71,10 +105,23 @@ fn insert_value(acc: CCL, key: String, value: CCLValue) -> CCL {
         // First list item — start a new list
         Error(_) -> dict.insert(acc, "", CclList([value]))
         // Append to existing list
-        Ok(CclList(existing)) ->
-          dict.insert(acc, "", CclList(list.append(existing, [value])))
+        Ok(CclList(existing)) -> {
+          let new_list = list.append(existing, [value])
+          let sorted = case build_options.array_order {
+            LexicographicOrder -> sort_ccl_values(new_list)
+            _ -> new_list
+          }
+          dict.insert(acc, "", CclList(sorted))
+        }
         // Existing non-list value with empty key — wrap both in list
-        Ok(existing) -> dict.insert(acc, "", CclList([existing, value]))
+        Ok(existing) -> {
+          let new_list = [existing, value]
+          let sorted = case build_options.array_order {
+            LexicographicOrder -> sort_ccl_values(new_list)
+            _ -> new_list
+          }
+          dict.insert(acc, "", CclList(sorted))
+        }
       }
     }
     // Named key
@@ -86,6 +133,20 @@ fn insert_value(acc: CCL, key: String, value: CCLValue) -> CCL {
         Ok(existing) -> dict.insert(acc, key, merge_values(existing, value))
       }
     }
+  }
+}
+
+/// Sort CCL values lexicographically by their string representation.
+fn sort_ccl_values(values: List(CCLValue)) -> List(CCLValue) {
+  list.sort(values, fn(a, b) { string.compare(ccl_value_key(a), ccl_value_key(b)) })
+}
+
+/// Get a sort key for a CCL value.
+fn ccl_value_key(value: CCLValue) -> String {
+  case value {
+    CclString(s) -> s
+    CclObject(_) -> ""
+    CclList(_) -> ""
   }
 }
 
