@@ -131,7 +131,12 @@ fn insert_value(
         // First occurrence — just insert
         Error(_) -> dict.insert(acc, key, value)
         // Duplicate key — merge
-        Ok(existing) -> dict.insert(acc, key, merge_values(existing, value))
+        Ok(existing) ->
+          dict.insert(
+            acc,
+            key,
+            merge_values(existing, value, build_options),
+          )
       }
     }
   }
@@ -153,23 +158,59 @@ fn ccl_value_key(value: CCLValue) -> String {
 
 /// Merge two values for the same key.
 /// Two objects merge recursively. Otherwise, accumulate into a list.
-fn merge_values(existing: CCLValue, new: CCLValue) -> CCLValue {
+/// Empty-string values are filtered from duplicate-key lists.
+/// Lexicographic sorting is applied when configured.
+fn merge_values(
+  existing: CCLValue,
+  new: CCLValue,
+  build_options: BuildOptions,
+) -> CCLValue {
   case existing, new {
     // Two objects: merge their dicts
-    CclObject(a), CclObject(b) -> CclObject(merge_dicts(a, b))
+    CclObject(a), CclObject(b) -> CclObject(merge_dicts(a, b, build_options))
     // Existing list: append new value
-    CclList(items), _ -> CclList(list.append(items, [new]))
+    CclList(items), _ -> {
+      let new_list =
+        list.append(items, [new])
+        |> filter_empty_strings
+      let sorted = case build_options.array_order {
+        LexicographicOrder -> sort_ccl_values(new_list)
+        _ -> new_list
+      }
+      CclList(sorted)
+    }
     // Convert to list
-    _, _ -> CclList([existing, new])
+    _, _ -> {
+      let new_list =
+        [existing, new]
+        |> filter_empty_strings
+      let sorted = case build_options.array_order {
+        LexicographicOrder -> sort_ccl_values(new_list)
+        _ -> new_list
+      }
+      CclList(sorted)
+    }
   }
 }
 
+/// Filter out empty-string values from a list.
+/// Duplicate named keys with empty values (e.g. `key =`) are excluded.
+fn filter_empty_strings(values: List(CCLValue)) -> List(CCLValue) {
+  list.filter(values, fn(v) {
+    case v {
+      CclString("") -> False
+      _ -> True
+    }
+  })
+}
+
 /// Merge two CCL dicts, recursively merging values for shared keys.
-fn merge_dicts(a: CCL, b: CCL) -> CCL {
+fn merge_dicts(a: CCL, b: CCL, build_options: BuildOptions) -> CCL {
   dict.fold(b, a, fn(acc, key, b_value) {
     case dict.get(acc, key) {
       Error(_) -> dict.insert(acc, key, b_value)
-      Ok(a_value) -> dict.insert(acc, key, merge_values(a_value, b_value))
+      Ok(a_value) ->
+        dict.insert(acc, key, merge_values(a_value, b_value, build_options))
     }
   })
 }

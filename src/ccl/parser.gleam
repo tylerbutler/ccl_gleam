@@ -291,23 +291,32 @@ fn strip_all_leading_whitespace(s: String) -> String {
 }
 
 /// Split a line on `=` using the configured delimiter strategy.
+/// Tab handling affects value trimming: when `tabs_as_content`, only spaces
+/// are stripped after `=`; tabs are preserved as content.
 fn split_on_equals_with(
   line: String,
   options: ParseOptions,
 ) -> Result(#(String, String), Nil) {
+  let trim_value = case options.tab_handling {
+    TabsAsContent -> trim_leading_spaces_only
+    _ -> trim_leading_whitespace
+  }
   case options.delimiter_strategy {
-    DelimiterPreferSpaced -> split_on_spaced_equals(line)
-    _ -> split_on_first_equals(line)
+    DelimiterPreferSpaced -> split_on_spaced_equals(line, trim_value)
+    _ -> split_on_first_equals(line, trim_value)
   }
 }
 
 /// Split a line on the first `=` character.
 /// Returns (trimmed_key, trimmed_first_line_value).
-fn split_on_first_equals(line: String) -> Result(#(String, String), Nil) {
+fn split_on_first_equals(
+  line: String,
+  trim_value: fn(String) -> String,
+) -> Result(#(String, String), Nil) {
   case string.split_once(line, "=") {
     Ok(#(raw_key, raw_value)) -> {
       let key = trim_key(raw_key)
-      let value = trim_leading_whitespace(raw_value)
+      let value = trim_value(raw_value)
       Ok(#(key, value))
     }
     Error(_) -> Error(Nil)
@@ -316,12 +325,15 @@ fn split_on_first_equals(line: String) -> Result(#(String, String), Nil) {
 
 /// Split a line preferring ` = ` (space-equals-space) as delimiter.
 /// Falls back to ` =` at end of line, then to first `=`.
-fn split_on_spaced_equals(line: String) -> Result(#(String, String), Nil) {
+fn split_on_spaced_equals(
+  line: String,
+  trim_value: fn(String) -> String,
+) -> Result(#(String, String), Nil) {
   // Try " = " first (space-equals-space)
   case string.split_once(line, " = ") {
     Ok(#(raw_key, raw_value)) -> {
       let key = trim_key(raw_key)
-      let value = trim_leading_whitespace(raw_value)
+      let value = trim_value(raw_value)
       Ok(#(key, value))
     }
     Error(_) -> {
@@ -334,7 +346,7 @@ fn split_on_spaced_equals(line: String) -> Result(#(String, String), Nil) {
           Ok(#(key, ""))
         }
         // Fall back to first `=`
-        False -> split_on_first_equals(line)
+        False -> split_on_first_equals(line, trim_value)
       }
     }
   }
@@ -352,6 +364,15 @@ fn trim_leading_whitespace(s: String) -> String {
   case string.first(s) {
     Ok(" ") -> trim_leading_whitespace(string.drop_start(s, 1))
     Ok("\t") -> trim_leading_whitespace(string.drop_start(s, 1))
+    _ -> s
+  }
+}
+
+/// Trim only leading spaces (not tabs) from a string.
+/// Used when `tabs_as_content` — tabs after `=` are content, not whitespace.
+fn trim_leading_spaces_only(s: String) -> String {
+  case string.first(s) {
+    Ok(" ") -> trim_leading_spaces_only(string.drop_start(s, 1))
     _ -> s
   }
 }
