@@ -3,12 +3,15 @@
 /// Loads all JSON test files from ccl-test-data/, converts each test case
 /// into a startest `it`/`xit` node, and runs them through `gleam test`.
 ///
-/// This gives individual test-level reporting, name-based filtering, and
-/// standard `gleam test` integration while reusing the existing test runner
-/// and loader infrastructure.
+/// Tests are grouped by **validation type**, then by **source file**, so
+/// related assertions cluster together regardless of which JSON file they
+/// originate from while still showing provenance.
+///
+/// Structure: `CCL JSON Suite ❯ <validation> ❯ <filename> ❯ <test name>`
 ///
 /// The CLI test runner (`gleam run -- run`) is still available for the TUI,
 /// stats, and other specialized use cases.
+import gleam/dict
 import gleam/list
 import gleam/result
 import gleam/string
@@ -17,17 +20,22 @@ import startest/assertion_error.{AssertionError}
 import test_runner/filter
 import test_runner/loader
 import test_runner/runner
-import test_runner/types.{TestFailed, TestPassed, TestSkipped}
+import test_runner/types.{type TestCase, TestFailed, TestPassed, TestSkipped}
 
 const test_data_dir = "./ccl-test-data"
+
+/// A test case paired with the filename it was loaded from.
+type TaggedTest {
+  TaggedTest(file: String, test_case: TestCase)
+}
 
 pub fn main() {
   startest.run(startest.default_config())
 }
 
-/// Generates a startest `describe` tree from each JSON test file.
+/// Generates a startest `describe` tree grouped by validation, then filename.
 ///
-/// Structure: `CCL JSON Suite ❯ <filename> ❯ <test name>`
+/// Structure: `CCL JSON Suite ❯ <validation> ❯ <filename> ❯ <test name>`
 ///
 /// Tests that are incompatible with the current implementation config
 /// are marked as skipped via `xit`.
@@ -41,32 +49,64 @@ pub fn ccl_json_suite_tests() {
     }
   }
 
+  // Load all test cases, tagging each with its source filename
+  let all_tests =
+    files
+    |> list.flat_map(fn(file) {
+      let filename = file_basename(file)
+      case loader.load_test_file(file) {
+        Ok(suite) ->
+          suite.tests
+          |> list.map(fn(tc) { TaggedTest(file: filename, test_case: tc) })
+        Error(e) -> {
+          panic as { "Failed to load " <> file <> ": " <> e }
+        }
+      }
+    })
+
+  // Group by validation type, then by source filename
+  let by_validation =
+    group_by(all_tests, fn(tagged) { tagged.test_case.validation })
+
+  let sorted_validations =
+    by_validation
+    |> dict.to_list
+    |> list.sort(fn(a, b) { string.compare(a.0, b.0) })
+
   startest.describe(
     "CCL JSON Suite",
-    files
-      |> list.map(fn(file) {
-        let filename = file_basename(file)
-        let suite = case loader.load_test_file(file) {
-          Ok(s) -> s
-          Error(e) -> {
-            panic as { "Failed to load " <> file <> ": " <> e }
-          }
-        }
+    sorted_validations
+      |> list.map(fn(group) {
+        let #(validation, tagged_tests) = group
+
+        let by_file = group_by(tagged_tests, fn(t) { t.file })
+        let sorted_files =
+          by_file
+          |> dict.to_list
+          |> list.sort(fn(a, b) { string.compare(a.0, b.0) })
 
         startest.describe(
-          filename,
-          suite.tests
-            |> list.map(fn(tc) {
-              case filter.get_skip_reason(config, tc) {
-                // Incompatible — skip it
-                Error(_reason) -> startest.xit(tc.name, fn() { Nil })
-                // Compatible — run through the existing runner
-                Ok(Nil) ->
-                  startest.it(tc.name, fn() {
-                    let result = runner.run_single_test(tc, config)
-                    assert_test_result(result)
-                  })
-              }
+          validation,
+          sorted_files
+            |> list.map(fn(file_group) {
+              let #(filename, tests) = file_group
+              startest.describe(
+                filename,
+                tests
+                  |> list.map(fn(tagged) {
+                    let tc = tagged.test_case
+                    case filter.get_skip_reason(config, tc) {
+                      // Incompatible — skip it
+                      Error(_reason) -> startest.xit(tc.name, fn() { Nil })
+                      // Compatible — run through the existing runner
+                      Ok(Nil) ->
+                        startest.it(tc.name, fn() {
+                          let result = runner.run_single_test(tc, config)
+                          assert_test_result(result)
+                        })
+                    }
+                  }),
+              )
             }),
         )
       }),
@@ -88,6 +128,21 @@ fn assert_test_result(result: types.TestResult) -> Nil {
     }
     TestSkipped(_, _) -> Nil
   }
+}
+
+/// Group a list of items by a key function, preserving insertion order.
+fn group_by(
+  items: List(a),
+  key_fn: fn(a) -> String,
+) -> dict.Dict(String, List(a)) {
+  list.fold(items, dict.new(), fn(acc, item) {
+    let key = key_fn(item)
+    let existing = case dict.get(acc, key) {
+      Ok(vals) -> vals
+      Error(_) -> []
+    }
+    dict.insert(acc, key, list.append(existing, [item]))
+  })
 }
 
 /// Extract the filename from a path.
