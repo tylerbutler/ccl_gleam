@@ -87,40 +87,40 @@ fn get_skip_reason_inner(
           Error("Missing functions: " <> format_list(funcs))
         }
         [] -> {
-          // Check behaviors
-          case tc.behaviors {
-            [] -> Ok(Nil)
-            required -> {
-              let has_behavior =
-                list.any(required, fn(b) {
-                  list.contains(config.behaviors, b)
+          // Check variants (independent of behaviors)
+          case tc.variants {
+            [] -> check_behaviors_compat(config, tc)
+            req_variants -> {
+              let has_variant =
+                list.any(req_variants, fn(v) {
+                  list.contains(config.variants, v)
                 })
-              case has_behavior {
-                True -> {
-                  // Check variants
-                  case tc.variants {
-                    [] -> Ok(Nil)
-                    req_variants -> {
-                      let has_variant =
-                        list.any(req_variants, fn(v) {
-                          list.contains(config.variants, v)
-                        })
-                      case has_variant {
-                        True -> Ok(Nil)
-                        False ->
-                          Error(
-                            "Missing variant: " <> format_list(req_variants),
-                          )
-                      }
-                    }
-                  }
-                }
+              case has_variant {
+                True -> check_behaviors_compat(config, tc)
                 False ->
-                  Error("Incompatible behavior: " <> format_list(required))
+                  Error("Missing variant: " <> format_list(req_variants))
               }
             }
           }
         }
+      }
+    }
+  }
+}
+
+/// Check behavior compatibility (extracted from get_skip_reason_inner).
+fn check_behaviors_compat(
+  config: ImplementationConfig,
+  tc: TestCase,
+) -> Result(Nil, String) {
+  case tc.behaviors {
+    [] -> Ok(Nil)
+    required -> {
+      let has_behavior =
+        list.any(required, fn(b) { list.contains(config.behaviors, b) })
+      case has_behavior {
+        True -> Ok(Nil)
+        False -> Error("Incompatible behavior: " <> format_list(required))
       }
     }
   }

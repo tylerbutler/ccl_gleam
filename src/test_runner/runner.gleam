@@ -763,39 +763,58 @@ fn format_entries(entries: List(ccl_types.Entry)) -> String {
   |> string.join("\n")
 }
 
-/// Format expected object for error messages
+/// Format expected object for error messages (pretty-printed)
 fn format_expected_object(obj: Dict(String, ExpectedNode)) -> String {
-  obj
-  |> dict.to_list
-  |> list.map(fn(pair) {
-    let #(k, v) = pair
-    k <> ": " <> format_expected_node(v)
-  })
-  |> string.join(", ")
-  |> fn(s) { "{" <> s <> "}" }
+  "\n" <> format_expected_object_indent(obj, 0)
 }
 
-fn format_expected_node(node: ExpectedNode) -> String {
+fn format_expected_object_indent(
+  obj: Dict(String, ExpectedNode),
+  indent: Int,
+) -> String {
+  let pad = string.repeat("  ", indent)
+  let inner_pad = string.repeat("  ", indent + 1)
+  let entries =
+    obj
+    |> dict.to_list
+    |> list.sort(fn(a, b) { string.compare(a.0, b.0) })
+    |> list.map(fn(pair) {
+      let #(k, v) = pair
+      inner_pad <> string.inspect(k) <> ": " <> format_expected_node_indent(v, indent + 1)
+    })
+    |> string.join(",\n")
+  "{\n" <> entries <> "\n" <> pad <> "}"
+}
+
+fn format_expected_node_indent(node: ExpectedNode, indent: Int) -> String {
   case node {
     NodeString(s) -> string.inspect(s)
-    NodeList(l) -> string.inspect(l)
-    NodeObject(obj) -> format_expected_object(obj)
+    NodeList(l) -> format_string_list(l)
+    NodeObject(obj) -> format_expected_object_indent(obj, indent)
   }
 }
 
-/// Format CCL object for error messages
+/// Format CCL object for error messages (pretty-printed)
 fn format_ccl(obj: ccl_types.CCL) -> String {
-  obj
-  |> dict.to_list
-  |> list.map(fn(pair) {
-    let #(k, v) = pair
-    k <> ": " <> format_ccl_value(v)
-  })
-  |> string.join(", ")
-  |> fn(s) { "{" <> s <> "}" }
+  "\n" <> format_ccl_indent(obj, 0)
 }
 
-fn format_ccl_value(value: ccl_types.CCLValue) -> String {
+fn format_ccl_indent(obj: ccl_types.CCL, indent: Int) -> String {
+  let pad = string.repeat("  ", indent)
+  let inner_pad = string.repeat("  ", indent + 1)
+  let entries =
+    obj
+    |> dict.to_list
+    |> list.sort(fn(a, b) { string.compare(a.0, b.0) })
+    |> list.map(fn(pair) {
+      let #(k, v) = pair
+      inner_pad <> string.inspect(k) <> ": " <> format_ccl_value_indent(v, indent + 1)
+    })
+    |> string.join(",\n")
+  "{\n" <> entries <> "\n" <> pad <> "}"
+}
+
+fn format_ccl_value_indent(value: ccl_types.CCLValue, indent: Int) -> String {
   case value {
     ccl_types.CclString(s) -> string.inspect(s)
     ccl_types.CclList(items) -> {
@@ -803,13 +822,27 @@ fn format_ccl_value(value: ccl_types.CCLValue) -> String {
         items
         |> list.map(fn(item) {
           case item {
-            ccl_types.CclString(s) -> string.inspect(s)
+            ccl_types.CclString(s) -> s
             _ -> "[complex]"
           }
         })
-      "[" <> string.join(strs, ", ") <> "]"
+      format_string_list(strs)
     }
-    ccl_types.CclObject(obj) -> format_ccl(obj)
+    ccl_types.CclObject(obj) -> format_ccl_indent(obj, indent)
+  }
+}
+
+/// Format a list of strings as a JSON-like array
+fn format_string_list(items: List(String)) -> String {
+  case list.length(items) {
+    0 -> "[]"
+    _ -> {
+      let inner =
+        items
+        |> list.map(fn(s) { string.inspect(s) })
+        |> string.join(", ")
+      "[" <> inner <> "]"
+    }
   }
 }
 

@@ -26,18 +26,19 @@ pub fn print(entries: List(Entry)) -> String {
 }
 
 /// Format a single entry back to CCL text.
+///
+/// Empty keys are formatted without the leading space: `= value`
+/// Non-empty keys use the standard `key = value` format.
 fn format_entry(entry: Entry) -> String {
-  case entry.value {
-    "" -> entry.key <> " = "
-    value -> {
-      case string.starts_with(value, "\n") {
-        // Nested value: key = \n  child = ...
-        // The trailing space after = matches the standard format
-        True -> entry.key <> " = " <> value
-        // Simple value: key = value
-        False -> entry.key <> " = " <> value
-      }
-    }
+  case entry.key, entry.value {
+    // Empty key, empty value
+    "", "" -> "= "
+    // Empty key with value
+    "", value -> "= " <> value
+    // Non-empty key, empty value
+    key, "" -> key <> " = "
+    // Non-empty key with value
+    key, value -> key <> " = " <> value
   }
 }
 
