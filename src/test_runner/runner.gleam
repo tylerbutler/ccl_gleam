@@ -27,9 +27,7 @@ import test_runner/types.{
 
 /// Derive ParseOptions from a test case's behaviors list.
 fn parse_options_for_test(tc: TestCase) -> ccl_types.ParseOptions {
-  let line_endings = case
-    list.contains(tc.behaviors, "crlf_preserve_literal")
-  {
+  let line_endings = case list.contains(tc.behaviors, "crlf_preserve_literal") {
     True -> ccl_types.PreserveLiteral
     False -> ccl_types.NormalizeToLf
   }
@@ -59,9 +57,7 @@ fn parse_options_for_test(tc: TestCase) -> ccl_types.ParseOptions {
 
 /// Derive AccessOptions from a test case's behaviors list.
 fn access_options_for_test(tc: TestCase) -> ccl_types.AccessOptions {
-  let boolean_parsing = case
-    list.contains(tc.behaviors, "boolean_lenient")
-  {
+  let boolean_parsing = case list.contains(tc.behaviors, "boolean_lenient") {
     True -> ccl_types.BooleanLenient
     False -> ccl_types.BooleanStrict
   }
@@ -796,9 +792,7 @@ fn run_get_float_test(
         count,
         parse_opts,
         build_opts,
-        fn(obj, p) {
-          access.get_float(obj, p) |> result.map(string.inspect)
-        },
+        fn(obj, p) { access.get_float(obj, p) |> result.map(string.inspect) },
       )
     }
     ExpectedCountOnly(count) -> {

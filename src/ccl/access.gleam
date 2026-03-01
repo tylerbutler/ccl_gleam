@@ -111,9 +111,7 @@ pub fn get_list_with(
         CoercionEnabled -> Ok([s])
         _ ->
           Error(
-            "Not a list at "
-            <> format_path(path)
-            <> " (list_coercion_disabled)",
+            "Not a list at " <> format_path(path) <> " (list_coercion_disabled)",
           )
       }
   }

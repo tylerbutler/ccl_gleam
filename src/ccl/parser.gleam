@@ -15,8 +15,10 @@ import ccl/types.{
   type Entry, type ParseOptions, DelimiterPreferSpaced, Entry, IndentPreserve,
   IndentStrip, NormalizeToLf, TabsAsContent, TabsAsWhitespace,
 }
+import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
+import gleam/result
 import gleam/string
 
 /// Parse top-level CCL text into flat entries using default options.
@@ -49,6 +51,9 @@ pub fn parse_indented(text: String) -> Result(List(Entry), String) {
 }
 
 /// Parse indented CCL text with configurable options.
+/// When `tabs_as_content`, strips the minimum space-only indent from
+/// continuation lines in each entry's value, since the structural
+/// indentation (spaces) should be removed while preserving tab content.
 @internal
 pub fn parse_indented_with(
   text: String,
@@ -59,7 +64,11 @@ pub fn parse_indented_with(
     _ -> text
   }
   let baseline = detect_baseline(normalized)
-  parse_with_baseline(normalized, baseline, options)
+  let parsed = parse_with_baseline(normalized, baseline, options)
+  case options.tab_handling {
+    TabsAsContent -> result.map(parsed, strip_entries_continuation_indent)
+    _ -> parsed
+  }
 }
 
 /// Parse a nested value (called by build_hierarchy during recursive parsing).
@@ -75,17 +84,28 @@ pub fn parse_value_with(
   text: String,
   options: ParseOptions,
 ) -> Result(List(Entry), String) {
-  case string.first(text) {
-    // Nested context: skip leading newline, detect baseline from first content line
-    Ok("\n") -> {
+  case string.starts_with(text, "\r\n") {
+    // Nested context with CRLF: skip \r\n, detect baseline from rest
+    // Note: \r\n is a single grapheme cluster in Erlang/Gleam,
+    // so drop_start(1) skips the entire \r\n sequence
+    True -> {
       let rest = string.drop_start(text, 1)
       let baseline = detect_baseline(rest)
       parse_with_baseline(rest, baseline, options)
     }
-    // Single-line or empty: parse with baseline 0
-    Ok(_) -> parse_with_baseline(text, 0, options)
-    // Empty string
-    Error(_) -> Ok([])
+    False ->
+      case string.first(text) {
+        // Nested context: skip leading newline, detect baseline from first content line
+        Ok("\n") -> {
+          let rest = string.drop_start(text, 1)
+          let baseline = detect_baseline(rest)
+          parse_with_baseline(rest, baseline, options)
+        }
+        // Single-line or empty: parse with baseline 0
+        Ok(_) -> parse_with_baseline(text, 0, options)
+        // Empty string
+        Error(_) -> Ok([])
+      }
   }
 }
 
@@ -146,7 +166,14 @@ fn parse_lines(
                 False -> {
                   // End of value, flush and continue
                   let new_acc = flush_entry(acc, current, options)
-                  parse_lines(rest, baseline, new_acc, None, pending_key, options)
+                  parse_lines(
+                    rest,
+                    baseline,
+                    new_acc,
+                    None,
+                    pending_key,
+                    options,
+                  )
                 }
               }
             }
@@ -188,7 +215,14 @@ fn parse_lines(
                     _, _ -> key
                   }
                   let new_current = Some(#(final_key, [value]))
-                  parse_lines(rest, baseline, new_acc, new_current, None, options)
+                  parse_lines(
+                    rest,
+                    baseline,
+                    new_acc,
+                    new_current,
+                    None,
+                    options,
+                  )
                 }
                 // Line without '=' at entry level — buffer as pending key
                 Error(_) ->
@@ -243,7 +277,10 @@ fn build_value(lines: List(String), options: ParseOptions) -> String {
           [first, ..list.map(rest, strip_tab_indentation)]
         }
         TabsAsContent -> {
-          // Preserve tabs as content
+          // Preserve tabs as content — no stripping in build_value.
+          // Continuation indent stripping for tabs_as_content is handled
+          // at a higher level (parse_indented_with) since parse() should
+          // preserve raw continuation indentation.
           [first, ..rest]
         }
       }
@@ -287,6 +324,67 @@ fn strip_all_leading_whitespace(s: String) -> String {
     Ok(" ") -> strip_all_leading_whitespace(string.drop_start(s, 1))
     Ok("\t") -> strip_all_leading_whitespace(string.drop_start(s, 1))
     _ -> s
+  }
+}
+
+/// Strip the minimum space-only indent from continuation lines in each entry.
+/// For multi-line values (containing \n), the continuation part (after the first
+/// line) has its minimum leading-spaces-only indent removed. This removes
+/// structural indentation while preserving tab content.
+fn strip_entries_continuation_indent(entries: List(Entry)) -> List(Entry) {
+  list.map(entries, fn(entry) {
+    case string.split_once(entry.value, "\n") {
+      Ok(#(first, rest)) -> {
+        let rest_lines = string.split(rest, "\n")
+        let min_indent = min_leading_spaces(rest_lines)
+        case min_indent > 0 {
+          True -> {
+            let stripped_lines =
+              list.map(rest_lines, fn(l) {
+                strip_n_leading_spaces(l, min_indent)
+              })
+            Entry(
+              key: entry.key,
+              value: first <> "\n" <> string.join(stripped_lines, "\n"),
+            )
+          }
+          False -> entry
+        }
+      }
+      Error(_) -> entry
+    }
+  })
+}
+
+/// Count only leading space characters (not tabs) in a string.
+fn count_leading_spaces(line: String) -> Int {
+  count_space_chars(string.to_graphemes(line), 0)
+}
+
+fn count_space_chars(chars: List(String), count: Int) -> Int {
+  case chars {
+    [" ", ..rest_chars] -> count_space_chars(rest_chars, count + 1)
+    _ -> count
+  }
+}
+
+/// Find the minimum number of leading spaces across non-empty lines.
+fn min_leading_spaces(lines: List(String)) -> Int {
+  lines
+  |> list.filter(fn(line) { string.trim(line) != "" })
+  |> list.map(count_leading_spaces)
+  |> list.fold(999_999, fn(acc, n) { int.min(acc, n) })
+}
+
+/// Strip exactly n leading spaces from a string, stopping at non-space chars.
+fn strip_n_leading_spaces(line: String, n: Int) -> String {
+  case n > 0 {
+    False -> line
+    True ->
+      case string.first(line) {
+        Ok(" ") -> strip_n_leading_spaces(string.drop_start(line, 1), n - 1)
+        _ -> line
+      }
   }
 }
 

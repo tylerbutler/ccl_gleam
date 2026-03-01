@@ -58,15 +58,18 @@ fn build_entries(
 }
 
 /// Resolve a raw value string into a CCLValue.
-/// Only multi-line values (starting with `\n`) represent nested structure
-/// that should be recursively parsed. Single-line values are always terminal
-/// strings, even if they contain `=` — that `=` is content, not a delimiter.
+/// Only multi-line values (starting with `\n` or `\r\n`) represent nested
+/// structure that should be recursively parsed. Single-line values are always
+/// terminal strings, even if they contain `=` — that `=` is content, not a
+/// delimiter.
 fn resolve_value(
   raw_value: String,
   build_options: BuildOptions,
   parse_options: ParseOptions,
 ) -> CCLValue {
-  case string.starts_with(raw_value, "\n"), string.contains(raw_value, "=") {
+  let is_multiline =
+    string.starts_with(raw_value, "\n") || string.starts_with(raw_value, "\r\n")
+  case is_multiline, string.contains(raw_value, "=") {
     // Multi-line value with `=` → nested structure, recurse
     True, True -> {
       case parser.parse_value_with(raw_value, parse_options) {
@@ -132,11 +135,7 @@ fn insert_value(
         Error(_) -> dict.insert(acc, key, value)
         // Duplicate key — merge
         Ok(existing) ->
-          dict.insert(
-            acc,
-            key,
-            merge_values(existing, value, build_options),
-          )
+          dict.insert(acc, key, merge_values(existing, value, build_options))
       }
     }
   }
@@ -144,7 +143,9 @@ fn insert_value(
 
 /// Sort CCL values lexicographically by their string representation.
 fn sort_ccl_values(values: List(CCLValue)) -> List(CCLValue) {
-  list.sort(values, fn(a, b) { string.compare(ccl_value_key(a), ccl_value_key(b)) })
+  list.sort(values, fn(a, b) {
+    string.compare(ccl_value_key(a), ccl_value_key(b))
+  })
 }
 
 /// Get a sort key for a CCL value.

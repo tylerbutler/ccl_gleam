@@ -19,8 +19,7 @@ pub fn is_compatible(config: ImplementationConfig, tc: TestCase) -> Bool {
   // Check behavior compatibility — we must support at least one required behavior
   let behavior_ok = case tc.behaviors {
     [] -> True
-    required ->
-      list.any(required, fn(b) { list.contains(config.behaviors, b) })
+    required -> list.any(required, fn(b) { list.contains(config.behaviors, b) })
   }
 
   has_functions && variant_ok && behavior_ok
@@ -71,9 +70,7 @@ fn get_skip_reason_inner(
         [] -> check_behaviors_supported(config, tc)
         req_variants -> {
           let has_variant =
-            list.any(req_variants, fn(v) {
-              list.contains(config.variants, v)
-            })
+            list.any(req_variants, fn(v) { list.contains(config.variants, v) })
           case has_variant {
             True -> check_behaviors_supported(config, tc)
             False -> Error("Missing variant: " <> format_list(req_variants))
@@ -97,8 +94,7 @@ fn check_behaviors_supported(
         list.any(required, fn(b) { list.contains(config.behaviors, b) })
       case has_any {
         True -> Ok(Nil)
-        False ->
-          Error("Unsupported behavior: " <> format_list(required))
+        False -> Error("Unsupported behavior: " <> format_list(required))
       }
     }
   }

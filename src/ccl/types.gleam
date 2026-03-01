@@ -95,18 +95,12 @@ pub type ListCoercion {
 
 /// Options for typed access functions.
 pub type AccessOptions {
-  AccessOptions(
-    boolean_parsing: BooleanParsing,
-    list_coercion: ListCoercion,
-  )
+  AccessOptions(boolean_parsing: BooleanParsing, list_coercion: ListCoercion)
 }
 
 /// Default access options matching current hardcoded behavior.
 pub fn default_access_options() -> AccessOptions {
-  AccessOptions(
-    boolean_parsing: BooleanStrict,
-    list_coercion: CoercionDisabled,
-  )
+  AccessOptions(boolean_parsing: BooleanStrict, list_coercion: CoercionDisabled)
 }
 
 /// Controls the order of list elements during hierarchy building.

@@ -90,10 +90,7 @@ pub fn ccl_json_suite_tests() {
               case filter.get_skip_reason(config, tc) {
                 // Incompatible — skip it with reason in test name
                 Error(reason) ->
-                  startest.xit(
-                    tc.name <> "\n    " <> reason,
-                    fn() { Nil },
-                  )
+                  startest.xit(tc.name <> "\n    " <> reason, fn() { Nil })
                 // Compatible — run through the existing runner
                 Ok(Nil) ->
                   startest.it(tc.name, fn() {
