@@ -58,16 +58,17 @@ fn build_entries(
 }
 
 /// Resolve a raw value string into a CCLValue.
-/// If the value contains `=`, try to parse it recursively (fixed-point step).
-/// Otherwise it's a terminal string.
+/// Only multi-line values (starting with `\n`) represent nested structure
+/// that should be recursively parsed. Single-line values are always terminal
+/// strings, even if they contain `=` — that `=` is content, not a delimiter.
 fn resolve_value(
   raw_value: String,
   build_options: BuildOptions,
   parse_options: ParseOptions,
 ) -> CCLValue {
-  case string.contains(raw_value, "=") {
-    True -> {
-      // Try recursive parsing
+  case string.starts_with(raw_value, "\n"), string.contains(raw_value, "=") {
+    // Multi-line value with `=` → nested structure, recurse
+    True, True -> {
       case parser.parse_value_with(raw_value, parse_options) {
         Ok(nested_entries) -> {
           case nested_entries {
@@ -86,8 +87,8 @@ fn resolve_value(
         Error(_) -> CclString(raw_value)
       }
     }
-    // No `=` → terminal string (fixed point)
-    False -> CclString(raw_value)
+    // Single-line or no `=` → terminal string (fixed point)
+    _, _ -> CclString(raw_value)
   }
 }
 

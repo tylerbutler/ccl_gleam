@@ -156,6 +156,8 @@ pub fn full_config() -> ImplementationConfig {
       "list_coercion_disabled", "list_coercion_enabled",
       // Array ordering — both supported
       "array_order_insertion", "array_order_lexicographic",
+      // Delimiter strategy — both supported
+      "delimiter_first_equals", "delimiter_prefer_spaced",
       // Output indentation
       "indent_spaces",
     ],

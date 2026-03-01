@@ -63,6 +63,7 @@ pub type ParseOptions {
     line_endings: LineEndingBehavior,
     tab_handling: TabBehavior,
     continuation_baseline: ContinuationBaseline,
+    delimiter_strategy: DelimiterStrategy,
   )
 }
 
@@ -72,6 +73,7 @@ pub fn default_parse_options() -> ParseOptions {
     line_endings: NormalizeToLf,
     tab_handling: TabsAsWhitespace,
     continuation_baseline: IndentStrip,
+    delimiter_strategy: DelimiterPreferSpaced,
   )
 }
 
@@ -123,4 +125,14 @@ pub type BuildOptions {
 /// Default build options matching current hardcoded behavior.
 pub fn default_build_options() -> BuildOptions {
   BuildOptions(array_order: InsertionOrder)
+}
+
+/// Controls how the `=` delimiter is identified when a line contains multiple `=`.
+pub type DelimiterStrategy {
+  /// Split on the first `=` character in the line.
+  DelimiterFirstEquals
+  /// Prefer ` = ` (space-equals-space) as delimiter; fall back to first `=`
+  /// if no spaced version exists. This allows keys containing `=` (e.g. URLs
+  /// with query parameters) when the "real" delimiter is surrounded by spaces.
+  DelimiterPreferSpaced
 }

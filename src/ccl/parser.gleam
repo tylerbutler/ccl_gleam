@@ -12,8 +12,8 @@
 /// - `crlf_normalize_to_lf`: normalize \r\n to \n before parsing
 /// - `tabs_as_whitespace`: both spaces and tabs count as whitespace
 import ccl/types.{
-  type Entry, type ParseOptions, Entry, IndentPreserve, IndentStrip,
-  NormalizeToLf, TabsAsContent, TabsAsWhitespace,
+  type Entry, type ParseOptions, DelimiterPreferSpaced, Entry, IndentPreserve,
+  IndentStrip, NormalizeToLf, TabsAsContent, TabsAsWhitespace,
 }
 import gleam/list
 import gleam/option.{type Option, None, Some}
@@ -166,7 +166,7 @@ fn parse_lines(
             // Continuation line but no current entry: treat as new entry
             // This handles the case where indented text appears at the start
             True, None -> {
-              case split_on_equals(line) {
+              case split_on_equals_with(line, options) {
                 Ok(#(key, value)) -> {
                   let new_current = Some(#(key, [value]))
                   parse_lines(rest, baseline, acc, new_current, None, options)
@@ -179,7 +179,7 @@ fn parse_lines(
             // New entry (indent <= baseline): flush current, start new
             False, _ -> {
               let new_acc = flush_entry(acc, current, options)
-              case split_on_equals(line) {
+              case split_on_equals_with(line, options) {
                 Ok(#(key, value)) -> {
                   // If there's a pending key and the split key is empty,
                   // use the pending key (handles key\n=value pattern)
@@ -290,9 +290,20 @@ fn strip_all_leading_whitespace(s: String) -> String {
   }
 }
 
+/// Split a line on `=` using the configured delimiter strategy.
+fn split_on_equals_with(
+  line: String,
+  options: ParseOptions,
+) -> Result(#(String, String), Nil) {
+  case options.delimiter_strategy {
+    DelimiterPreferSpaced -> split_on_spaced_equals(line)
+    _ -> split_on_first_equals(line)
+  }
+}
+
 /// Split a line on the first `=` character.
 /// Returns (trimmed_key, trimmed_first_line_value).
-fn split_on_equals(line: String) -> Result(#(String, String), Nil) {
+fn split_on_first_equals(line: String) -> Result(#(String, String), Nil) {
   case string.split_once(line, "=") {
     Ok(#(raw_key, raw_value)) -> {
       let key = trim_key(raw_key)
@@ -300,6 +311,32 @@ fn split_on_equals(line: String) -> Result(#(String, String), Nil) {
       Ok(#(key, value))
     }
     Error(_) -> Error(Nil)
+  }
+}
+
+/// Split a line preferring ` = ` (space-equals-space) as delimiter.
+/// Falls back to ` =` at end of line, then to first `=`.
+fn split_on_spaced_equals(line: String) -> Result(#(String, String), Nil) {
+  // Try " = " first (space-equals-space)
+  case string.split_once(line, " = ") {
+    Ok(#(raw_key, raw_value)) -> {
+      let key = trim_key(raw_key)
+      let value = trim_leading_whitespace(raw_value)
+      Ok(#(key, value))
+    }
+    Error(_) -> {
+      // Try " =" at end of line (space-equals with empty value)
+      case string.ends_with(string.trim_end(line), " =") {
+        True -> {
+          let trimmed = string.trim_end(line)
+          let raw_key = string.drop_end(trimmed, 2)
+          let key = trim_key(raw_key)
+          Ok(#(key, ""))
+        }
+        // Fall back to first `=`
+        False -> split_on_first_equals(line)
+      }
+    }
   }
 }
 

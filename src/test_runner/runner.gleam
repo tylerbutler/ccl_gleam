@@ -43,7 +43,18 @@ fn parse_options_for_test(tc: TestCase) -> ccl_types.ParseOptions {
     True -> ccl_types.IndentPreserve
     False -> ccl_types.IndentStrip
   }
-  ccl_types.ParseOptions(line_endings:, tab_handling:, continuation_baseline:)
+  let delimiter_strategy = case
+    list.contains(tc.behaviors, "delimiter_prefer_spaced")
+  {
+    True -> ccl_types.DelimiterPreferSpaced
+    False -> ccl_types.DelimiterFirstEquals
+  }
+  ccl_types.ParseOptions(
+    line_endings:,
+    tab_handling:,
+    continuation_baseline:,
+    delimiter_strategy:,
+  )
 }
 
 /// Derive AccessOptions from a test case's behaviors list.
