@@ -53,6 +53,19 @@ pub fn get_skip_reason(
   config: ImplementationConfig,
   tc: TestCase,
 ) -> Result(Nil, String) {
+  // Check validation type: the validation field is the actual function being
+  // tested, so it must be in the supported functions list
+  case list.contains(config.functions, tc.validation) {
+    False ->
+      Error("Unsupported validation function: " <> tc.validation)
+    True -> get_skip_reason_inner(config, tc)
+  }
+}
+
+fn get_skip_reason_inner(
+  config: ImplementationConfig,
+  tc: TestCase,
+) -> Result(Nil, String) {
   // Check conflicts first: skip if test conflicts with any of our behaviors
   let conflicting_behaviors =
     tc.conflicts.behaviors
@@ -146,7 +159,7 @@ pub fn basic_config() -> ImplementationConfig {
 pub fn full_config() -> ImplementationConfig {
   types.ImplementationConfig(
     functions: [
-      "parse", "print", "canonical_format", "build_hierarchy", "get_string",
+      "parse", "print", "build_hierarchy", "get_string",
       "get_int", "get_bool", "get_float", "get_list", "filter", "compose",
     ],
     behaviors: [

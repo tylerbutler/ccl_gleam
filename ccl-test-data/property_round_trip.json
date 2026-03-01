@@ -1,5 +1,5 @@
 {
-  "$schema": "https://raw.githubusercontent.com/CatConfLang/ccl-test-data/v0.5.0/schemas/generated-format.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
   "tests": [
     {
       "behaviors": [],
@@ -100,7 +100,14 @@
       ]
     },
     {
-      "behaviors": [],
+      "behaviors": [
+        "toplevel_indent_strip"
+      ],
+      "conflicts": {
+        "behaviors": [
+          "toplevel_indent_preserve"
+        ]
+      },
       "expected": {
         "count": 1,
         "value": true
@@ -159,7 +166,14 @@
       "variants": []
     },
     {
-      "behaviors": [],
+      "behaviors": [
+        "toplevel_indent_preserve"
+      ],
+      "conflicts": {
+        "behaviors": [
+          "toplevel_indent_strip"
+        ]
+      },
       "expected": {
         "count": 1,
         "value": true
@@ -216,7 +230,7 @@
       "behaviors": [],
       "expected": {
         "count": 1,
-        "value": " = item1\n = item2\nregular = value"
+        "value": "= item1\n= item2\nregular = value"
       },
       "features": [
         "empty_keys"
@@ -424,7 +438,7 @@
       "behaviors": [],
       "expected": {
         "count": 1,
-        "value": "name = Alice\n = first item\nconfig = \n  port = 3000\n = second item\nfinal = value"
+        "value": "name = Alice\n= first item\nconfig = \n  port = 3000\n= second item\nfinal = value"
       },
       "features": [
         "empty_keys"
