@@ -28,6 +28,11 @@ pub type ExpectedNode {
   NodeObject(Dict(String, ExpectedNode))
 }
 
+/// Conflicts that make a test incompatible with certain implementations
+pub type Conflicts {
+  Conflicts(behaviors: List(String))
+}
+
 /// A single test case from the JSON test suite
 pub type TestCase {
   TestCase(
@@ -42,6 +47,7 @@ pub type TestCase {
     expected: Expected,
     path: Option(List(String)),
     args: Option(List(String)),
+    conflicts: Conflicts,
   )
 }
 
@@ -50,10 +56,21 @@ pub type TestSuite {
   TestSuite(tests: List(TestCase))
 }
 
+/// Details about a test failure, kept as a record so new fields
+/// (e.g. context, input) can be added without touching every call site.
+pub type FailureDetail {
+  FailureDetail(
+    reason: String,
+    actual: String,
+    expected: String,
+    assertions: Int,
+  )
+}
+
 /// Result of running a single test
 pub type TestResult {
   TestPassed(name: String, assertions: Int)
-  TestFailed(name: String, reason: String, assertions: Int)
+  TestFailed(name: String, detail: FailureDetail)
   TestSkipped(name: String, reason: String)
 }
 

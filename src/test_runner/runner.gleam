@@ -17,12 +17,36 @@ import gleam/string
 import test_runner/filter
 import test_runner/loader
 import test_runner/types.{
-  type Expected, type ExpectedNode, type ImplementationConfig, type TestCase,
-  type TestResult, type TestSuite, type TestSuiteResult, ExpectedBool,
-  ExpectedBoolean, ExpectedCountOnly, ExpectedEntries, ExpectedError,
-  ExpectedFloat, ExpectedInt, ExpectedList, ExpectedObject, ExpectedValue,
-  NodeList, NodeObject, NodeString, TestFailed, TestPassed, TestSkipped,
-  TestSuiteResult,
+  type Expected, type ExpectedNode, type ImplementationConfig,
+  type TestCase, type TestResult, type TestSuite, type TestSuiteResult,
+  ExpectedBool, ExpectedBoolean, ExpectedCountOnly, ExpectedEntries,
+  ExpectedError, ExpectedFloat, ExpectedInt, ExpectedList, ExpectedObject,
+  ExpectedValue, FailureDetail, NodeList, NodeObject, NodeString, TestFailed,
+  TestPassed, TestSkipped, TestSuiteResult,
+}
+
+// --- Failure helpers ---
+
+/// Create a TestFailed with separate actual/expected for diff display.
+fn mismatch(
+  name: String,
+  reason: String,
+  actual: String,
+  expected: String,
+  count: Int,
+) -> TestResult {
+  TestFailed(
+    name,
+    FailureDetail(reason: reason, actual: actual, expected: expected, assertions: count),
+  )
+}
+
+/// Create a TestFailed for error cases (no meaningful diff).
+fn error_fail(name: String, reason: String, count: Int) -> TestResult {
+  TestFailed(
+    name,
+    FailureDetail(reason: reason, actual: reason, expected: "", assertions: count),
+  )
 }
 
 /// Run all tests from a directory
@@ -66,7 +90,7 @@ pub fn run_test_file(
   let failed =
     list.count(results, fn(r) {
       case r {
-        TestFailed(_, _, _) -> True
+        TestFailed(_, _) -> True
         _ -> False
       }
     })
@@ -126,9 +150,10 @@ fn execute_test(tc: TestCase) -> TestResult {
       run_get_float_test(tc.name, input, resolve_path(tc), tc.expected)
     "get_list" ->
       run_get_list_test(tc.name, input, resolve_path(tc), tc.expected)
+    "filter" -> run_filter_test(tc.name, input, tc.expected)
     "round_trip" -> run_round_trip_test(tc.name, input, tc.expected)
     "canonical_format" -> run_canonical_format_test(tc.name, input, tc.expected)
-    other -> TestFailed(tc.name, "Unknown validation: " <> other, 0)
+    other -> error_fail(tc.name, "Unknown validation: " <> other, 0)
   }
 }
 
@@ -145,33 +170,90 @@ fn run_parse_test(name: String, input: String, expected: Expected) -> TestResult
           case entries == expected_list {
             True -> TestPassed(name, count)
             False ->
-              TestFailed(
+              mismatch(
                 name,
-                "Entries mismatch:\n  expected: "
-                  <> format_entries(expected_list)
-                  <> "\n  actual: "
-                  <> format_entries(entries),
+                "Entries mismatch",
+                format_entries(entries),
+                format_entries(expected_list),
                 count,
               )
           }
         }
-        Error(e) -> TestFailed(name, "Parse error: " <> e, count)
+        Error(e) -> error_fail(name, "Parse error: " <> e, count)
       }
     }
     ExpectedError(count, True) -> {
       case parser.parse(input) {
-        Ok(_) -> TestFailed(name, "Expected error but got success", count)
+        Ok(_) ->
+          mismatch(name, "Expected error but got success", "Ok(_)", "Error(_)", count)
         Error(_) -> TestPassed(name, count)
       }
     }
     ExpectedCountOnly(count) -> {
-      // Just verify parsing succeeds
       case parser.parse(input) {
         Ok(_) -> TestPassed(name, count)
-        Error(e) -> TestFailed(name, "Parse error: " <> e, count)
+        Error(e) -> error_fail(name, "Parse error: " <> e, count)
       }
     }
-    _ -> TestFailed(name, "Invalid expected type for parse test", 0)
+    _ -> error_fail(name, "Invalid expected type for parse test", 0)
+  }
+}
+
+// --- Filter tests ---
+
+fn run_filter_test(
+  name: String,
+  input: String,
+  expected: Expected,
+) -> TestResult {
+  case expected {
+    ExpectedEntries(count, expected_entries) -> {
+      case parser.parse(input) {
+        Ok(entries) -> {
+          let filtered =
+            entries
+            |> list.filter(fn(e) { e.key != "/" })
+          let expected_list =
+            expected_entries
+            |> list.map(fn(e) { ccl_types.Entry(e.key, e.value) })
+          case filtered == expected_list {
+            True -> TestPassed(name, count)
+            False ->
+              mismatch(
+                name,
+                "Filter mismatch",
+                format_entries(filtered),
+                format_entries(expected_list),
+                count,
+              )
+          }
+        }
+        Error(e) -> error_fail(name, "Parse error: " <> e, count)
+      }
+    }
+    ExpectedCountOnly(count) -> {
+      case parser.parse(input) {
+        Ok(entries) -> {
+          let filtered =
+            entries
+            |> list.filter(fn(e) { e.key != "/" })
+          // Count-only: just verify the count matches
+          case list.length(filtered) == count {
+            True -> TestPassed(name, count)
+            False ->
+              mismatch(
+                name,
+                "Filter count mismatch",
+                int.to_string(list.length(filtered)),
+                int.to_string(count),
+                count,
+              )
+          }
+        }
+        Error(e) -> error_fail(name, "Parse error: " <> e, count)
+      }
+    }
+    _ -> error_fail(name, "Invalid expected type for filter test", 0)
   }
 }
 
@@ -186,20 +268,19 @@ fn run_print_test(name: String, input: String, expected: Expected) -> TestResult
           case printed == expected_value {
             True -> TestPassed(name, count)
             False ->
-              TestFailed(
+              mismatch(
                 name,
-                "Print mismatch:\n  expected: "
-                  <> string.inspect(expected_value)
-                  <> "\n  actual: "
-                  <> string.inspect(printed),
+                "Print mismatch",
+                string.inspect(printed),
+                string.inspect(expected_value),
                 count,
               )
           }
         }
-        Error(e) -> TestFailed(name, "Parse error: " <> e, count)
+        Error(e) -> error_fail(name, "Parse error: " <> e, count)
       }
     }
-    _ -> TestFailed(name, "Invalid expected type for print test", 0)
+    _ -> error_fail(name, "Invalid expected type for print test", 0)
   }
 }
 
@@ -211,7 +292,6 @@ fn run_round_trip_test(
   expected: Expected,
 ) -> TestResult {
   let count = get_expected_count(expected)
-  // Round trip: parse(input) -> print(entries) -> parse(printed) -> compare
   case parser.parse(input) {
     Ok(entries) -> {
       let printed = format.print(entries)
@@ -220,20 +300,20 @@ fn run_round_trip_test(
           case entries == re_entries {
             True -> TestPassed(name, count)
             False ->
-              TestFailed(
+              mismatch(
                 name,
-                "Round trip mismatch:\n  original entries: "
-                  <> format_entries(entries)
-                  <> "\n  after round trip: "
-                  <> format_entries(re_entries),
+                "Round trip mismatch",
+                format_entries(re_entries),
+                format_entries(entries),
                 count,
               )
           }
         }
-        Error(e) -> TestFailed(name, "Round trip re-parse error: " <> e, count)
+        Error(e) ->
+          error_fail(name, "Round trip re-parse error: " <> e, count)
       }
     }
-    Error(e) -> TestFailed(name, "Parse error: " <> e, count)
+    Error(e) -> error_fail(name, "Parse error: " <> e, count)
   }
 }
 
@@ -253,20 +333,20 @@ fn run_canonical_format_test(
           case formatted == expected_value {
             True -> TestPassed(name, count)
             False ->
-              TestFailed(
+              mismatch(
                 name,
-                "Canonical format mismatch:\n  expected: "
-                  <> string.inspect(expected_value)
-                  <> "\n  actual: "
-                  <> string.inspect(formatted),
+                "Canonical format mismatch",
+                string.inspect(formatted),
+                string.inspect(expected_value),
                 count,
               )
           }
         }
-        Error(e) -> TestFailed(name, "Parse error: " <> e, count)
+        Error(e) -> error_fail(name, "Parse error: " <> e, count)
       }
     }
-    _ -> TestFailed(name, "Invalid expected type for canonical_format test", 0)
+    _ ->
+      error_fail(name, "Invalid expected type for canonical_format test", 0)
   }
 }
 
@@ -285,26 +365,25 @@ fn run_hierarchy_test(
           case compare_objects(obj, expected_obj) {
             True -> TestPassed(name, count)
             False ->
-              TestFailed(
+              mismatch(
                 name,
-                "Object mismatch:\n  expected: "
-                  <> format_expected_object(expected_obj)
-                  <> "\n  actual: "
-                  <> format_ccl(obj),
+                "Object mismatch",
+                format_ccl(obj),
+                format_expected_object(expected_obj),
                 count,
               )
           }
         }
-        Error(e) -> TestFailed(name, "Parse error: " <> e, count)
+        Error(e) -> error_fail(name, "Parse error: " <> e, count)
       }
     }
     ExpectedCountOnly(count) -> {
       case parse_and_build(input) {
         Ok(_) -> TestPassed(name, count)
-        Error(e) -> TestFailed(name, "Parse error: " <> e, count)
+        Error(e) -> error_fail(name, "Parse error: " <> e, count)
       }
     }
-    _ -> TestFailed(name, "Invalid expected type for hierarchy test", 0)
+    _ -> error_fail(name, "Invalid expected type for hierarchy test", 0)
   }
 }
 
@@ -322,11 +401,13 @@ fn run_get_string_test(
       case parse_and_build(input) {
         Ok(obj) -> {
           case access.get_string(obj, key_path) {
-            Ok(value) -> check_value_match(name, value, expected_value, count)
-            Error(e) -> TestFailed(name, "get_string error: " <> e, count)
+            Ok(value) ->
+              check_value_match(name, value, expected_value, count)
+            Error(e) ->
+              error_fail(name, "get_string error: " <> e, count)
           }
         }
-        Error(e) -> TestFailed(name, "Parse error: " <> e, count)
+        Error(e) -> error_fail(name, "Parse error: " <> e, count)
       }
     }
     ExpectedError(count, True) -> {
@@ -335,10 +416,10 @@ fn run_get_string_test(
       })
     }
     ExpectedCountOnly(count) -> {
-      // Count-only: accept either success or error
       TestPassed(name, count)
     }
-    _ -> TestFailed(name, "Invalid expected type for get_string test", 0)
+    _ ->
+      error_fail(name, "Invalid expected type for get_string test", 0)
   }
 }
 
@@ -358,20 +439,19 @@ fn run_get_int_test(
               case value == expected_value {
                 True -> TestPassed(name, count)
                 False ->
-                  TestFailed(
+                  mismatch(
                     name,
-                    "Value mismatch: expected "
-                      <> int.to_string(expected_value)
-                      <> ", got "
-                      <> int.to_string(value),
+                    "Value mismatch",
+                    int.to_string(value),
+                    int.to_string(expected_value),
                     count,
                   )
               }
             }
-            Error(e) -> TestFailed(name, "get_int error: " <> e, count)
+            Error(e) -> error_fail(name, "get_int error: " <> e, count)
           }
         }
-        Error(e) -> TestFailed(name, "Parse error: " <> e, count)
+        Error(e) -> error_fail(name, "Parse error: " <> e, count)
       }
     }
     ExpectedError(count, True) -> {
@@ -380,10 +460,9 @@ fn run_get_int_test(
       })
     }
     ExpectedCountOnly(count) -> {
-      // Count-only: accept either success or error
       TestPassed(name, count)
     }
-    _ -> TestFailed(name, "Invalid expected type for get_int test", 0)
+    _ -> error_fail(name, "Invalid expected type for get_int test", 0)
   }
 }
 
@@ -403,23 +482,21 @@ fn run_get_bool_test(
               case value == expected_value {
                 True -> TestPassed(name, count)
                 False ->
-                  TestFailed(
+                  mismatch(
                     name,
-                    "Value mismatch: expected "
-                      <> string.inspect(expected_value)
-                      <> ", got "
-                      <> string.inspect(value),
+                    "Value mismatch",
+                    string.inspect(value),
+                    string.inspect(expected_value),
                     count,
                   )
               }
             }
-            Error(e) -> TestFailed(name, "get_bool error: " <> e, count)
+            Error(e) -> error_fail(name, "get_bool error: " <> e, count)
           }
         }
-        Error(e) -> TestFailed(name, "Parse error: " <> e, count)
+        Error(e) -> error_fail(name, "Parse error: " <> e, count)
       }
     }
-    // Handle boolean field name variant
     ExpectedBoolean(count, expected_value) -> {
       case parse_and_build(input) {
         Ok(obj) -> {
@@ -428,20 +505,19 @@ fn run_get_bool_test(
               case value == expected_value {
                 True -> TestPassed(name, count)
                 False ->
-                  TestFailed(
+                  mismatch(
                     name,
-                    "Value mismatch: expected "
-                      <> string.inspect(expected_value)
-                      <> ", got "
-                      <> string.inspect(value),
+                    "Value mismatch",
+                    string.inspect(value),
+                    string.inspect(expected_value),
                     count,
                   )
               }
             }
-            Error(e) -> TestFailed(name, "get_bool error: " <> e, count)
+            Error(e) -> error_fail(name, "get_bool error: " <> e, count)
           }
         }
-        Error(e) -> TestFailed(name, "Parse error: " <> e, count)
+        Error(e) -> error_fail(name, "Parse error: " <> e, count)
       }
     }
     ExpectedError(count, True) -> {
@@ -449,7 +525,11 @@ fn run_get_bool_test(
         access.get_bool(obj, p) |> result.map(string.inspect)
       })
     }
-    _ -> TestFailed(name, "Invalid expected type for get_bool test", 0)
+    ExpectedCountOnly(count) -> {
+      // Count-only: accept either success or error
+      TestPassed(name, count)
+    }
+    _ -> error_fail(name, "Invalid expected type for get_bool test", 0)
   }
 }
 
@@ -464,7 +544,6 @@ fn run_get_float_test(
     ExpectedFloat(count, expected_value) -> {
       run_float_comparison(name, input, key_path, count, expected_value)
     }
-    // JSON integer 0 decodes as ExpectedInt — handle as float
     ExpectedInt(count, expected_int) -> {
       let expected_value = int.to_float(expected_int)
       run_float_comparison(name, input, key_path, count, expected_value)
@@ -475,10 +554,9 @@ fn run_get_float_test(
       })
     }
     ExpectedCountOnly(count) -> {
-      // Count-only: accept either success or error
       TestPassed(name, count)
     }
-    _ -> TestFailed(name, "Invalid expected type for get_float test", 0)
+    _ -> error_fail(name, "Invalid expected type for get_float test", 0)
   }
 }
 
@@ -498,20 +576,19 @@ fn run_get_list_test(
               case value == expected_list {
                 True -> TestPassed(name, count)
                 False ->
-                  TestFailed(
+                  mismatch(
                     name,
-                    "List mismatch: expected "
-                      <> string.inspect(expected_list)
-                      <> ", got "
-                      <> string.inspect(value),
+                    "List mismatch",
+                    string.inspect(value),
+                    string.inspect(expected_list),
                     count,
                   )
               }
             }
-            Error(e) -> TestFailed(name, "get_list error: " <> e, count)
+            Error(e) -> error_fail(name, "get_list error: " <> e, count)
           }
         }
-        Error(e) -> TestFailed(name, "Parse error: " <> e, count)
+        Error(e) -> error_fail(name, "Parse error: " <> e, count)
       }
     }
     ExpectedError(count, True) -> {
@@ -520,10 +597,9 @@ fn run_get_list_test(
       })
     }
     ExpectedCountOnly(count) -> {
-      // Count-only: accept either success or error
       TestPassed(name, count)
     }
-    _ -> TestFailed(name, "Invalid expected type for get_list test", 0)
+    _ -> error_fail(name, "Invalid expected type for get_list test", 0)
   }
 }
 
@@ -556,11 +632,11 @@ fn run_expected_error_test(
   case parse_and_build(input) {
     Ok(obj) -> {
       case accessor(obj, path) {
-        Ok(_) -> TestFailed(name, "Expected error but got success", count)
+        Ok(_) ->
+          mismatch(name, "Expected error but got success", "Ok(_)", "Error(_)", count)
         Error(_) -> TestPassed(name, count)
       }
     }
-    // Parse error counts as expected error
     Error(_) -> TestPassed(name, count)
   }
 }
@@ -580,20 +656,19 @@ fn run_float_comparison(
           case diff <. 0.0001 {
             True -> TestPassed(name, count)
             False ->
-              TestFailed(
+              mismatch(
                 name,
-                "Value mismatch: expected "
-                  <> string.inspect(expected_value)
-                  <> ", got "
-                  <> string.inspect(value),
+                "Value mismatch",
+                string.inspect(value),
+                string.inspect(expected_value),
                 count,
               )
           }
         }
-        Error(e) -> TestFailed(name, "get_float error: " <> e, count)
+        Error(e) -> error_fail(name, "get_float error: " <> e, count)
       }
     }
-    Error(e) -> TestFailed(name, "Parse error: " <> e, count)
+    Error(e) -> error_fail(name, "Parse error: " <> e, count)
   }
 }
 
@@ -613,12 +688,11 @@ fn check_value_match(
   case actual == expected {
     True -> TestPassed(name, count)
     False ->
-      TestFailed(
+      mismatch(
         name,
-        "Value mismatch: expected "
-          <> string.inspect(expected)
-          <> ", got "
-          <> string.inspect(actual),
+        "Value mismatch",
+        string.inspect(actual),
+        string.inspect(expected),
         count,
       )
   }
@@ -666,7 +740,6 @@ fn compare_values(actual: ccl_types.CCLValue, expected: ExpectedNode) -> Bool {
   case actual, expected {
     ccl_types.CclString(s), NodeString(es) -> s == es
     ccl_types.CclList(items), NodeList(el) -> {
-      // Extract strings from list items for comparison
       let str_items =
         items
         |> list.filter_map(fn(item) {
@@ -684,19 +757,10 @@ fn compare_values(actual: ccl_types.CCLValue, expected: ExpectedNode) -> Bool {
 
 /// Format entries for error messages
 fn format_entries(entries: List(ccl_types.Entry)) -> String {
-  entries
-  |> list.map(fn(e) {
-    let display_value = case string.contains(e.value, "\n") {
-      True -> {
-        // Show multiline values with visible structure
-        let lines = string.split(e.value, "\n")
-        string.join(lines, "\n")
-      }
-      False -> e.value
-    }
-    e.key <> " = " <> display_value
-  })
-  |> string.join(", ")
+  "\n"
+  <> entries
+  |> list.map(fn(e) { "(" <> e.key <> "," <> e.value <> ")" })
+  |> string.join("\n")
 }
 
 /// Format expected object for error messages
@@ -762,7 +826,6 @@ pub fn print_results(results: List(TestSuiteResult)) -> Nil {
   let total =
     results |> list.map(fn(r) { r.total }) |> list.fold(0, fn(a, n) { a + n })
 
-  // Print per-file summaries
   list.each(results, fn(r) {
     birch.info_m("Suite complete", [
       #("file", r.file),
@@ -773,8 +836,11 @@ pub fn print_results(results: List(TestSuiteResult)) -> Nil {
 
     list.each(r.results, fn(test_result) {
       case test_result {
-        TestFailed(name, reason, _) -> {
-          birch.error_m("Test failed", [#("test", name), #("reason", reason)])
+        TestFailed(name, detail) -> {
+          birch.error_m("Test failed", [
+            #("test", name),
+            #("reason", detail.reason),
+          ])
         }
         _ -> Nil
       }

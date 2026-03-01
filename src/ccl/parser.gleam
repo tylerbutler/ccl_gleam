@@ -18,9 +18,11 @@ import gleam/string
 
 /// Parse top-level CCL text into flat entries.
 /// Uses `toplevel_indent_strip`: baseline N = 0.
+/// Applies `tabs_as_whitespace`: all tabs replaced with spaces.
 pub fn parse(text: String) -> Result(List(Entry), String) {
   let normalized = normalize_line_endings(text)
-  parse_with_baseline(normalized, 0)
+  let tab_normalized = normalize_tabs(normalized)
+  parse_with_baseline(tab_normalized, 0)
 }
 
 /// Parse a nested value (called by build_hierarchy during recursive parsing).
@@ -259,4 +261,10 @@ fn has_continuation_after(lines: List(String), baseline: Int) -> Bool {
 /// Per `crlf_normalize_to_lf` behavior.
 fn normalize_line_endings(text: String) -> String {
   string.replace(text, "\r\n", "\n")
+}
+
+/// Normalize tabs to spaces.
+/// Per `tabs_as_whitespace` behavior: all tabs are replaced with spaces.
+fn normalize_tabs(text: String) -> String {
+  string.replace(text, "\t", " ")
 }

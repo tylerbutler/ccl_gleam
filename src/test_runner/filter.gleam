@@ -17,7 +17,13 @@ pub fn is_compatible(config: ImplementationConfig, tc: TestCase) -> Bool {
     required -> list.any(required, fn(v) { list.contains(config.variants, v) })
   }
 
-  has_functions && behavior_ok && variant_ok
+  // Check conflicts: skip if test conflicts with any of our declared behaviors
+  let no_conflicts =
+    !list.any(tc.conflicts.behaviors, fn(b) {
+      list.contains(config.behaviors, b)
+    })
+
+  has_functions && behavior_ok && variant_ok && no_conflicts
 }
 
 /// Check that no conflicting behaviors exist
@@ -47,42 +53,59 @@ pub fn get_skip_reason(
   config: ImplementationConfig,
   tc: TestCase,
 ) -> Result(Nil, String) {
-  // Check functions
-  let missing_functions =
-    tc.functions
-    |> list.filter(fn(f) { !list.contains(config.functions, f) })
+  // Check conflicts first: skip if test conflicts with any of our behaviors
+  let conflicting_behaviors =
+    tc.conflicts.behaviors
+    |> list.filter(fn(b) { list.contains(config.behaviors, b) })
 
-  case missing_functions {
-    [first, ..rest] -> {
-      let funcs = [first, ..rest]
-      Error("Missing functions: " <> format_list(funcs))
+  case conflicting_behaviors {
+    [_, ..] -> {
+      Error("Conflicts with behaviors: " <> format_list(conflicting_behaviors))
     }
     [] -> {
-      // Check behaviors
-      case tc.behaviors {
-        [] -> Ok(Nil)
-        required -> {
-          let has_behavior =
-            list.any(required, fn(b) { list.contains(config.behaviors, b) })
-          case has_behavior {
-            True -> {
-              // Check variants
-              case tc.variants {
-                [] -> Ok(Nil)
-                req_variants -> {
-                  let has_variant =
-                    list.any(req_variants, fn(v) {
-                      list.contains(config.variants, v)
-                    })
-                  case has_variant {
-                    True -> Ok(Nil)
-                    False ->
-                      Error("Missing variant: " <> format_list(req_variants))
+      // Check functions
+      let missing_functions =
+        tc.functions
+        |> list.filter(fn(f) { !list.contains(config.functions, f) })
+
+      case missing_functions {
+        [first, ..rest] -> {
+          let funcs = [first, ..rest]
+          Error("Missing functions: " <> format_list(funcs))
+        }
+        [] -> {
+          // Check behaviors
+          case tc.behaviors {
+            [] -> Ok(Nil)
+            required -> {
+              let has_behavior =
+                list.any(required, fn(b) {
+                  list.contains(config.behaviors, b)
+                })
+              case has_behavior {
+                True -> {
+                  // Check variants
+                  case tc.variants {
+                    [] -> Ok(Nil)
+                    req_variants -> {
+                      let has_variant =
+                        list.any(req_variants, fn(v) {
+                          list.contains(config.variants, v)
+                        })
+                      case has_variant {
+                        True -> Ok(Nil)
+                        False ->
+                          Error(
+                            "Missing variant: " <> format_list(req_variants),
+                          )
+                      }
+                    }
                   }
                 }
+                False ->
+                  Error("Incompatible behavior: " <> format_list(required))
               }
             }
-            False -> Error("Incompatible behavior: " <> format_list(required))
           }
         }
       }

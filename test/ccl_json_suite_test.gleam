@@ -13,7 +13,7 @@ import gleam/list
 import gleam/result
 import gleam/string
 import startest
-import startest/expect
+import startest/assertion_error.{AssertionError}
 import test_runner/filter
 import test_runner/loader
 import test_runner/runner
@@ -75,16 +75,16 @@ pub fn ccl_json_suite_tests() {
 
 /// Convert a TestResult from the existing runner into a startest assertion.
 ///
-/// Passed tests are fine. Failed tests panic with the failure reason so
-/// startest reports them with its diff output. Skipped results should not
-/// reach here (handled by `xit` above), but are tolerated as a pass.
+/// Passed tests succeed silently. Failed tests raise an `AssertionError` with
+/// separate actual/expected fields so startest renders its coloured diff output.
+/// Skipped results should not reach here (handled by `xit` above), but are
+/// tolerated as a pass.
 fn assert_test_result(result: types.TestResult) -> Nil {
   case result {
     TestPassed(_, _) -> Nil
-    TestFailed(_name, reason, _) -> {
-      // Use expect so startest shows a nice diff in its output
-      reason
-      |> expect.to_equal("")
+    TestFailed(_name, detail) -> {
+      AssertionError(detail.reason, detail.actual, detail.expected)
+      |> assertion_error.raise
     }
     TestSkipped(_, _) -> Nil
   }
