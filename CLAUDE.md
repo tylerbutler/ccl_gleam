@@ -2,24 +2,34 @@
 
 CCL (Categorical Configuration Language) implementation and test runner in Gleam, targeting the Erlang VM (BEAM).
 
+This is a monorepo with two packages connected via path dependencies.
+
 ## Build Commands
 
 ```bash
-gleam build              # Compile project
-gleam test               # Run all tests (startest + JSON suite)
-gleam check              # Type check without building
-gleam format             # Format code
-gleam run -- <args>      # Run CLI test runner
+# From repo root using just (recommended)
+just build               # Build all packages
+just test                # Run all tests
+just check               # Type check all packages
+just format              # Format all code
+
+# Per-package (from within packages/ subdirectory)
+cd packages/ccl && gleam build
+cd packages/ccl_test_runner && gleam test
 ```
 
 ## Just Commands
 
 ```bash
-just deps                # Install dependencies
-just build               # Build project
-just test                # Run all tests (startest + JSON suite)
-just format              # Format code
-just check               # Type check
+just deps                # Install dependencies for all packages
+just build               # Build all packages
+just build-ccl           # Build CCL library only
+just build-runner        # Build test runner only
+just test                # Run all tests
+just test-ccl            # Run CCL library tests only
+just test-runner         # Run test runner tests only
+just format              # Format all code
+just check               # Type check all packages
 just run <dir>           # Run CLI test runner against directory
 just run-tests           # Run against default test data
 just ci                  # Full CI check (format, build, test)
@@ -28,31 +38,37 @@ just ci                  # Full CI check (format, build, test)
 ## Project Structure
 
 ```
-src/
-├── ccl/                       # CCL library (the real implementation)
-│   ├── types.gleam            # Entry, CCLValue (String|Object|List), CCL type alias
-│   ├── parser.gleam           # parse() — indentation-aware, two-context parsing
-│   ├── hierarchy.gleam        # build_hierarchy() — recursive fixed-point
-│   ├── access.gleam           # get_string, get_int, get_bool, get_float, get_list
-│   └── format.gleam           # print (structure-preserving), canonical_format
-├── test_runner/               # Test runner infrastructure (used by both startest and CLI)
-│   ├── runner.gleam           # Test execution against ccl/ library
-│   ├── loader.gleam           # JSON test suite loading
-│   ├── filter.gleam           # Capability-based test filtering
-│   └── types.gleam            # Test-specific types (TestCase, Expected, etc.)
-├── cli/                       # CLI commands
-│   ├── commands.gleam         # run/list/stats commands
-│   └── flags.gleam            # CLI flag definitions
-├── tui/                       # Interactive TUI viewer
-│   ├── app.gleam              # Shore TUI application
-│   ├── model.gleam            # TUI state model
-│   ├── update.gleam           # TUI update logic
-│   ├── view.gleam             # TUI view rendering
-│   └── views/                 # Individual view components
-└── ccl_test_runner.gleam      # CLI entry point
-test/
-├── ccl_test_runner_test.gleam # Startest entry point + standalone unit tests
-└── ccl_json_suite_test.gleam  # Data-driven JSON suite via startest describe/it
+packages/
+├── ccl/                           # CCL library package (gleam_stdlib only)
+│   ├── gleam.toml
+│   └── src/ccl/
+│       ├── types.gleam            # Entry, CCLValue (String|Object|List), CCL type alias
+│       ├── parser.gleam           # parse() — indentation-aware, two-context parsing
+│       ├── hierarchy.gleam        # build_hierarchy() — recursive fixed-point
+│       ├── access.gleam           # get_string, get_int, get_bool, get_float, get_list
+│       └── format.gleam           # print (structure-preserving), canonical_format
+└── ccl_test_runner/               # Test runner package (depends on ccl via path)
+    ├── gleam.toml
+    ├── ccl-test-data/             # JSON test suite data
+    ├── src/
+    │   ├── ccl_test_runner.gleam  # CLI entry point
+    │   ├── test_runner/           # Test execution infrastructure
+    │   │   ├── runner.gleam       # Test execution against ccl/ library
+    │   │   ├── loader.gleam       # JSON test suite loading
+    │   │   ├── filter.gleam       # Capability-based test filtering
+    │   │   └── types.gleam        # Test-specific types (TestCase, Expected, etc.)
+    │   ├── cli/                   # CLI commands
+    │   │   ├── commands.gleam     # run/list/stats commands
+    │   │   └── flags.gleam        # CLI flag definitions
+    │   └── tui/                   # Interactive TUI viewer
+    │       ├── app.gleam          # Shore TUI application
+    │       ├── model.gleam        # TUI state model
+    │       ├── update.gleam       # TUI update logic
+    │       ├── view.gleam         # TUI view rendering
+    │       └── views/             # Individual view components
+    └── test/
+        ├── ccl_test_runner_test.gleam # Startest entry point + standalone unit tests
+        └── ccl_json_suite_test.gleam  # Data-driven JSON suite via startest describe/it
 ```
 
 ## Testing
@@ -67,21 +83,9 @@ maps each `TestCase` to `it()` or `xit()`, and delegates execution to the
 existing `test_runner/runner.gleam`.
 
 ```bash
-gleam test                                          # Run everything
-gleam test -- --test-name-filter="basic_key_value"  # Filter by test name
-gleam test -- --test-name-filter="hierarchy"        # Run hierarchy tests only
-gleam test -- ccl_json_suite                        # Run only the JSON suite file
-```
-
-Test output uses startest's hierarchical format, grouped by validation type:
-```
-CCL JSON Suite ❯ parse ❯ basic_key_value_pairs_parse
-```
-
-On failure, the source filename is included in the error message:
-```
-FAIL CCL JSON Suite ❯ parse ❯ some_failing_test
-[api_core_ccl_parsing.json] Entries mismatch
+just test                                                                  # Run everything
+cd packages/ccl_test_runner && gleam test -- --test-name-filter="basic"    # Filter by test name
+cd packages/ccl_test_runner && gleam test -- --test-name-filter="hierarchy" # Run hierarchy tests only
 ```
 
 ### `gleam run -- run` — CLI test runner (for CI, TUI, stats)
@@ -91,14 +95,14 @@ configurable capability flags. Useful for CI pipelines, interactive exploration,
 and detailed statistics.
 
 ```bash
-gleam run -- run ./ccl-test-data/                        # Run all tests
-gleam run -- run ./ccl-test-data/ --functions parse,print # Specific functions
-gleam run -- stats ./ccl-test-data/                      # Test statistics
-gleam run -- list ./ccl-test-data/                       # List test files
-gleam run -- view ./ccl-test-data/                       # Interactive TUI
+just run-tests                                  # Run all tests
+just run run ./ccl-test-data/ --functions parse,print  # Specific functions
+just stats                                      # Test statistics
+just list                                       # List test files
+just view                                       # Interactive TUI
 ```
 
-## CCL Library (`src/ccl/`)
+## CCL Library (`packages/ccl/`)
 
 The core CCL implementation follows the docs at ccl.tylerbutler.com:
 
@@ -136,24 +140,13 @@ pub type CCLValue {
 - `array_order_insertion` — Preserve insertion order
 - `indent_spaces` — 2-space indentation in output
 
-## Integration with ccl-test-data
-
-```bash
-# Via startest (development)
-gleam test
-
-# Via CLI runner (CI/exploration)
-gleam run -- run ./ccl-test-data/
-
-# Run with specific functions only
-gleam run -- run ./ccl-test-data/ --functions parse,print
-
-# Launch interactive TUI viewer
-gleam run -- view ./ccl-test-data/
-```
-
 ## Dependencies
 
+### CCL library (`packages/ccl/`)
+- `gleam_stdlib` - Standard library
+
+### Test runner (`packages/ccl_test_runner/`)
+- `ccl` - CCL library (path dependency)
 - `gleam_stdlib` - Standard library
 - `gleam_json` - JSON parsing
 - `simplifile` - File system operations

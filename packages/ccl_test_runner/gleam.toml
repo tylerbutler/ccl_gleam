@@ -1,12 +1,13 @@
 name = "ccl_test_runner"
 version = "1.0.0"
-description = "CCL implementation and test runner in Gleam"
+description = "CCL test runner, CLI, and TUI in Gleam"
 licences = ["MIT"]
 repository = { type = "github", user = "tylerbutler", repo = "ccl_gleam" }
 target = "erlang"
 gleam = ">= 1.11.0"
 
 [dependencies]
+ccl = { path = "../ccl" }
 gleam_stdlib = ">= 0.44.0 and < 2.0.0"
 gleam_json = ">= 3.0.0 and < 4.0.0"
 simplifile = ">= 2.0.0 and < 3.0.0"

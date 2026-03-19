@@ -1,4 +1,7 @@
-# CCL Test Runner justfile
+# ccl_gleam monorepo justfile
+
+ccl_dir := "packages/ccl"
+runner_dir := "packages/ccl_test_runner"
 
 # === ALIASES ===
 alias b := build
@@ -14,45 +17,69 @@ default:
 
 # === DEPENDENCIES ===
 
-# Install dependencies
+# Install dependencies for all packages
 deps:
-    gleam deps download
+    cd {{ ccl_dir }} && gleam deps download
+    cd {{ runner_dir }} && gleam deps download
 
 # === BUILD ===
 
-# Build the project
+# Build all packages
 build:
-    gleam build
+    cd {{ ccl_dir }} && gleam build
+    cd {{ runner_dir }} && gleam build
 
 # Build with warnings as errors
 build-strict:
-    gleam build --warnings-as-errors
+    cd {{ ccl_dir }} && gleam build --warnings-as-errors
+    cd {{ runner_dir }} && gleam build --warnings-as-errors
+
+# Build only the CCL library
+build-ccl:
+    cd {{ ccl_dir }} && gleam build
+
+# Build only the test runner
+build-runner:
+    cd {{ runner_dir }} && gleam build
 
 # === TESTING ===
 
-# Run unit tests
+# Run all tests
 test:
-    gleam test
+    cd {{ ccl_dir }} && gleam test
+    cd {{ runner_dir }} && gleam test
+
+# Run CCL library tests only
+test-ccl:
+    cd {{ ccl_dir }} && gleam test
+
+# Run test runner tests only
+test-runner:
+    cd {{ runner_dir }} && gleam test
 
 # === CODE QUALITY ===
 
-# Format code
+# Format all code
 format:
-    gleam format src test
+    cd {{ ccl_dir }} && gleam format src test
+    cd {{ runner_dir }} && gleam format src test
 
 # Check formatting without modifying
 format-check:
-    gleam format --check src test
+    cd {{ ccl_dir }} && gleam format --check src test
+    cd {{ runner_dir }} && gleam format --check src test
 
-# Type check without building
+# Type check all packages
 check:
-    gleam check
+    cd {{ ccl_dir }} && gleam check
+    cd {{ runner_dir }} && gleam check
 
 # === DOCUMENTATION ===
 
 # Build documentation
 docs:
-    gleam docs build
+    cd {{ ccl_dir }} && gleam docs build
+    cd {{ runner_dir }} && gleam docs build
 
 # === CHANGELOG ===
 
@@ -72,7 +99,8 @@ changelog:
 
 # Clean build artifacts
 clean:
-    gleam clean
+    cd {{ ccl_dir }} && gleam clean
+    cd {{ runner_dir }} && gleam clean
 
 # === CI ===
 
@@ -89,35 +117,31 @@ main: ci docs
 
 # Run the test runner against ccl-test-data
 run *ARGS:
-    gleam run -- {{ ARGS }}
+    cd {{ runner_dir }} && gleam run -- {{ ARGS }}
 
 # Run tests with default config (parse-only)
 run-tests DIR="./ccl-test-data/":
-    gleam run -- run {{ DIR }}
+    cd {{ runner_dir }} && gleam run -- run {{ DIR }}
 
 # Run tests for specific functions
 run-tests-with-functions DIR="./ccl-test-data/" FUNCTIONS="parse,print":
-    gleam run -- run {{ DIR }} --functions {{ FUNCTIONS }}
+    cd {{ runner_dir }} && gleam run -- run {{ DIR }} --functions {{ FUNCTIONS }}
 
 # List test files with counts
 list DIR="./ccl-test-data/":
-    gleam run -- list {{ DIR }}
+    cd {{ runner_dir }} && gleam run -- list {{ DIR }}
 
 # Show test suite statistics
 stats DIR="./ccl-test-data/":
-    gleam run -- stats {{ DIR }}
+    cd {{ runner_dir }} && gleam run -- stats {{ DIR }}
 
 # Launch interactive TUI viewer
 view DIR="./ccl-test-data/":
-    gleam run -- view {{ DIR }}
+    cd {{ runner_dir }} && gleam run -- view {{ DIR }}
 
 # Download latest CCL test data from GitHub releases
 download-tests:
-    npx ccl-test-runner-ts -f -o ./ccl-test-data
-
-# Run the debug parser to check JSON parsing
-debug-parse:
-    gleam run -m debug_parse
+    cd {{ runner_dir }} && npx ccl-test-runner-ts -f -o ./ccl-test-data
 
 # Build and run tests in one step
 all: build test
