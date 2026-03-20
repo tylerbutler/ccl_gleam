@@ -320,11 +320,7 @@ fn has_leading_tab_chars(chars: List(String)) -> Bool {
 
 /// Strip all leading whitespace (tabs and spaces) from a string.
 fn strip_all_leading_whitespace(s: String) -> String {
-  case string.first(s) {
-    Ok(" ") -> strip_all_leading_whitespace(string.drop_start(s, 1))
-    Ok("\t") -> strip_all_leading_whitespace(string.drop_start(s, 1))
-    _ -> s
-  }
+  trim_leading_whitespace(s)
 }
 
 /// Strip the minimum space-only indent from continuation lines in each entry.
@@ -373,7 +369,8 @@ fn min_leading_spaces(lines: List(String)) -> Int {
   lines
   |> list.filter(fn(line) { string.trim(line) != "" })
   |> list.map(count_leading_spaces)
-  |> list.fold(999_999, fn(acc, n) { int.min(acc, n) })
+  |> list.reduce(int.min)
+  |> result.unwrap(0)
 }
 
 /// Strip exactly n leading spaces from a string, stopping at non-space chars.

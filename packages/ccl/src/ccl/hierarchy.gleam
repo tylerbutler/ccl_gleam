@@ -111,20 +111,12 @@ fn insert_value(
         // Append to existing list
         Ok(CclList(existing)) -> {
           let new_list = list.append(existing, [value])
-          let sorted = case build_options.array_order {
-            LexicographicOrder -> sort_ccl_values(new_list)
-            _ -> new_list
-          }
-          dict.insert(acc, "", CclList(sorted))
+          dict.insert(acc, "", CclList(maybe_sort(new_list, build_options)))
         }
         // Existing non-list value with empty key — wrap both in list
         Ok(existing) -> {
           let new_list = [existing, value]
-          let sorted = case build_options.array_order {
-            LexicographicOrder -> sort_ccl_values(new_list)
-            _ -> new_list
-          }
-          dict.insert(acc, "", CclList(sorted))
+          dict.insert(acc, "", CclList(maybe_sort(new_list, build_options)))
         }
       }
     }
@@ -138,6 +130,17 @@ fn insert_value(
           dict.insert(acc, key, merge_values(existing, value, build_options))
       }
     }
+  }
+}
+
+/// Apply lexicographic sorting if configured, otherwise return as-is.
+fn maybe_sort(
+  values: List(CCLValue),
+  build_options: BuildOptions,
+) -> List(CCLValue) {
+  case build_options.array_order {
+    LexicographicOrder -> sort_ccl_values(values)
+    _ -> values
   }
 }
 
@@ -174,22 +177,14 @@ fn merge_values(
       let new_list =
         list.append(items, [new])
         |> filter_empty_strings
-      let sorted = case build_options.array_order {
-        LexicographicOrder -> sort_ccl_values(new_list)
-        _ -> new_list
-      }
-      CclList(sorted)
+      CclList(maybe_sort(new_list, build_options))
     }
     // Convert to list
     _, _ -> {
       let new_list =
         [existing, new]
         |> filter_empty_strings
-      let sorted = case build_options.array_order {
-        LexicographicOrder -> sort_ccl_values(new_list)
-        _ -> new_list
-      }
-      CclList(sorted)
+      CclList(maybe_sort(new_list, build_options))
     }
   }
 }

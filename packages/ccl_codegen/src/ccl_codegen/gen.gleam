@@ -26,6 +26,7 @@
 import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
+import gleam/result
 import gleam/string
 
 // --- Public types ---
@@ -58,10 +59,8 @@ pub type TypeDef {
 /// The source should contain a `pub type` definition with one constructor.
 /// Returns the generated decoder function as a string, or an error message.
 pub fn generate_decoder(source: String) -> Result(String, String) {
-  case parse_type_def(source) {
-    Ok(type_def) -> Ok(emit_decoder(type_def))
-    Error(e) -> Error(e)
-  }
+  parse_type_def(source)
+  |> result.map(emit_decoder)
 }
 
 /// Generate a decoder from a source file that may contain multiple types.

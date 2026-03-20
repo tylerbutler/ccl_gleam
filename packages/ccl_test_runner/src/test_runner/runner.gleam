@@ -590,12 +590,11 @@ fn run_get_string_test(
   parse_opts: ccl_types.ParseOptions,
   build_opts: ccl_types.BuildOptions,
 ) -> TestResult {
-  let key_path = path
   case expected {
     ExpectedValue(count, expected_value) -> {
       case parse_and_build_with(input, parse_opts, build_opts) {
         Ok(obj) -> {
-          case access.get_string(obj, key_path) {
+          case access.get_string(obj, path) {
             Ok(value) -> check_value_match(name, value, expected_value, count)
             Error(e) -> error_fail(name, "get_string error: " <> e, count)
           }
@@ -607,7 +606,7 @@ fn run_get_string_test(
       run_expected_error_test_with(
         name,
         input,
-        key_path,
+        path,
         count,
         parse_opts,
         build_opts,
@@ -629,12 +628,12 @@ fn run_get_int_test(
   parse_opts: ccl_types.ParseOptions,
   build_opts: ccl_types.BuildOptions,
 ) -> TestResult {
-  let key_path = path
+
   case expected {
     ExpectedInt(count, expected_value) -> {
       case parse_and_build_with(input, parse_opts, build_opts) {
         Ok(obj) -> {
-          case access.get_int(obj, key_path) {
+          case access.get_int(obj, path) {
             Ok(value) -> {
               case value == expected_value {
                 True -> TestPassed(name, count)
@@ -658,7 +657,7 @@ fn run_get_int_test(
       run_expected_error_test_with(
         name,
         input,
-        key_path,
+        path,
         count,
         parse_opts,
         build_opts,
@@ -681,35 +680,14 @@ fn run_get_bool_test(
   build_opts: ccl_types.BuildOptions,
   access_opts: ccl_types.AccessOptions,
 ) -> TestResult {
-  let key_path = path
+
   case expected {
-    ExpectedBool(count, expected_value) -> {
+    ExpectedBool(count, expected_value)
+    | ExpectedBoolean(count, expected_value)
+    -> {
       case parse_and_build_with(input, parse_opts, build_opts) {
         Ok(obj) -> {
-          case access.get_bool_with(obj, key_path, access_opts) {
-            Ok(value) -> {
-              case value == expected_value {
-                True -> TestPassed(name, count)
-                False ->
-                  mismatch(
-                    name,
-                    "Value mismatch",
-                    string.inspect(value),
-                    string.inspect(expected_value),
-                    count,
-                  )
-              }
-            }
-            Error(e) -> error_fail(name, "get_bool error: " <> e, count)
-          }
-        }
-        Error(e) -> error_fail(name, "Parse error: " <> e, count)
-      }
-    }
-    ExpectedBoolean(count, expected_value) -> {
-      case parse_and_build_with(input, parse_opts, build_opts) {
-        Ok(obj) -> {
-          case access.get_bool_with(obj, key_path, access_opts) {
+          case access.get_bool_with(obj, path, access_opts) {
             Ok(value) -> {
               case value == expected_value {
                 True -> TestPassed(name, count)
@@ -733,7 +711,7 @@ fn run_get_bool_test(
       run_expected_error_test_with(
         name,
         input,
-        key_path,
+        path,
         count,
         parse_opts,
         build_opts,
@@ -759,13 +737,13 @@ fn run_get_float_test(
   parse_opts: ccl_types.ParseOptions,
   build_opts: ccl_types.BuildOptions,
 ) -> TestResult {
-  let key_path = path
+
   case expected {
     ExpectedFloat(count, expected_value) -> {
       run_float_comparison(
         name,
         input,
-        key_path,
+        path,
         count,
         expected_value,
         parse_opts,
@@ -777,7 +755,7 @@ fn run_get_float_test(
       run_float_comparison(
         name,
         input,
-        key_path,
+        path,
         count,
         expected_value,
         parse_opts,
@@ -788,7 +766,7 @@ fn run_get_float_test(
       run_expected_error_test_with(
         name,
         input,
-        key_path,
+        path,
         count,
         parse_opts,
         build_opts,
@@ -811,12 +789,12 @@ fn run_get_list_test(
   build_opts: ccl_types.BuildOptions,
   access_opts: ccl_types.AccessOptions,
 ) -> TestResult {
-  let key_path = path
+
   case expected {
     ExpectedList(count, expected_list) -> {
       case parse_and_build_with(input, parse_opts, build_opts) {
         Ok(obj) -> {
-          case access.get_list_with(obj, key_path, access_opts) {
+          case access.get_list_with(obj, path, access_opts) {
             Ok(value) -> {
               case value == expected_list {
                 True -> TestPassed(name, count)
@@ -840,7 +818,7 @@ fn run_get_list_test(
       run_expected_error_test_with(
         name,
         input,
-        key_path,
+        path,
         count,
         parse_opts,
         build_opts,
@@ -873,11 +851,8 @@ fn parse_and_build_with(
   parse_opts: ccl_types.ParseOptions,
   build_opts: ccl_types.BuildOptions,
 ) -> Result(ccl_types.CCL, String) {
-  case parser.parse_with(input, parse_opts) {
-    Ok(entries) ->
-      Ok(hierarchy.build_hierarchy_with(entries, build_opts, parse_opts))
-    Error(e) -> Error(e)
-  }
+  parser.parse_with(input, parse_opts)
+  |> result.map(hierarchy.build_hierarchy_with(_, build_opts, parse_opts))
 }
 
 /// Run a test that expects an error result, with options.
@@ -911,7 +886,7 @@ fn run_expected_error_test_with(
 fn run_float_comparison(
   name: String,
   input: String,
-  key_path: List(String),
+  path: List(String),
   count: Int,
   expected_value: Float,
   parse_opts: ccl_types.ParseOptions,
@@ -919,7 +894,7 @@ fn run_float_comparison(
 ) -> TestResult {
   case parse_and_build_with(input, parse_opts, build_opts) {
     Ok(obj) -> {
-      case access.get_float(obj, key_path) {
+      case access.get_float(obj, path) {
         Ok(value) -> {
           let diff = float_abs(value -. expected_value)
           case diff <. 0.0001 {
