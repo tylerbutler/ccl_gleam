@@ -33,19 +33,53 @@ just deps
 just ci
 ```
 
+## Monorepo Structure
+
+This repository contains two Gleam packages:
+
+| Package | Path | Description |
+|---------|------|-------------|
+| `ccl` | `packages/ccl/` | Core CCL library (parser, hierarchy, access, format) |
+| `ccl_test_runner` | `packages/ccl_test_runner/` | Test runner, CLI, and TUI (depends on `ccl` via path) |
+
+The test runner depends on the CCL library via a path dependency in its `gleam.toml`:
+```toml
+ccl = { path = "../ccl" }
+```
+
 ## Development Workflow
 
 ### Daily Development
 
 ```bash
-# Check your code compiles
+# Check all code compiles
 just check
 
-# Run tests
+# Run all tests
 just test
 
-# Format code
+# Format all code
 just format
+```
+
+### Working on the CCL library
+
+```bash
+# Build only the CCL package
+just build-ccl
+
+# Run CCL library tests
+just test-ccl
+```
+
+### Working on the test runner
+
+```bash
+# Build only the test runner
+just build-runner
+
+# Run test runner tests
+just test-runner
 ```
 
 ### Before Committing
@@ -62,27 +96,6 @@ just pr
 just main
 ```
 
-## Project Structure
-
-```
-.
-├── src/
-│   ├── ccl_test_runner.gleam   # CLI entry point
-│   ├── test_runner.gleam       # Core test execution
-│   ├── test_loader.gleam       # JSON test loading
-│   ├── test_filter.gleam       # Capability filtering
-│   ├── test_types.gleam        # Type definitions
-│   ├── cli/                    # CLI commands and flags
-│   └── tui/                    # TUI viewer
-├── test/
-│   └── ccl_test_runner_test.gleam
-├── packages/
-│   └── ccl_types/              # Shared types
-├── .claude/commands/           # Custom Claude commands
-├── gleam.toml
-└── justfile
-```
-
 ## Running the Test Runner
 
 ```bash
@@ -90,10 +103,10 @@ just main
 just run-tests
 
 # Run against specific directory
-just run ../ccl-test-data/generated_tests/
+just run-tests ./custom-test-data/
 
 # Run with specific functions
-just run-tests-with-functions ../ccl-test-data/generated_tests/ parse,print
+just run-tests-with-functions ./ccl-test-data/ parse,print
 
 # Launch TUI viewer
 just view
@@ -133,11 +146,11 @@ case result {
 ## Testing
 
 ```bash
-# Run all tests
+# Run all tests across both packages
 just test
 
-# Run specific test module
-gleam test -- --filter "loader"
+# Run specific test module (from test runner package)
+cd packages/ccl_test_runner && gleam test -- --test-name-filter="loader"
 ```
 
 ## Commit Messages
@@ -151,15 +164,6 @@ docs: update CLI usage examples
 ```
 
 ## Troubleshooting
-
-### Test Data Not Found
-
-Ensure ccl-test-data is cloned as a sibling directory:
-
-```bash
-cd ..
-git clone <ccl-test-data-url>
-```
 
 ### Build Errors
 
