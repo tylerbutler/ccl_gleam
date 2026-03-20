@@ -628,7 +628,6 @@ fn run_get_int_test(
   parse_opts: ccl_types.ParseOptions,
   build_opts: ccl_types.BuildOptions,
 ) -> TestResult {
-
   case expected {
     ExpectedInt(count, expected_value) -> {
       case parse_and_build_with(input, parse_opts, build_opts) {
@@ -680,11 +679,8 @@ fn run_get_bool_test(
   build_opts: ccl_types.BuildOptions,
   access_opts: ccl_types.AccessOptions,
 ) -> TestResult {
-
   case expected {
-    ExpectedBool(count, expected_value)
-    | ExpectedBoolean(count, expected_value)
-    -> {
+    ExpectedBool(count, expected_value) | ExpectedBoolean(count, expected_value) -> {
       case parse_and_build_with(input, parse_opts, build_opts) {
         Ok(obj) -> {
           case access.get_bool_with(obj, path, access_opts) {
@@ -737,7 +733,6 @@ fn run_get_float_test(
   parse_opts: ccl_types.ParseOptions,
   build_opts: ccl_types.BuildOptions,
 ) -> TestResult {
-
   case expected {
     ExpectedFloat(count, expected_value) -> {
       run_float_comparison(
@@ -789,7 +784,6 @@ fn run_get_list_test(
   build_opts: ccl_types.BuildOptions,
   access_opts: ccl_types.AccessOptions,
 ) -> TestResult {
-
   case expected {
     ExpectedList(count, expected_list) -> {
       case parse_and_build_with(input, parse_opts, build_opts) {
