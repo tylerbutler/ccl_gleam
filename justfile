@@ -2,6 +2,7 @@
 
 ccl_dir := "packages/ccl"
 runner_dir := "packages/ccl_test_runner"
+codegen_dir := "packages/ccl_codegen"
 
 # === ALIASES ===
 alias b := build
@@ -21,6 +22,7 @@ default:
 deps:
     cd {{ ccl_dir }} && gleam deps download
     cd {{ runner_dir }} && gleam deps download
+    cd {{ codegen_dir }} && gleam deps download
 
 # === BUILD ===
 
@@ -28,11 +30,13 @@ deps:
 build:
     cd {{ ccl_dir }} && gleam build
     cd {{ runner_dir }} && gleam build
+    cd {{ codegen_dir }} && gleam build
 
 # Build with warnings as errors
 build-strict:
     cd {{ ccl_dir }} && gleam build --warnings-as-errors
     cd {{ runner_dir }} && gleam build --warnings-as-errors
+    cd {{ codegen_dir }} && gleam build --warnings-as-errors
 
 # Build only the CCL library
 build-ccl:
@@ -42,12 +46,17 @@ build-ccl:
 build-runner:
     cd {{ runner_dir }} && gleam build
 
+# Build only the codegen
+build-codegen:
+    cd {{ codegen_dir }} && gleam build
+
 # === TESTING ===
 
 # Run all tests
 test:
     cd {{ ccl_dir }} && gleam test
     cd {{ runner_dir }} && gleam test
+    cd {{ codegen_dir }} && gleam test
 
 # Run CCL library tests only
 test-ccl:
@@ -57,22 +66,29 @@ test-ccl:
 test-runner:
     cd {{ runner_dir }} && gleam test
 
+# Run codegen tests only
+test-codegen:
+    cd {{ codegen_dir }} && gleam test
+
 # === CODE QUALITY ===
 
 # Format all code
 format:
     cd {{ ccl_dir }} && gleam format src test
     cd {{ runner_dir }} && gleam format src test
+    cd {{ codegen_dir }} && gleam format src test
 
 # Check formatting without modifying
 format-check:
     cd {{ ccl_dir }} && gleam format --check src test
     cd {{ runner_dir }} && gleam format --check src test
+    cd {{ codegen_dir }} && gleam format --check src test
 
 # Type check all packages
 check:
     cd {{ ccl_dir }} && gleam check
     cd {{ runner_dir }} && gleam check
+    cd {{ codegen_dir }} && gleam check
 
 # === DOCUMENTATION ===
 
@@ -80,6 +96,7 @@ check:
 docs:
     cd {{ ccl_dir }} && gleam docs build
     cd {{ runner_dir }} && gleam docs build
+    cd {{ codegen_dir }} && gleam docs build
 
 # === CHANGELOG ===
 
@@ -101,6 +118,7 @@ changelog:
 clean:
     cd {{ ccl_dir }} && gleam clean
     cd {{ runner_dir }} && gleam clean
+    cd {{ codegen_dir }} && gleam clean
 
 # === CI ===
 
@@ -145,3 +163,9 @@ download-tests:
 
 # Build and run tests in one step
 all: build test
+
+# === CCL CODEGEN ===
+
+# Generate a decoder for a type in a Gleam source file
+generate FILE TYPE:
+    cd {{ codegen_dir }} && gleam run -- generate {{ FILE }} {{ TYPE }}

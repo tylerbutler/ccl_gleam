@@ -7,6 +7,7 @@ import ccl/types.{Entry}
 pub fn main() {
   startest.run(startest.default_config())
 }
+
 pub fn parse_basic_key_value_test() {
   let input = "key = value"
   let result = parser.parse(input)
