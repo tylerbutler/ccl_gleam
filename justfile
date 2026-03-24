@@ -1,6 +1,5 @@
 # ccl_gleam monorepo justfile
 
-ccl_dir := "packages/ccl"
 runner_dir := "packages/ccl_test_runner"
 codegen_dir := "packages/ccl_codegen"
 
@@ -20,7 +19,7 @@ default:
 
 # Install dependencies for all packages
 deps:
-    cd {{ ccl_dir }} && gleam deps download
+    gleam deps download
     cd {{ runner_dir }} && gleam deps download
     cd {{ codegen_dir }} && gleam deps download
 
@@ -28,19 +27,19 @@ deps:
 
 # Build all packages
 build:
-    cd {{ ccl_dir }} && gleam build
+    gleam build
     cd {{ runner_dir }} && gleam build
     cd {{ codegen_dir }} && gleam build
 
 # Build with warnings as errors
 build-strict:
-    cd {{ ccl_dir }} && gleam build --warnings-as-errors
+    gleam build --warnings-as-errors
     cd {{ runner_dir }} && gleam build --warnings-as-errors
     cd {{ codegen_dir }} && gleam build --warnings-as-errors
 
 # Build only the CCL library
 build-ccl:
-    cd {{ ccl_dir }} && gleam build
+    gleam build
 
 # Build only the test runner
 build-runner:
@@ -54,13 +53,13 @@ build-codegen:
 
 # Run all tests
 test:
-    cd {{ ccl_dir }} && gleam test
+    gleam test
     cd {{ runner_dir }} && gleam test
     cd {{ codegen_dir }} && gleam test
 
 # Run CCL library tests only
 test-ccl:
-    cd {{ ccl_dir }} && gleam test
+    gleam test
 
 # Run test runner tests only
 test-runner:
@@ -74,19 +73,19 @@ test-codegen:
 
 # Format all code
 format:
-    cd {{ ccl_dir }} && gleam format src test
+    gleam format src test
     cd {{ runner_dir }} && gleam format src test
     cd {{ codegen_dir }} && gleam format src test
 
 # Check formatting without modifying
 format-check:
-    cd {{ ccl_dir }} && gleam format --check src test
+    gleam format --check src test
     cd {{ runner_dir }} && gleam format --check src test
     cd {{ codegen_dir }} && gleam format --check src test
 
 # Type check all packages
 check:
-    cd {{ ccl_dir }} && gleam check
+    gleam check
     cd {{ runner_dir }} && gleam check
     cd {{ codegen_dir }} && gleam check
 
@@ -94,7 +93,7 @@ check:
 
 # Build documentation
 docs:
-    cd {{ ccl_dir }} && gleam docs build
+    gleam docs build
     cd {{ runner_dir }} && gleam docs build
     cd {{ codegen_dir }} && gleam docs build
 
@@ -116,7 +115,7 @@ changelog:
 
 # Clean build artifacts
 clean:
-    cd {{ ccl_dir }} && gleam clean
+    gleam clean
     cd {{ runner_dir }} && gleam clean
     cd {{ codegen_dir }} && gleam clean
 
