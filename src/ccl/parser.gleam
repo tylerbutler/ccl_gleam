@@ -4,10 +4,10 @@
 /// 1. Find first `=` on a line to split key from value
 /// 2. Track indentation to detect continuation lines (indent > baseline N)
 /// 3. Two parsing contexts:
-///    - Top-level (`parse`): N = 0 (`toplevel_indent_strip` behavior)
+///    - Top-level (`parse`): N = 0 (`toplevel_indent_strip` behaviour)
 ///    - Nested (`parse_value`): N = first content line's indentation
 ///
-/// Behaviors implemented:
+/// Behaviours implemented:
 /// - `toplevel_indent_strip`: top-level baseline is always 0
 /// - `crlf_normalize_to_lf`: normalize \r\n to \n before parsing
 /// - `tabs_as_whitespace`: both spaces and tabs count as whitespace
@@ -483,7 +483,7 @@ fn trim_trailing(s: String) -> String {
 }
 
 /// Count leading whitespace characters (spaces and tabs).
-/// Per `tabs_as_whitespace` behavior: both count.
+/// Per `tabs_as_whitespace` behaviour: both count.
 fn count_leading_whitespace(line: String) -> Int {
   count_ws_chars(string.to_graphemes(line), 0)
 }
@@ -535,13 +535,13 @@ fn has_continuation_after(lines: List(String), baseline: Int) -> Bool {
 }
 
 /// Normalize CRLF line endings to LF.
-/// Per `crlf_normalize_to_lf` behavior.
+/// Per `crlf_normalize_to_lf` behaviour.
 fn normalize_line_endings(text: String) -> String {
   string.replace(text, "\r\n", "\n")
 }
 
 /// Normalize tabs to spaces.
-/// Per `tabs_as_whitespace` behavior: all tabs are replaced with spaces.
+/// Per `tabs_as_whitespace` behaviour: all tabs are replaced with spaces.
 fn normalize_tabs(text: String) -> String {
   string.replace(text, "\t", " ")
 }

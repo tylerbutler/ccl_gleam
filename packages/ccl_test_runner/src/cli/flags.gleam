@@ -11,11 +11,11 @@ Available: parse, print, build_hierarchy, get_string, get_int, get_bool, get_flo
   )
 }
 
-/// Flag for specifying supported behaviors
-pub fn behaviors_flag() -> glint.Flag(List(String)) {
-  glint.strings_flag("behaviors")
+/// Flag for specifying supported behaviours
+pub fn behaviours_flag() -> glint.Flag(List(String)) {
+  glint.strings_flag("behaviours")
   |> glint.flag_default(["crlf_normalize_to_lf", "toplevel_indent_strip"])
-  |> glint.flag_help("Comma-separated list of supported behaviors")
+  |> glint.flag_help("Comma-separated list of supported behaviours")
 }
 
 /// Flag for specifying supported features

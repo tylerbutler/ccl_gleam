@@ -3,8 +3,8 @@ import gleam/list
 import test_runner/types.{type ImplementationConfig, type TestCase}
 
 /// Check if a test case is compatible with the implementation config.
-/// config.behaviors lists ALL behaviors we can adapt to (both sides of pairs).
-/// The runner derives the right options per-test from the test's behaviors.
+/// config.behaviours lists ALL behaviours we can adapt to (both sides of pairs).
+/// The runner derives the right options per-test from the test's behaviours.
 pub fn is_compatible(config: ImplementationConfig, tc: TestCase) -> Bool {
   // All required functions must be implemented
   let has_functions =
@@ -16,13 +16,14 @@ pub fn is_compatible(config: ImplementationConfig, tc: TestCase) -> Bool {
     required -> list.any(required, fn(v) { list.contains(config.variants, v) })
   }
 
-  // Check behavior compatibility — we must support at least one required behavior
-  let behavior_ok = case tc.behaviors {
+  // Check behaviour compatibility — we must support at least one required behaviour
+  let behaviour_ok = case tc.behaviours {
     [] -> True
-    required -> list.any(required, fn(b) { list.contains(config.behaviors, b) })
+    required ->
+      list.any(required, fn(b) { list.contains(config.behaviours, b) })
   }
 
-  has_functions && variant_ok && behavior_ok
+  has_functions && variant_ok && behaviour_ok
 }
 
 /// Filter a list of tests to only those compatible with the config
@@ -50,9 +51,9 @@ fn get_skip_reason_inner(
   config: ImplementationConfig,
   tc: TestCase,
 ) -> Result(Nil, String) {
-  // No conflict checking — config.behaviors lists ALL behaviors we can adapt
+  // No conflict checking — config.behaviours lists ALL behaviours we can adapt
   // to, and the runner derives the right options per-test. We only skip if a
-  // test requires a behavior we can't support at all.
+  // test requires a behaviour we can't support at all.
 
   // Check functions
   let missing_functions =
@@ -67,12 +68,12 @@ fn get_skip_reason_inner(
     [] -> {
       // Check variants
       case tc.variants {
-        [] -> check_behaviors_supported(config, tc)
+        [] -> check_behaviours_supported(config, tc)
         req_variants -> {
           let has_variant =
             list.any(req_variants, fn(v) { list.contains(config.variants, v) })
           case has_variant {
-            True -> check_behaviors_supported(config, tc)
+            True -> check_behaviours_supported(config, tc)
             False -> Error("Missing variant: " <> format_list(req_variants))
           }
         }
@@ -81,20 +82,20 @@ fn get_skip_reason_inner(
   }
 }
 
-/// Check that we support at least one of the test's required behaviors.
-/// config.behaviors is the full set of behaviors we can adapt to.
-fn check_behaviors_supported(
+/// Check that we support at least one of the test's required behaviours.
+/// config.behaviours is the full set of behaviours we can adapt to.
+fn check_behaviours_supported(
   config: ImplementationConfig,
   tc: TestCase,
 ) -> Result(Nil, String) {
-  case tc.behaviors {
+  case tc.behaviours {
     [] -> Ok(Nil)
     required -> {
       let has_any =
-        list.any(required, fn(b) { list.contains(config.behaviors, b) })
+        list.any(required, fn(b) { list.contains(config.behaviours, b) })
       case has_any {
         True -> Ok(Nil)
-        False -> Error("Unsupported behavior: " <> format_list(required))
+        False -> Error("Unsupported behaviour: " <> format_list(required))
       }
     }
   }
@@ -113,7 +114,7 @@ fn format_list(items: List(String)) -> String {
 pub fn parse_only_config() -> ImplementationConfig {
   types.ImplementationConfig(
     functions: ["parse", "print"],
-    behaviors: ["crlf_normalize_to_lf", "toplevel_indent_strip"],
+    behaviours: ["crlf_normalize_to_lf", "toplevel_indent_strip"],
     variants: ["reference_compliant"],
     features: [],
   )
@@ -123,15 +124,15 @@ pub fn parse_only_config() -> ImplementationConfig {
 pub fn basic_config() -> ImplementationConfig {
   types.ImplementationConfig(
     functions: ["parse", "print", "build_hierarchy"],
-    behaviors: ["crlf_normalize_to_lf", "toplevel_indent_strip"],
+    behaviours: ["crlf_normalize_to_lf", "toplevel_indent_strip"],
     variants: ["reference_compliant"],
     features: [],
   )
 }
 
 /// Create a full implementation config.
-/// behaviors lists ALL behaviors we can adapt to (both sides of supported pairs).
-/// The runner derives the right options per-test from each test's behaviors.
+/// behaviours lists ALL behaviours we can adapt to (both sides of supported pairs).
+/// The runner derives the right options per-test from each test's behaviours.
 pub fn full_config() -> ImplementationConfig {
   types.ImplementationConfig(
     functions: [
@@ -139,7 +140,7 @@ pub fn full_config() -> ImplementationConfig {
       "get_int", "get_bool", "get_float", "get_list", "filter", "compose",
       "round_trip",
     ],
-    behaviors: [
+    behaviours: [
       // Line endings — both supported
       "crlf_normalize_to_lf", "crlf_preserve_literal",
       // Continuation baseline — both supported

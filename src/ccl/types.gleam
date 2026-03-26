@@ -31,10 +31,10 @@ pub type CCLValue {
 pub type CCL =
   Dict(String, CCLValue)
 
-// --- Options types for configurable behaviors ---
+// --- Options types for configurable behaviours ---
 
 /// Controls how CRLF line endings are handled during parsing.
-pub type LineEndingBehavior {
+pub type LineEndingBehaviour {
   /// Convert all \r\n to \n before parsing (cross-platform default).
   NormalizeToLf
   /// Preserve \r characters exactly as they appear.
@@ -42,7 +42,7 @@ pub type LineEndingBehavior {
 }
 
 /// Controls how tab characters are handled during parsing.
-pub type TabBehavior {
+pub type TabBehaviour {
   /// Both spaces and tabs count as whitespace for indentation.
   TabsAsWhitespace
   /// Only spaces count as whitespace; tabs are preserved as content.
@@ -51,23 +51,23 @@ pub type TabBehavior {
 
 /// Controls top-level indentation baseline during parsing.
 pub type ContinuationBaseline {
-  /// Top-level baseline is always N=0 (OCaml reference behavior).
+  /// Top-level baseline is always N=0 (OCaml reference behaviour).
   IndentStrip
   /// Top-level baseline is detected from first content line.
   IndentPreserve
 }
 
-/// Options for parsing behavior.
+/// Options for parsing behaviour.
 pub type ParseOptions {
   ParseOptions(
-    line_endings: LineEndingBehavior,
-    tab_handling: TabBehavior,
+    line_endings: LineEndingBehaviour,
+    tab_handling: TabBehaviour,
     continuation_baseline: ContinuationBaseline,
     delimiter_strategy: DelimiterStrategy,
   )
 }
 
-/// Default parse options matching current hardcoded behavior.
+/// Default parse options matching current hardcoded behaviour.
 pub fn default_parse_options() -> ParseOptions {
   ParseOptions(
     line_endings: NormalizeToLf,
@@ -98,7 +98,7 @@ pub type AccessOptions {
   AccessOptions(boolean_parsing: BooleanParsing, list_coercion: ListCoercion)
 }
 
-/// Default access options matching current hardcoded behavior.
+/// Default access options matching current hardcoded behaviour.
 pub fn default_access_options() -> AccessOptions {
   AccessOptions(boolean_parsing: BooleanStrict, list_coercion: CoercionDisabled)
 }
@@ -116,7 +116,7 @@ pub type BuildOptions {
   BuildOptions(array_order: ArrayOrder)
 }
 
-/// Default build options matching current hardcoded behavior.
+/// Default build options matching current hardcoded behaviour.
 pub fn default_build_options() -> BuildOptions {
   BuildOptions(array_order: InsertionOrder)
 }

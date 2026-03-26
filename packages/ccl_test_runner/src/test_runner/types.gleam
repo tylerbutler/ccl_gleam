@@ -30,7 +30,7 @@ pub type ExpectedNode {
 
 /// Conflicts that make a test incompatible with certain implementations
 pub type Conflicts {
-  Conflicts(behaviors: List(String))
+  Conflicts(behaviours: List(String))
 }
 
 /// A single test case from the JSON test suite
@@ -41,7 +41,7 @@ pub type TestCase {
     validation: String,
     functions: List(String),
     inputs: List(String),
-    behaviors: List(String),
+    behaviours: List(String),
     variants: List(String),
     features: List(String),
     expected: Expected,
@@ -86,11 +86,11 @@ pub type TestSuiteResult {
   )
 }
 
-/// Configuration for what functions/behaviors the implementation supports
+/// Configuration for what functions/behaviours the implementation supports
 pub type ImplementationConfig {
   ImplementationConfig(
     functions: List(String),
-    behaviors: List(String),
+    behaviours: List(String),
     variants: List(String),
     features: List(String),
   )

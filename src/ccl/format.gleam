@@ -49,7 +49,7 @@ fn format_entry(entry: Entry) -> String {
 /// Semantic-preserving canonical format. Walks the CCL tree and outputs
 /// normalized 2-space-indented form.
 ///
-/// Uses `indent_spaces` behavior (2 spaces per level).
+/// Uses `indent_spaces` behaviour (2 spaces per level).
 pub fn canonical_format(ccl: CCL) -> String {
   format_dict(ccl, 0)
   |> trim_trailing_newline
