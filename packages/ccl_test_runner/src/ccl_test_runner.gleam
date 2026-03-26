@@ -49,14 +49,14 @@ Keys:
   )
   use test_dir <- glint.named_arg("directory")
   use functions <- glint.flag(flags.functions_flag())
-  use behaviors <- glint.flag(flags.behaviors_flag())
+  use behaviours <- glint.flag(flags.behaviours_flag())
   use features <- glint.flag(flags.features_flag())
   use variants <- glint.flag(flags.variants_flag())
   use named, _args, cmd_flags <- glint.command()
 
   let dir = test_dir(named)
   let assert Ok(funcs) = functions(cmd_flags)
-  let assert Ok(behavs) = behaviors(cmd_flags)
+  let assert Ok(behavs) = behaviours(cmd_flags)
   let assert Ok(feats) = features(cmd_flags)
   let assert Ok(vars) = variants(cmd_flags)
 

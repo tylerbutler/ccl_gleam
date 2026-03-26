@@ -107,7 +107,7 @@ just view                                       # Interactive TUI
 The core CCL implementation follows the docs at ccl.tylerbutler.com:
 
 ### Core Functions (Required)
-- **`parser.parse(text)`** — Indentation-aware entry parsing with `toplevel_indent_strip` behavior (N=0 at top level, N=first content line indent for nested)
+- **`parser.parse(text)`** — Indentation-aware entry parsing with `toplevel_indent_strip` behaviour (N=0 at top level, N=first content line indent for nested)
 - **`hierarchy.build_hierarchy(entries)`** — Recursive fixed-point: values containing `=` are re-parsed until no more structure remains
 
 ### Typed Access (Optional)
@@ -131,7 +131,7 @@ pub type CCLValue {
 }
 ```
 
-### Implemented Behaviors
+### Implemented Behaviours
 - `toplevel_indent_strip` — Top-level baseline N=0
 - `crlf_normalize_to_lf` — Normalize CRLF before parsing
 - `tabs_as_whitespace` — Spaces and tabs count as whitespace

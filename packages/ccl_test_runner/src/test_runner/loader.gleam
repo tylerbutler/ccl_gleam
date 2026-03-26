@@ -43,7 +43,8 @@ fn test_case_decoder() -> decode.Decoder(TestCase) {
   use validation <- decode.field("validation", decode.string)
   use functions <- decode.field("functions", decode.list(decode.string))
   use inputs <- decode.field("inputs", decode.list(decode.string))
-  use behaviors <- decode.field("behaviors", decode.list(decode.string))
+  // JSON uses American spelling "behaviors"; map to Gleam convention "behaviours"
+  use behaviours <- decode.field("behaviors", decode.list(decode.string))
   use variants <- decode.field("variants", decode.list(decode.string))
   use features <- decode.field("features", decode.list(decode.string))
   use expected <- decode.field("expected", expected_decoder())
@@ -59,7 +60,7 @@ fn test_case_decoder() -> decode.Decoder(TestCase) {
   )
   use conflicts <- decode.optional_field(
     "conflicts",
-    Conflicts(behaviors: []),
+    Conflicts(behaviours: []),
     conflicts_decoder(),
   )
 
@@ -69,7 +70,7 @@ fn test_case_decoder() -> decode.Decoder(TestCase) {
     validation: validation,
     functions: functions,
     inputs: inputs,
-    behaviors: behaviors,
+    behaviours: behaviours,
     variants: variants,
     features: features,
     expected: expected,
@@ -81,12 +82,12 @@ fn test_case_decoder() -> decode.Decoder(TestCase) {
 
 /// Decoder for the conflicts field
 fn conflicts_decoder() -> decode.Decoder(Conflicts) {
-  use behaviors <- decode.optional_field(
+  use behaviours <- decode.optional_field(
     "behaviors",
     [],
     decode.list(decode.string),
   )
-  decode.success(Conflicts(behaviors: behaviors))
+  decode.success(Conflicts(behaviours: behaviours))
 }
 
 /// Decoder for expected results (polymorphic)

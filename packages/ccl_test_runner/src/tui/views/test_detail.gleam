@@ -75,13 +75,13 @@ fn render_test_case(
       ui.text_styled("Functions: ", Some(style.Cyan), None),
       ui.text(string.join(tc.functions, ", ")),
     ]),
-    // Behaviors (if any)
-    case tc.behaviors {
+    // Behaviours (if any)
+    case tc.behaviours {
       [] -> ui.text("")
-      behaviors ->
+      behaviours ->
         ui.row([
-          ui.text_styled("Behaviors: ", Some(style.Cyan), None),
-          ui.text(string.join(behaviors, ", ")),
+          ui.text_styled("Behaviours: ", Some(style.Cyan), None),
+          ui.text(string.join(behaviours, ", ")),
         ])
     },
     // Features (if any)

@@ -3,7 +3,7 @@
 /// These are optional library conveniences per the CCL docs.
 /// All navigate a CCL structure by path and extract typed values.
 ///
-/// Default behaviors (configurable via `_with` variants):
+/// Default behaviours (configurable via `_with` variants):
 /// - `boolean_strict`: only `true`/`false` (case-insensitive)
 /// - `list_coercion_disabled`: `get_list` errors on non-list values
 import ccl/types.{

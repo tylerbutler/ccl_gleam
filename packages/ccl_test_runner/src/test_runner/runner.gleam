@@ -25,24 +25,26 @@ import test_runner/types.{
   TestSkipped, TestSuiteResult,
 }
 
-/// Derive ParseOptions from a test case's behaviors list.
+/// Derive ParseOptions from a test case's behaviours list.
 fn parse_options_for_test(tc: TestCase) -> ccl_types.ParseOptions {
-  let line_endings = case list.contains(tc.behaviors, "crlf_preserve_literal") {
+  let line_endings = case
+    list.contains(tc.behaviours, "crlf_preserve_literal")
+  {
     True -> ccl_types.PreserveLiteral
     False -> ccl_types.NormalizeToLf
   }
-  let tab_handling = case list.contains(tc.behaviors, "tabs_as_content") {
+  let tab_handling = case list.contains(tc.behaviours, "tabs_as_content") {
     True -> ccl_types.TabsAsContent
     False -> ccl_types.TabsAsWhitespace
   }
   let continuation_baseline = case
-    list.contains(tc.behaviors, "toplevel_indent_preserve")
+    list.contains(tc.behaviours, "toplevel_indent_preserve")
   {
     True -> ccl_types.IndentPreserve
     False -> ccl_types.IndentStrip
   }
   let delimiter_strategy = case
-    list.contains(tc.behaviors, "delimiter_prefer_spaced")
+    list.contains(tc.behaviours, "delimiter_prefer_spaced")
   {
     True -> ccl_types.DelimiterPreferSpaced
     False -> ccl_types.DelimiterFirstEquals
@@ -55,14 +57,14 @@ fn parse_options_for_test(tc: TestCase) -> ccl_types.ParseOptions {
   )
 }
 
-/// Derive AccessOptions from a test case's behaviors list.
+/// Derive AccessOptions from a test case's behaviours list.
 fn access_options_for_test(tc: TestCase) -> ccl_types.AccessOptions {
-  let boolean_parsing = case list.contains(tc.behaviors, "boolean_lenient") {
+  let boolean_parsing = case list.contains(tc.behaviours, "boolean_lenient") {
     True -> ccl_types.BooleanLenient
     False -> ccl_types.BooleanStrict
   }
   let list_coercion = case
-    list.contains(tc.behaviors, "list_coercion_enabled")
+    list.contains(tc.behaviours, "list_coercion_enabled")
   {
     True -> ccl_types.CoercionEnabled
     False -> ccl_types.CoercionDisabled
@@ -70,10 +72,10 @@ fn access_options_for_test(tc: TestCase) -> ccl_types.AccessOptions {
   ccl_types.AccessOptions(boolean_parsing:, list_coercion:)
 }
 
-/// Derive BuildOptions from a test case's behaviors list.
+/// Derive BuildOptions from a test case's behaviours list.
 fn build_options_for_test(tc: TestCase) -> ccl_types.BuildOptions {
   let array_order = case
-    list.contains(tc.behaviors, "array_order_lexicographic")
+    list.contains(tc.behaviours, "array_order_lexicographic")
   {
     True -> ccl_types.LexicographicOrder
     False -> ccl_types.InsertionOrder
