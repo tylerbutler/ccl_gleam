@@ -16,6 +16,11 @@ jobs:
 
       - name: Setup environment
         uses: ./.github/actions/setup
+        with:
+          node: "true"
+
+      - name: Download test data
+        run: just update-test-data
 
       - name: Check formatting
         run: just format-check

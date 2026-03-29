@@ -32,6 +32,7 @@ just format              # Format all code
 just check               # Type check all packages
 just run <dir>           # Run CLI test runner against directory
 just run-tests           # Run against default test data
+just update-test-data    # Download latest test data from GitHub releases
 just ci                  # Full CI check (format, build, test)
 ```
 
@@ -49,7 +50,7 @@ packages/
 │       └── format.gleam           # print (structure-preserving), canonical_format
 └── ccl_test_runner/               # Test runner package (depends on ccl via path)
     ├── gleam.toml
-    ├── ccl-test-data/             # JSON test suite data
+    ├── ccl-test-data/             # JSON test suite data (downloaded, not committed)
     ├── src/
     │   ├── ccl_test_runner.gleam  # CLI entry point
     │   ├── test_runner/           # Test execution infrastructure

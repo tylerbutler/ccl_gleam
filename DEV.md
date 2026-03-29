@@ -11,6 +11,7 @@ Ensure you have the following installed:
 | Erlang/OTP | 27+ | BEAM runtime |
 | Gleam | 1.11.0+ | Compiler and tooling |
 | just | 1.38.0+ | Task runner |
+| Node.js | 22+ | Downloading CCL test data |
 
 **Recommended:** Use [mise](https://mise.jdx.dev/) or [asdf](https://asdf-vm.com/) with the provided `.mise.toml` file.
 
@@ -26,8 +27,11 @@ mise install
 git clone <repo-url>
 cd ccl_gleam
 
-# Install dependencies
+# Install dependencies (also downloads test data)
 just deps
+
+# Or download test data separately
+just update-test-data
 
 # Verify everything works
 just ci
@@ -171,4 +175,14 @@ docs: update CLI usage examples
 just clean
 just deps
 just build
+```
+
+### Missing Test Data
+
+Test data is not checked into the repository — it's downloaded from
+[CatConfLang/ccl-test-data](https://github.com/CatConfLang/ccl-test-data)
+GitHub releases. If tests fail because test data is missing, run:
+
+```bash
+just update-test-data
 ```
