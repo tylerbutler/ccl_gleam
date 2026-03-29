@@ -48,6 +48,7 @@ Keys:
   q               Quit",
   )
   use test_dir <- glint.named_arg("directory")
+  use config_path <- glint.flag(flags.config_flag())
   use functions <- glint.flag(flags.functions_flag())
   use behaviours <- glint.flag(flags.behaviours_flag())
   use features <- glint.flag(flags.features_flag())
@@ -55,12 +56,13 @@ Keys:
   use named, _args, cmd_flags <- glint.command()
 
   let dir = test_dir(named)
+  let assert Ok(cfg_path) = config_path(cmd_flags)
   let assert Ok(funcs) = functions(cmd_flags)
   let assert Ok(behavs) = behaviours(cmd_flags)
   let assert Ok(feats) = features(cmd_flags)
   let assert Ok(vars) = variants(cmd_flags)
 
-  let config = build_config(funcs, behavs, feats, vars)
+  let config = build_config(cfg_path, funcs, behavs, feats, vars)
 
   case app.start(dir, config) {
     Ok(_) -> Success

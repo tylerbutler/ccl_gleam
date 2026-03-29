@@ -1,0 +1,44 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/CatConfLang/ccl-test-data/main/ccl-config-schema.json
+
+# CCL Implementation Configuration
+# Declares capabilities for the Gleam CCL implementation.
+# Used by the test runner to filter tests to only those this implementation supports.
+
+# Required: Functions this implementation supports
+functions:
+  - parse
+  - build_hierarchy
+  - get_string
+  - get_int
+  - get_bool
+  - get_float
+  - get_list
+  - filter
+  - canonical_format
+
+# Optional: Features this implementation supports
+features:
+  - comments
+  - multiline
+  - empty_keys
+  - unicode
+
+# Optional: Behavioral choices (both sides of supported pairs)
+behaviors:
+  - boolean_strict
+  - boolean_lenient
+  - crlf_normalize_to_lf
+  - crlf_preserve_literal
+  - toplevel_indent_strip
+  - toplevel_indent_preserve
+  - tabs_as_whitespace
+  - tabs_as_content
+  - list_coercion_disabled
+  - list_coercion_enabled
+  - array_order_insertion
+  - array_order_lexicographic
+  - indent_spaces
+
+# Optional: Specification variant
+variants:
+  - reference_compliant

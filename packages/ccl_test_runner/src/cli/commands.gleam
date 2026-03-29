@@ -1,6 +1,7 @@
 /// CLI command implementations for CCL test runner.
 ///
-/// No more mock implementation — calls ccl/ library directly via test_runner.
+/// Loads capability configuration from ccl-config.yaml by default.
+/// CLI flags override individual fields from the config file.
 import birch
 import cli/flags
 import gleam/dict
@@ -11,6 +12,7 @@ import gleam/result
 import gleam/string
 import glint
 import simplifile
+import test_runner/config
 import test_runner/filter
 import test_runner/loader
 import test_runner/runner
@@ -24,36 +26,44 @@ pub type CommandResult {
   Failure(message: String)
 }
 
-/// Build implementation config from flag values
+/// Build implementation config by loading from YAML and applying CLI overrides.
+///
+/// When a CLI flag is provided (non-empty list), it replaces the corresponding
+/// field from the config file. When no flags are provided, the config file
+/// values are used as-is. If the config file cannot be loaded, falls back to
+/// the hardcoded full_config.
 pub fn build_config(
+  config_path: String,
   functions: List(String),
   behaviours: List(String),
   features: List(String),
   variants: List(String),
 ) -> ImplementationConfig {
-  let final_functions = case functions {
-    [] -> [
-      "parse", "print", "build_hierarchy", "canonical_format", "get_string",
-      "get_int", "get_bool", "get_float", "get_list",
-    ]
-    funcs -> funcs
-  }
-
-  let final_behaviours = case behaviours {
-    [] -> [
-      "crlf_normalize_to_lf", "toplevel_indent_strip", "boolean_strict",
-      "tabs_as_whitespace", "list_coercion_disabled", "array_order_insertion",
-      "indent_spaces",
-    ]
-    behavs -> behavs
+  let base = case config.load_config(config_path) {
+    Ok(cfg) -> cfg
+    Error(reason) -> {
+      birch.warn_m("Failed to load config file, using built-in defaults", [
+        #("path", config_path),
+        #("reason", reason),
+      ])
+      filter.full_config()
+    }
   }
 
   ImplementationConfig(
-    functions: final_functions,
-    behaviours: final_behaviours,
-    variants: variants,
-    features: features,
+    functions: override_or_keep(functions, base.functions),
+    behaviours: override_or_keep(behaviours, base.behaviours),
+    features: override_or_keep(features, base.features),
+    variants: override_or_keep(variants, base.variants),
   )
+}
+
+/// Use the override list if non-empty, otherwise keep the base value.
+fn override_or_keep(override: List(String), base: List(String)) -> List(String) {
+  case override {
+    [] -> base
+    values -> values
+  }
 }
 
 /// Run command - executes tests against the implementation
@@ -64,6 +74,7 @@ pub fn run_command() -> glint.Command(CommandResult) {
 Executes the test suite and reports results with pass/fail/skip counts.",
   )
   use test_dir <- glint.named_arg("directory")
+  use config_path <- glint.flag(flags.config_flag())
   use functions <- glint.flag(flags.functions_flag())
   use behaviours <- glint.flag(flags.behaviours_flag())
   use features <- glint.flag(flags.features_flag())
@@ -71,12 +82,13 @@ Executes the test suite and reports results with pass/fail/skip counts.",
   use named, _args, cmd_flags <- glint.command()
 
   let dir = test_dir(named)
+  let assert Ok(cfg_path) = config_path(cmd_flags)
   let assert Ok(funcs) = functions(cmd_flags)
   let assert Ok(behavs) = behaviours(cmd_flags)
   let assert Ok(feats) = features(cmd_flags)
   let assert Ok(vars) = variants(cmd_flags)
 
-  let config = build_config(funcs, behavs, feats, vars)
+  let config = build_config(cfg_path, funcs, behavs, feats, vars)
   run_tests(dir, config)
 }
 
@@ -171,6 +183,7 @@ pub fn stats_command() -> glint.Command(CommandResult) {
 Displays counts by validation type, function tags, and behaviours.",
   )
   use test_dir <- glint.named_arg("directory")
+  use config_path <- glint.flag(flags.config_flag())
   use functions <- glint.flag(flags.functions_flag())
   use behaviours <- glint.flag(flags.behaviours_flag())
   use features <- glint.flag(flags.features_flag())
@@ -178,12 +191,13 @@ Displays counts by validation type, function tags, and behaviours.",
   use named, _args, cmd_flags <- glint.command()
 
   let dir = test_dir(named)
+  let assert Ok(cfg_path) = config_path(cmd_flags)
   let assert Ok(funcs) = functions(cmd_flags)
   let assert Ok(behavs) = behaviours(cmd_flags)
   let assert Ok(feats) = features(cmd_flags)
   let assert Ok(vars) = variants(cmd_flags)
 
-  let config = build_config(funcs, behavs, feats, vars)
+  let config = build_config(cfg_path, funcs, behavs, feats, vars)
   show_stats(dir, config)
 }
 

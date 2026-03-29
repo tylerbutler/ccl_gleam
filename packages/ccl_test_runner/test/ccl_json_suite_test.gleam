@@ -12,6 +12,9 @@
 /// On failure the source filename is included in the error message so you
 /// can locate the test definition quickly.
 ///
+/// Configuration is loaded from ccl-config.yaml at the project root. If the
+/// file is missing, falls back to the built-in full_config().
+///
 /// The CLI test runner (`gleam run -- run`) is still available for the TUI,
 /// stats, and other specialized use cases.
 import gleam/dict
@@ -20,6 +23,7 @@ import gleam/result
 import gleam/string
 import startest
 import startest/assertion_error.{AssertionError}
+import test_runner/config
 import test_runner/filter
 import test_runner/loader
 import test_runner/runner
@@ -43,7 +47,10 @@ pub fn main() {
 /// Tests that are incompatible with the current implementation config
 /// are marked as skipped via `xit`.
 pub fn ccl_json_suite_tests() {
-  let config = filter.full_config()
+  let config = case config.load_config("../../ccl-config.yaml") {
+    Ok(cfg) -> cfg
+    Error(_) -> filter.full_config()
+  }
 
   let files = case loader.list_test_files(test_data_dir) {
     Ok(f) -> f
