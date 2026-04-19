@@ -319,33 +319,24 @@ fn build_value(lines: List(String), options: ParseOptions) -> String {
   result
 }
 
-/// Strip leading whitespace from a continuation line if it contains tabs.
-/// Lines with tab-based indentation have ALL leading whitespace stripped
-/// (the tabs were structural indentation, not content).
-/// Lines with space-only indentation are preserved as-is.
+/// Map each leading tab on a continuation line to a single space (OCaml-canonical
+/// `continuation_tab_to_space`). Leading spaces pass through unchanged. Stops at
+/// the first non-whitespace character.
 fn strip_tab_indentation(line: String) -> String {
-  case has_leading_tab(line) {
-    True -> strip_all_leading_whitespace(line)
-    False -> line
-  }
+  let #(mapped, rest) =
+    map_leading_tabs_to_spaces(string.to_graphemes(line), "")
+  mapped <> rest
 }
 
-/// Check if a line has any tab characters in its leading whitespace.
-fn has_leading_tab(line: String) -> Bool {
-  has_leading_tab_chars(string.to_graphemes(line))
-}
-
-fn has_leading_tab_chars(chars: List(String)) -> Bool {
+fn map_leading_tabs_to_spaces(
+  chars: List(String),
+  acc: String,
+) -> #(String, String) {
   case chars {
-    ["\t", ..] -> True
-    [" ", ..rest] -> has_leading_tab_chars(rest)
-    _ -> False
+    ["\t", ..rest] -> map_leading_tabs_to_spaces(rest, acc <> " ")
+    [" ", ..rest] -> map_leading_tabs_to_spaces(rest, acc <> " ")
+    _ -> #(acc, string.concat(chars))
   }
-}
-
-/// Strip all leading whitespace (tabs and spaces) from a string.
-fn strip_all_leading_whitespace(s: String) -> String {
-  trim_leading_whitespace(s)
 }
 
 /// Strip the minimum space-only indent from continuation lines in each entry.

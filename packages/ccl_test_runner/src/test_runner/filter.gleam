@@ -10,6 +10,10 @@ pub fn is_compatible(config: ImplementationConfig, tc: TestCase) -> Bool {
   let has_functions =
     list.all(tc.functions, fn(f) { list.contains(config.functions, f) })
 
+  // All required features must be declared (features are capabilities, not paired choices)
+  let has_features =
+    list.all(tc.features, fn(f) { list.contains(config.features, f) })
+
   // Check variant compatibility (if test requires a variant, config must have it)
   let variant_ok = case tc.variants {
     [] -> True
@@ -23,7 +27,7 @@ pub fn is_compatible(config: ImplementationConfig, tc: TestCase) -> Bool {
       list.any(required, fn(b) { list.contains(config.behaviours, b) })
   }
 
-  has_functions && variant_ok && behaviour_ok
+  has_functions && has_features && variant_ok && behaviour_ok
 }
 
 /// Filter a list of tests to only those compatible with the config
@@ -66,17 +70,32 @@ fn get_skip_reason_inner(
       Error("Missing functions: " <> format_list(funcs))
     }
     [] -> {
-      // Check variants
-      case tc.variants {
-        [] -> check_behaviours_supported(config, tc)
-        req_variants -> {
-          let has_variant =
-            list.any(req_variants, fn(v) { list.contains(config.variants, v) })
-          case has_variant {
-            True -> check_behaviours_supported(config, tc)
-            False -> Error("Missing variant: " <> format_list(req_variants))
-          }
-        }
+      // Check features — features are capability declarations (not paired choices),
+      // so every feature the test requires must be declared in the config.
+      let missing_features =
+        tc.features
+        |> list.filter(fn(f) { !list.contains(config.features, f) })
+      case missing_features {
+        [first, ..rest] ->
+          Error("Missing features: " <> format_list([first, ..rest]))
+        [] -> check_variants_and_behaviours(config, tc)
+      }
+    }
+  }
+}
+
+fn check_variants_and_behaviours(
+  config: ImplementationConfig,
+  tc: TestCase,
+) -> Result(Nil, String) {
+  case tc.variants {
+    [] -> check_behaviours_supported(config, tc)
+    req_variants -> {
+      let has_variant =
+        list.any(req_variants, fn(v) { list.contains(config.variants, v) })
+      case has_variant {
+        True -> check_behaviours_supported(config, tc)
+        False -> Error("Missing variant: " <> format_list(req_variants))
       }
     }
   }
@@ -114,19 +133,19 @@ fn format_list(items: List(String)) -> String {
 pub fn parse_only_config() -> ImplementationConfig {
   types.ImplementationConfig(
     functions: ["parse", "print"],
-    behaviours: ["crlf_normalize_to_lf", "toplevel_indent_strip"],
+    behaviours: ["crlf_normalize_to_lf"],
     variants: ["reference_compliant"],
-    features: [],
+    features: ["toplevel_indent_strip"],
   )
 }
 
 /// Create a config for implementations with object construction
 pub fn basic_config() -> ImplementationConfig {
   types.ImplementationConfig(
-    functions: ["parse", "print", "build_hierarchy"],
-    behaviours: ["crlf_normalize_to_lf", "toplevel_indent_strip"],
+    functions: ["parse", "parse_indented", "print", "build_hierarchy"],
+    behaviours: ["crlf_normalize_to_lf"],
     variants: ["reference_compliant"],
-    features: [],
+    features: ["toplevel_indent_strip"],
   )
 }
 
@@ -138,27 +157,33 @@ pub fn full_config() -> ImplementationConfig {
     functions: [
       "parse", "parse_indented", "print", "build_hierarchy", "get_string",
       "get_int", "get_bool", "get_float", "get_list", "filter", "compose",
-      "round_trip",
+      "round_trip", "canonical_format",
     ],
     behaviours: [
       // Line endings — both supported
       "crlf_normalize_to_lf", "crlf_preserve_literal",
-      // Continuation baseline — both supported
-      "toplevel_indent_strip", "toplevel_indent_preserve",
       // Boolean parsing — both supported
       "boolean_strict", "boolean_lenient",
-      // Tab handling — both supported
-      "tabs_as_whitespace", "tabs_as_content",
+      // Continuation tab handling — both supported
+      "continuation_tab_preserve", "continuation_tab_to_space",
       // List coercion — both supported
       "list_coercion_disabled", "list_coercion_enabled",
       // Array ordering — both supported
       "array_order_insertion", "array_order_lexicographic",
       // Delimiter strategy — both supported
       "delimiter_first_equals", "delimiter_prefer_spaced",
-      // Output indentation
-      "indent_spaces",
+      // Output indentation — both supported
+      "indent_spaces", "indent_tabs",
+      // Multi-line value semantics
+      "multiline_values",
+      // Path traversal in typed accessors
+      "path_traversal",
     ],
     variants: ["reference_compliant"],
-    features: ["comments", "multiline", "empty_keys", "unicode"],
+    features: [
+      "comments", "empty_keys", "multiline_continuation",
+      "optional_typed_accessors", "toplevel_indent_strip", "unicode",
+      "whitespace",
+    ],
   )
 }

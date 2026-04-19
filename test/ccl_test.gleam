@@ -62,6 +62,32 @@ pub fn hierarchy_multiple_semver_ranges_test() {
   dict.get(inner, "typescript") |> expect.to_equal(Ok(CclString("~=5.0")))
 }
 
+/// `continuation_tab_to_space`: leading tabs on continuation lines map 1:1 to
+/// spaces (OCaml-canonical semantics in ccl-test-data v1.0.0), not "strip all
+/// leading whitespace when a tab is present".
+pub fn parse_continuation_tabs_to_spaces_test() {
+  let input = "section =\n\t\tindented_with_tabs\n\t\tanother_line"
+  let result = parser.parse(input)
+  result
+  |> expect.to_equal(
+    Ok([
+      Entry(key: "section", value: "\n  indented_with_tabs\n  another_line"),
+    ]),
+  )
+}
+
+/// Mixed leading tab/space on continuation line: each tab becomes one space.
+pub fn parse_continuation_mixed_tab_space_test() {
+  let input = "section =\n \tmixed_indent\n\t another_line"
+  let result = parser.parse(input)
+  result
+  |> expect.to_equal(
+    Ok([
+      Entry(key: "section", value: "\n  mixed_indent\n  another_line"),
+    ]),
+  )
+}
+
 /// Single-line value containing ` = ` is still a terminal string in hierarchy.
 pub fn hierarchy_value_with_spaced_equals_test() {
   let input = "config =\n  formula = a = b + c"

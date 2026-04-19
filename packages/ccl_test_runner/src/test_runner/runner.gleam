@@ -33,16 +33,13 @@ fn parse_options_for_test(tc: TestCase) -> ccl_types.ParseOptions {
     True -> ccl_types.PreserveLiteral
     False -> ccl_types.NormalizeToLf
   }
-  let tab_handling = case list.contains(tc.behaviours, "tabs_as_content") {
+  let tab_handling = case
+    list.contains(tc.behaviours, "continuation_tab_preserve")
+  {
     True -> ccl_types.TabsAsContent
     False -> ccl_types.TabsAsWhitespace
   }
-  let continuation_baseline = case
-    list.contains(tc.behaviours, "toplevel_indent_preserve")
-  {
-    True -> ccl_types.IndentPreserve
-    False -> ccl_types.IndentStrip
-  }
+  let continuation_baseline = ccl_types.IndentStrip
   let delimiter_strategy = case
     list.contains(tc.behaviours, "delimiter_prefer_spaced")
   {
