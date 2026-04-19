@@ -123,16 +123,26 @@ fn parse_with_baseline(
 /// State machine for parsing lines into entries.
 /// Accumulates continuation lines into the current entry's value.
 ///
-/// `pending_key`: buffered text from a line without `=`, used only when the
-/// next non-empty line starts with `=` (empty key after split) — handles the
-/// `key\n=value` pattern. Otherwise, a line without `=` becomes an entry
-/// with that line as key and an empty value.
+/// `pending_key` buffers a line without `=` and any subsequent indented no-`=`
+/// lines, so we can defer the interpretation of that buffer until we see what
+/// closes it:
+///
+/// - If the buffer is closed by a line whose split yields an empty key (e.g.
+///   `= val`, or `\t= val`), the buffered head plus each trimmed tail line
+///   joined by a single space becomes the entry's key (`multiline_keys`
+///   feature), with the value taken from the `=` line.
+/// - If the buffer is closed by any other event (a new unindented entry, end
+///   of input, an indented `=` line with a non-empty key), the buffered tail
+///   is preserved as the head entry's multi-line value so that
+///   `build_hierarchy` can recursively reparse it.
+///
+/// The tuple is `(head_trimmed, tail_raw_lines_in_order)`.
 fn parse_lines(
   lines: List(String),
   baseline: Int,
   acc: List(Entry),
   current: Option(#(String, List(String))),
-  pending_key: Option(String),
+  pending_key: Option(#(String, List(String))),
   options: ParseOptions,
 ) -> Result(List(Entry), String) {
   case lines {
@@ -185,23 +195,22 @@ fn parse_lines(
               let new_current = Some(#(key, list.append(value_lines, [line])))
               parse_lines(rest, baseline, acc, new_current, None, options)
             }
-            // Continuation line, no current, pending_key exists.
+            // Continuation line, no current, pending_key buffer exists.
             //
-            // `multiline_keys`: if the continuation has `=` with an empty key,
-            // combine with pending_key to form the entry. If it has no `=`,
-            // append its trimmed text to pending_key (joined by a space) so
-            // multi-line keys accumulate before the `=` line arrives.
-            //
-            // Otherwise (a continuation with `=` and a non-empty key) fall back
-            // to the legacy nesting behaviour: pending_key becomes an entry key
-            // whose value is this indented block, so hierarchy recursion can
-            // reparse it.
-            True, None, Some(pk) -> {
+            // - Indented `= val` with empty key closes the buffer as a
+            //   multi-line key (`multiline_keys` feature).
+            // - Indented `=` with a non-empty key: fall back to the nested
+            //   value block — head becomes the entry key, and the buffered
+            //   tail plus this line make up the nested value.
+            // - Indented no-`=` line: append raw line to the tail; decision is
+            //   still deferred.
+            True, None, Some(#(head, tail)) -> {
               case split_on_equals_with(line, options) {
                 Ok(#(key, value)) ->
                   case string.trim(key) {
                     "" -> {
-                      let new_current = Some(#(pk, [value]))
+                      let combined = combine_pending_key(head, tail)
+                      let new_current = Some(#(combined, [value]))
                       parse_lines(
                         rest,
                         baseline,
@@ -212,7 +221,9 @@ fn parse_lines(
                       )
                     }
                     _ -> {
-                      let new_current = Some(#(pk, ["", line]))
+                      let value_lines =
+                        list.append(list.append([""], tail), [line])
+                      let new_current = Some(#(head, value_lines))
                       parse_lines(
                         rest,
                         baseline,
@@ -224,15 +235,8 @@ fn parse_lines(
                     }
                   }
                 Error(_) -> {
-                  let combined = pk <> " " <> trimmed
-                  parse_lines(
-                    rest,
-                    baseline,
-                    acc,
-                    None,
-                    Some(combined),
-                    options,
-                  )
+                  let new_pending = Some(#(head, list.append(tail, [line])))
+                  parse_lines(rest, baseline, acc, None, new_pending, options)
                 }
               }
             }
@@ -243,10 +247,17 @@ fn parse_lines(
                   let new_current = Some(#(key, [value]))
                   parse_lines(rest, baseline, acc, new_current, None, options)
                 }
-                // No `=`: buffer as pending_key so it can combine with a
+                // No `=`: start a pending buffer so it can combine with a
                 // later `=value` line.
                 Error(_) ->
-                  parse_lines(rest, baseline, acc, None, Some(trimmed), options)
+                  parse_lines(
+                    rest,
+                    baseline,
+                    acc,
+                    None,
+                    Some(#(trimmed, [])),
+                    options,
+                  )
               }
             }
             // New entry (indent <= baseline): flush current, start new
@@ -255,9 +266,11 @@ fn parse_lines(
               case split_on_equals_with(line, options) {
                 Ok(#(key, value)) -> {
                   case pending_key, string.trim(key) {
-                    // pending_key + line starting with `=`: combine
-                    Some(pk), "" -> {
-                      let new_current = Some(#(pk, [value]))
+                    // pending_key + line starting with `=`: combine as
+                    // multi-line key entry
+                    Some(#(head, tail)), "" -> {
+                      let combined = combine_pending_key(head, tail)
+                      let new_current = Some(#(combined, [value]))
                       parse_lines(
                         rest,
                         baseline,
@@ -267,7 +280,7 @@ fn parse_lines(
                         options,
                       )
                     }
-                    // Otherwise flush pending_key, start fresh entry
+                    // Otherwise flush pending buffer and start a fresh entry
                     _, _ -> {
                       let acc2 = flush_pending_key(acc1, pending_key)
                       let new_current = Some(#(key, [value]))
@@ -282,7 +295,8 @@ fn parse_lines(
                     }
                   }
                 }
-                // Line without '=' — flush any prior pending_key, buffer this
+                // Line without `=`: flush any prior pending buffer and start
+                // a new one with this line as the head
                 Error(_) -> {
                   let acc2 = flush_pending_key(acc1, pending_key)
                   parse_lines(
@@ -290,7 +304,7 @@ fn parse_lines(
                     baseline,
                     acc2,
                     None,
-                    Some(trimmed),
+                    Some(#(trimmed, [])),
                     options,
                   )
                 }
@@ -303,14 +317,34 @@ fn parse_lines(
   }
 }
 
-/// Flush a pending key (line without `=`) as an entry with empty value.
+/// Flush a pending key buffer that was never closed by a `=` line. With no
+/// tail lines, it emits as `(head, "")`. With tail lines, the buffer is
+/// preserved as a nested-value block on the head entry so `build_hierarchy`
+/// can recurse into it.
 fn flush_pending_key(
   acc: List(Entry),
-  pending_key: Option(String),
+  pending_key: Option(#(String, List(String))),
 ) -> List(Entry) {
   case pending_key {
     None -> acc
-    Some(key) -> [Entry(key: key, value: ""), ..acc]
+    Some(#(head, [])) -> [Entry(key: head, value: ""), ..acc]
+    Some(#(head, tail)) -> {
+      let value = "\n" <> string.join(tail, "\n")
+      [Entry(key: head, value: value), ..acc]
+    }
+  }
+}
+
+/// Join a pending-key head and its tail into a single key. Tail lines are
+/// trimmed of their structural indentation and joined to the head by a single
+/// space, per `multiline_keys` semantics.
+fn combine_pending_key(head: String, tail: List(String)) -> String {
+  case tail {
+    [] -> head
+    _ -> {
+      let trimmed_tail = list.map(tail, string.trim)
+      head <> " " <> string.join(trimmed_tail, " ")
+    }
   }
 }
 
