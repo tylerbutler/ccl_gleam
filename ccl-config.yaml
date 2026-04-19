@@ -17,11 +17,13 @@ functions:
   - filter
   - canonical_format
 
-# Optional: Features this implementation supports
+# Optional: Features this implementation supports.
+# Features are declarative (for capability reporting); they do not gate tests.
 features:
   - comments
   - empty_keys
   - multiline_continuation
+  - multiline_keys
   - optional_typed_accessors
   - toplevel_indent_strip
   - unicode

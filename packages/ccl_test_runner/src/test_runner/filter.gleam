@@ -10,10 +10,6 @@ pub fn is_compatible(config: ImplementationConfig, tc: TestCase) -> Bool {
   let has_functions =
     list.all(tc.functions, fn(f) { list.contains(config.functions, f) })
 
-  // All required features must be declared (features are capabilities, not paired choices)
-  let has_features =
-    list.all(tc.features, fn(f) { list.contains(config.features, f) })
-
   // Check variant compatibility (if test requires a variant, config must have it)
   let variant_ok = case tc.variants {
     [] -> True
@@ -27,7 +23,9 @@ pub fn is_compatible(config: ImplementationConfig, tc: TestCase) -> Bool {
       list.any(required, fn(b) { list.contains(config.behaviours, b) })
   }
 
-  has_functions && has_features && variant_ok && behaviour_ok
+  // Features are declarative for capability reporting — not a filter gate.
+  // Tests requiring undeclared features still run; failures surface the gap.
+  has_functions && variant_ok && behaviour_ok
 }
 
 /// Filter a list of tests to only those compatible with the config
@@ -70,32 +68,19 @@ fn get_skip_reason_inner(
       Error("Missing functions: " <> format_list(funcs))
     }
     [] -> {
-      // Check features — features are capability declarations (not paired choices),
-      // so every feature the test requires must be declared in the config.
-      let missing_features =
-        tc.features
-        |> list.filter(fn(f) { !list.contains(config.features, f) })
-      case missing_features {
-        [first, ..rest] ->
-          Error("Missing features: " <> format_list([first, ..rest]))
-        [] -> check_variants_and_behaviours(config, tc)
-      }
-    }
-  }
-}
-
-fn check_variants_and_behaviours(
-  config: ImplementationConfig,
-  tc: TestCase,
-) -> Result(Nil, String) {
-  case tc.variants {
-    [] -> check_behaviours_supported(config, tc)
-    req_variants -> {
-      let has_variant =
-        list.any(req_variants, fn(v) { list.contains(config.variants, v) })
-      case has_variant {
-        True -> check_behaviours_supported(config, tc)
-        False -> Error("Missing variant: " <> format_list(req_variants))
+      // Features are declarative (capability reporting), not a filter gate:
+      // tests requiring features we don't declare still run, and any failures
+      // surface the capability gap.
+      case tc.variants {
+        [] -> check_behaviours_supported(config, tc)
+        req_variants -> {
+          let has_variant =
+            list.any(req_variants, fn(v) { list.contains(config.variants, v) })
+          case has_variant {
+            True -> check_behaviours_supported(config, tc)
+            False -> Error("Missing variant: " <> format_list(req_variants))
+          }
+        }
       }
     }
   }
@@ -181,7 +166,7 @@ pub fn full_config() -> ImplementationConfig {
     ],
     variants: ["reference_compliant"],
     features: [
-      "comments", "empty_keys", "multiline_continuation",
+      "comments", "empty_keys", "multiline_continuation", "multiline_keys",
       "optional_typed_accessors", "toplevel_indent_strip", "unicode",
       "whitespace",
     ],

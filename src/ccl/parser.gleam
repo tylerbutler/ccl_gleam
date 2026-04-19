@@ -185,13 +185,56 @@ fn parse_lines(
               let new_current = Some(#(key, list.append(value_lines, [line])))
               parse_lines(rest, baseline, acc, new_current, None, options)
             }
-            // Continuation line, no current, pending_key exists:
-            // treat pending_key as the key of a new entry, with this line
-            // as the start of its multi-line value (leading "" makes the
-            // joined value start with \n, triggering hierarchy recursion).
+            // Continuation line, no current, pending_key exists.
+            //
+            // `multiline_keys`: if the continuation has `=` with an empty key,
+            // combine with pending_key to form the entry. If it has no `=`,
+            // append its trimmed text to pending_key (joined by a space) so
+            // multi-line keys accumulate before the `=` line arrives.
+            //
+            // Otherwise (a continuation with `=` and a non-empty key) fall back
+            // to the legacy nesting behaviour: pending_key becomes an entry key
+            // whose value is this indented block, so hierarchy recursion can
+            // reparse it.
             True, None, Some(pk) -> {
-              let new_current = Some(#(pk, ["", line]))
-              parse_lines(rest, baseline, acc, new_current, None, options)
+              case split_on_equals_with(line, options) {
+                Ok(#(key, value)) ->
+                  case string.trim(key) {
+                    "" -> {
+                      let new_current = Some(#(pk, [value]))
+                      parse_lines(
+                        rest,
+                        baseline,
+                        acc,
+                        new_current,
+                        None,
+                        options,
+                      )
+                    }
+                    _ -> {
+                      let new_current = Some(#(pk, ["", line]))
+                      parse_lines(
+                        rest,
+                        baseline,
+                        acc,
+                        new_current,
+                        None,
+                        options,
+                      )
+                    }
+                  }
+                Error(_) -> {
+                  let combined = pk <> " " <> trimmed
+                  parse_lines(
+                    rest,
+                    baseline,
+                    acc,
+                    None,
+                    Some(combined),
+                    options,
+                  )
+                }
+              }
             }
             // Continuation line, no current, no pending_key
             True, None, None -> {

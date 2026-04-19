@@ -88,6 +88,29 @@ pub fn parse_continuation_mixed_tab_space_test() {
   )
 }
 
+/// `multiline_keys` feature: indented non-`=` continuation lines accumulate
+/// into the pending key before a subsequent line starting with `=` completes
+/// the entry. Trimmed continuations are joined with a single space.
+pub fn parse_multiline_key_two_lines_test() {
+  let result = parser.parse("my\n key\n= val")
+  result
+  |> expect.to_equal(Ok([Entry(key: "my key", value: "val")]))
+}
+
+pub fn parse_multiline_key_three_lines_test() {
+  let result = parser.parse("a\n b\n c\n= val")
+  result
+  |> expect.to_equal(Ok([Entry(key: "a b c", value: "val")]))
+}
+
+/// Tab-indented `= val` completes the pending key (tab counts as whitespace
+/// and the split yields an empty key, signalling combination).
+pub fn parse_multiline_key_tab_equals_test() {
+  let result = parser.parse("key\n\t= val")
+  result
+  |> expect.to_equal(Ok([Entry(key: "key", value: "val")]))
+}
+
 /// Single-line value containing ` = ` is still a terminal string in hierarchy.
 pub fn hierarchy_value_with_spaced_equals_test() {
   let input = "config =\n  formula = a = b + c"

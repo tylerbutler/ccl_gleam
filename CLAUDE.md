@@ -140,9 +140,10 @@ pub type CCLValue {
 Declared in `ccl-config.yaml`. Features are always-on capabilities; behaviors
 are paired choices the runner derives from each test's tags.
 
-**Features (always-on):**
+**Features declared (capability reports; do not gate tests):**
 - `toplevel_indent_strip` — top-level parse uses baseline N=0
 - `multiline_continuation` — indented continuation lines accumulate into values
+- `multiline_keys` — keys may span multiple lines before `=`
 - `comments`, `empty_keys`, `unicode`, `whitespace`, `optional_typed_accessors`
 
 **Behaviors (paired choices supported):**
@@ -155,10 +156,10 @@ are paired choices the runner derives from each test's tags.
 - Output indent: `indent_spaces` / `indent_tabs`
 - Also supports: `multiline_values`, `path_traversal`
 
-**Known gaps (not declared):**
-- `multiline_keys` feature — parser only buffers one key line
-- Three `parse_indented` tests in `api_proposed_behavior.json` fail due to
-  OCaml-canonical semantics that Gleam's `parse_indented` doesn't yet mirror
+**Known gaps:**
+- Three `parse_indented` tests in `api_proposed_behavior.json` (and one
+  dependent `build_hierarchy` test) fail due to OCaml-canonical semantics
+  that Gleam's `parse_indented` doesn't yet mirror
 
 ## Dependencies
 
