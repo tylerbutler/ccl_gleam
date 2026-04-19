@@ -1,0 +1,11 @@
+kind: Fixed
+body: |-
+    Align parsing and hierarchy behaviour with ccl-test-data v0.8.0
+
+    Preserve empty-string entries in lists from duplicate keys with empty
+    values. Preserve embedded tabs in content when `tabs_as_whitespace` is
+    enabled (only leading tabs are stripped as indentation). Treat lines
+    without `=` as entries with an empty value; when an indented
+    continuation follows such a line, the continuation is recursively
+    parsed as a nested object.
+time: 2026-04-19T13:15:11.207737000-07:00

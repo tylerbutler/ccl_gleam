@@ -33,6 +33,12 @@ pub type Conflicts {
   Conflicts(behaviours: List(String))
 }
 
+/// Predicate for filter tests: `{field, op, value}`.
+/// `field` is "key" or "value"; `op` is "==" or "!=".
+pub type Predicate {
+  Predicate(field: String, op: String, value: String)
+}
+
 /// A single test case from the JSON test suite
 pub type TestCase {
   TestCase(
@@ -48,6 +54,7 @@ pub type TestCase {
     path: Option(List(String)),
     args: Option(List(String)),
     conflicts: Conflicts,
+    predicate: Option(Predicate),
   )
 }
 
