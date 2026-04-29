@@ -58,8 +58,8 @@ fn build_entries(
 }
 
 /// Resolve a raw value string into a CCLValue.
-/// Only multi-line values (starting with `\n` or `\r\n`) represent nested
-/// structure that should be recursively parsed. Single-line values are always
+/// Multi-line values (starting with `\n` or `\r\n`) represent nested
+/// structure that gets recursively parsed. Single-line values are always
 /// terminal strings, even if they contain `=` — that `=` is content, not a
 /// delimiter.
 fn resolve_value(
@@ -69,29 +69,19 @@ fn resolve_value(
 ) -> CCLValue {
   let is_multiline =
     string.starts_with(raw_value, "\n") || string.starts_with(raw_value, "\r\n")
-  case is_multiline, string.contains(raw_value, "=") {
-    // Multi-line value with `=` → nested structure, recurse
-    True, True -> {
+  case is_multiline {
+    True ->
       case parser.parse_value_with(raw_value, parse_options) {
-        Ok(nested_entries) -> {
-          case nested_entries {
-            // Parsing succeeded but yielded nothing — treat as string
-            [] -> CclString(raw_value)
-            // Got nested entries — build hierarchy recursively
-            _ ->
-              CclObject(build_hierarchy_with(
-                nested_entries,
-                build_options,
-                parse_options,
-              ))
-          }
-        }
-        // Parse failed — treat value as plain string
+        Ok([]) -> CclString(raw_value)
+        Ok(nested_entries) ->
+          CclObject(build_hierarchy_with(
+            nested_entries,
+            build_options,
+            parse_options,
+          ))
         Error(_) -> CclString(raw_value)
       }
-    }
-    // Single-line or no `=` → terminal string (fixed point)
-    _, _ -> CclString(raw_value)
+    False -> CclString(raw_value)
   }
 }
 
@@ -162,7 +152,6 @@ fn ccl_value_key(value: CCLValue) -> String {
 
 /// Merge two values for the same key.
 /// Two objects merge recursively. Otherwise, accumulate into a list.
-/// Empty-string values are filtered from duplicate-key lists.
 /// Lexicographic sorting is applied when configured.
 fn merge_values(
   existing: CCLValue,
@@ -174,30 +163,15 @@ fn merge_values(
     CclObject(a), CclObject(b) -> CclObject(merge_dicts(a, b, build_options))
     // Existing list: append new value
     CclList(items), _ -> {
-      let new_list =
-        list.append(items, [new])
-        |> filter_empty_strings
+      let new_list = list.append(items, [new])
       CclList(maybe_sort(new_list, build_options))
     }
     // Convert to list
     _, _ -> {
-      let new_list =
-        [existing, new]
-        |> filter_empty_strings
+      let new_list = [existing, new]
       CclList(maybe_sort(new_list, build_options))
     }
   }
-}
-
-/// Filter out empty-string values from a list.
-/// Duplicate named keys with empty values (e.g. `key =`) are excluded.
-fn filter_empty_strings(values: List(CCLValue)) -> List(CCLValue) {
-  list.filter(values, fn(v) {
-    case v {
-      CclString("") -> False
-      _ -> True
-    }
-  })
 }
 
 /// Merge two CCL dicts, recursively merging values for shared keys.

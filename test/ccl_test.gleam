@@ -62,6 +62,55 @@ pub fn hierarchy_multiple_semver_ranges_test() {
   dict.get(inner, "typescript") |> expect.to_equal(Ok(CclString("~=5.0")))
 }
 
+/// `continuation_tab_to_space`: leading tabs on continuation lines map 1:1 to
+/// spaces (OCaml-canonical semantics in ccl-test-data v1.0.0), not "strip all
+/// leading whitespace when a tab is present".
+pub fn parse_continuation_tabs_to_spaces_test() {
+  let input = "section =\n\t\tindented_with_tabs\n\t\tanother_line"
+  let result = parser.parse(input)
+  result
+  |> expect.to_equal(
+    Ok([
+      Entry(key: "section", value: "\n  indented_with_tabs\n  another_line"),
+    ]),
+  )
+}
+
+/// Mixed leading tab/space on continuation line: each tab becomes one space.
+pub fn parse_continuation_mixed_tab_space_test() {
+  let input = "section =\n \tmixed_indent\n\t another_line"
+  let result = parser.parse(input)
+  result
+  |> expect.to_equal(
+    Ok([
+      Entry(key: "section", value: "\n  mixed_indent\n  another_line"),
+    ]),
+  )
+}
+
+/// `multiline_keys` feature: indented non-`=` continuation lines accumulate
+/// into the pending key before a subsequent line starting with `=` completes
+/// the entry. Trimmed continuations are joined with a single space.
+pub fn parse_multiline_key_two_lines_test() {
+  let result = parser.parse("my\n key\n= val")
+  result
+  |> expect.to_equal(Ok([Entry(key: "my key", value: "val")]))
+}
+
+pub fn parse_multiline_key_three_lines_test() {
+  let result = parser.parse("a\n b\n c\n= val")
+  result
+  |> expect.to_equal(Ok([Entry(key: "a b c", value: "val")]))
+}
+
+/// Tab-indented `= val` completes the pending key (tab counts as whitespace
+/// and the split yields an empty key, signalling combination).
+pub fn parse_multiline_key_tab_equals_test() {
+  let result = parser.parse("key\n\t= val")
+  result
+  |> expect.to_equal(Ok([Entry(key: "key", value: "val")]))
+}
+
 /// Single-line value containing ` = ` is still a terminal string in hierarchy.
 pub fn hierarchy_value_with_spaced_equals_test() {
   let input = "config =\n  formula = a = b + c"

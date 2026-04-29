@@ -1,0 +1,10 @@
+kind: Added
+body: |-
+    Test runner support for structured filter predicates
+
+    Filter tests loaded from ccl-test-data v0.8.0 now honour the optional
+    `{field, op, value}` predicate field on each test case, evaluating
+    `key`/`value` equality and inequality. When no predicate is present,
+    the runner falls back to the previous comment-exclusion behaviour
+    (`key != "/"`).
+time: 2026-04-19T13:15:12.207737000-07:00

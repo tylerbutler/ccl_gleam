@@ -1,0 +1,21 @@
+kind: Fixed
+body: |-
+    Align with ccl-test-data v1.0.0 capability taxonomy
+
+    Remove deleted behavior tags (`tabs_as_whitespace`, `tabs_as_content`,
+    `toplevel_indent_strip`, `toplevel_indent_preserve`) and the deleted
+    `multiline` feature from `ccl-config.yaml` and
+    `test_runner/filter.gleam`. Declare new tags: `parse_indented` function,
+    `multiline_continuation`/`toplevel_indent_strip`/`whitespace`/
+    `optional_typed_accessors` features, and `continuation_tab_*`/
+    `delimiter_*`/`indent_tabs`/`multiline_values`/`path_traversal`
+    behaviors.
+
+    Map each leading tab on a continuation line to a single space
+    (`continuation_tab_to_space` OCaml-canonical semantics), instead of
+    stripping all leading whitespace on tab-indented lines.
+
+    Honour feature tags when filtering tests: a test requiring features the
+    implementation does not declare is now skipped with a "Missing features"
+    reason, matching the existing function-missing logic.
+time: 2026-04-19T13:15:11.207737000-07:00

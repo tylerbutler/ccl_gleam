@@ -39,15 +39,18 @@ just ci                  # Full CI check (format, build, test)
 ## Project Structure
 
 ```
+# CCL library lives at the repo root (gleam.toml, src/ccl/*)
+src/ccl/
+├── types.gleam                    # Entry, CCLValue (String|Object|List), CCL type alias, Model
+├── parser.gleam                   # parse(), parse_indented() — indentation-aware
+├── hierarchy.gleam                # build_hierarchy() — JSON-friendly projection
+├── model.gleam                    # build_model() — OCaml-canonical recursive map
+├── access.gleam                   # get_string, get_int, get_bool, get_float, get_list
+├── decode.gleam                   # Typed decoders with path tracking
+└── format.gleam                   # print (structure-preserving), canonical_format
+
 packages/
-├── ccl/                           # CCL library package (gleam_stdlib only)
-│   ├── gleam.toml
-│   └── src/ccl/
-│       ├── types.gleam            # Entry, CCLValue (String|Object|List), CCL type alias
-│       ├── parser.gleam           # parse() — indentation-aware, two-context parsing
-│       ├── hierarchy.gleam        # build_hierarchy() — recursive fixed-point
-│       ├── access.gleam           # get_string, get_int, get_bool, get_float, get_list
-│       └── format.gleam           # print (structure-preserving), canonical_format
+├── ccl_codegen/                   # Decoder codegen helper package
 └── ccl_test_runner/               # Test runner package (depends on ccl via path)
     ├── gleam.toml
     ├── ccl-test-data/             # JSON test suite data (downloaded, not committed)
@@ -103,13 +106,15 @@ just list                                       # List test files
 just view                                       # Interactive TUI
 ```
 
-## CCL Library (`packages/ccl/`)
+## CCL Library (`src/ccl/`)
 
 The core CCL implementation follows the docs at ccl.tylerbutler.com:
 
 ### Core Functions (Required)
-- **`parser.parse(text)`** — Indentation-aware entry parsing with `toplevel_indent_strip` behaviour (N=0 at top level, N=first content line indent for nested)
-- **`hierarchy.build_hierarchy(entries)`** — Recursive fixed-point: values containing `=` are re-parsed until no more structure remains
+- **`parser.parse(text)`** — Top-level entry parsing, baseline N=0 (`toplevel_indent_strip` feature)
+- **`parser.parse_indented(text)`** — Indented entry parsing, baseline detected from first content line (required by `build_hierarchy` in ccl-test-data v1.0.0)
+- **`hierarchy.build_hierarchy(entries)`** — JSON-friendly projection: nested objects, lists for repeated empty keys, strings at leaves
+- **`model.build_model(entries)`** — Canonical recursive map mirroring OCaml's `Fix of t KeyMap.t`. Terminal strings become keys pointing to `Model(empty)`; duplicates merge; order-agnostic (ordering belongs to typed projections). See ccl-test-data#142.
 
 ### Typed Access (Optional)
 - **`access.get_string(ccl, path)`** — Navigate path, return string
@@ -132,18 +137,35 @@ pub type CCLValue {
 }
 ```
 
-### Implemented Behaviours
-- `toplevel_indent_strip` — Top-level baseline N=0
-- `crlf_normalize_to_lf` — Normalize CRLF before parsing
-- `tabs_as_whitespace` — Spaces and tabs count as whitespace
-- `boolean_strict` — Only true/false (case-insensitive)
-- `list_coercion_disabled` — get_list errors on non-lists
-- `array_order_insertion` — Preserve insertion order
-- `indent_spaces` — 2-space indentation in output
+### Implemented Capabilities (ccl-test-data v1.0.0 taxonomy)
+
+Declared in `ccl-config.yaml`. Features are always-on capabilities; behaviors
+are paired choices the runner derives from each test's tags.
+
+**Features declared (capability reports; do not gate tests):**
+- `toplevel_indent_strip` — top-level parse uses baseline N=0
+- `multiline_continuation` — indented continuation lines accumulate into values
+- `multiline_keys` — keys may span multiple lines before `=`
+- `comments`, `empty_keys`, `unicode`, `whitespace`, `optional_typed_accessors`
+
+**Behaviors (paired choices supported):**
+- Line endings: `crlf_normalize_to_lf` / `crlf_preserve_literal`
+- Boolean: `boolean_strict` / `boolean_lenient`
+- Continuation tabs: `continuation_tab_to_space` (1:1 tab→space map) / `continuation_tab_preserve`
+- List coercion: `list_coercion_disabled` / `list_coercion_enabled`
+- Array order: `array_order_insertion` / `array_order_lexicographic`
+- Delimiter: `delimiter_first_equals` / `delimiter_prefer_spaced`
+- Output indent: `indent_spaces` / `indent_tabs`
+- Also supports: `multiline_values`, `path_traversal`
+
+**Known gaps:**
+- Three `parse_indented` tests in `api_proposed_behavior.json` (and one
+  dependent `build_hierarchy` test) fail due to OCaml-canonical semantics
+  that Gleam's `parse_indented` doesn't yet mirror
 
 ## Dependencies
 
-### CCL library (`packages/ccl/`)
+### CCL library (repo root)
 - `gleam_stdlib` - Standard library
 
 ### Test runner (`packages/ccl_test_runner/`)
