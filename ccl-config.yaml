@@ -9,6 +9,7 @@ functions:
   - parse
   - parse_indented
   - build_hierarchy
+  - build_model
   - get_string
   - get_int
   - get_bool

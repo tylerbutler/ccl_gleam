@@ -41,9 +41,10 @@ just ci                  # Full CI check (format, build, test)
 ```
 # CCL library lives at the repo root (gleam.toml, src/ccl/*)
 src/ccl/
-├── types.gleam                    # Entry, CCLValue (String|Object|List), CCL type alias
+├── types.gleam                    # Entry, CCLValue (String|Object|List), CCL type alias, Model
 ├── parser.gleam                   # parse(), parse_indented() — indentation-aware
-├── hierarchy.gleam                # build_hierarchy() — recursive fixed-point
+├── hierarchy.gleam                # build_hierarchy() — JSON-friendly projection
+├── model.gleam                    # build_model() — OCaml-canonical recursive map
 ├── access.gleam                   # get_string, get_int, get_bool, get_float, get_list
 ├── decode.gleam                   # Typed decoders with path tracking
 └── format.gleam                   # print (structure-preserving), canonical_format
@@ -112,7 +113,8 @@ The core CCL implementation follows the docs at ccl.tylerbutler.com:
 ### Core Functions (Required)
 - **`parser.parse(text)`** — Top-level entry parsing, baseline N=0 (`toplevel_indent_strip` feature)
 - **`parser.parse_indented(text)`** — Indented entry parsing, baseline detected from first content line (required by `build_hierarchy` in ccl-test-data v1.0.0)
-- **`hierarchy.build_hierarchy(entries)`** — Recursive fixed-point: values containing `=` are re-parsed until no more structure remains
+- **`hierarchy.build_hierarchy(entries)`** — JSON-friendly projection: nested objects, lists for repeated empty keys, strings at leaves
+- **`model.build_model(entries)`** — Canonical recursive map mirroring OCaml's `Fix of t KeyMap.t`. Terminal strings become keys pointing to `Model(empty)`; duplicates merge; order-agnostic (ordering belongs to typed projections). See ccl-test-data#142.
 
 ### Typed Access (Optional)
 - **`access.get_string(ccl, path)`** — Navigate path, return string
