@@ -1,18 +1,16 @@
-/// CCL canonical model — OCaml-style fixed-point recursive map.
-///
-/// `build_model` mirrors the OCaml reference's `fix` function:
-/// `type t = Fix of t KeyMap.t` with `String v -> Fix (singleton v empty)`.
+/// CCL canonical model — a fixed-point recursive map.
 ///
 /// Terminal string values become keys pointing to the empty model;
 /// duplicate keys merge recursively. The result has no strings or lists
 /// at the value level — every leaf is `Model(empty)`.
 ///
+/// `build_model` mirrors the OCaml reference's `fix` function:
+/// `type t = Fix of t KeyMap.t` with `String v -> Fix (singleton v empty)`.
+///
 /// `build_hierarchy` is the JSON-friendly projection of this model;
 /// see issue tylerbutler/ccl-test-data#142 for the layering.
 import ccl/parser
-import ccl/types.{
-  type Entry, type Model, type ParseOptions, Model,
-}
+import ccl/types.{type Entry, type Model, type ParseOptions, Model}
 import gleam/dict.{type Dict}
 import gleam/string
 
