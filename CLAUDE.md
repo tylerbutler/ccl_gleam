@@ -105,7 +105,7 @@ just view                                       # Interactive TUI
 
 ## CCL Library (`packages/ccl/`)
 
-The core CCL implementation follows the docs at ccl.tylerbutler.com:
+The core CCL implementation follows the docs at catconflang.com:
 
 ### Core Functions (Required)
 - **`parser.parse(text)`** — Indentation-aware entry parsing with `toplevel_indent_strip` behaviour (N=0 at top level, N=first content line indent for nested)
