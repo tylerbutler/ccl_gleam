@@ -1,6 +1,6 @@
 # CCL Gleam
 
-A Gleam implementation of [CCL (Categorical Configuration Language)](https://ccl.tylerbutler.com/) with an integrated test runner for the [ccl-test-data](https://github.com/CatConfLang/ccl-test-data) JSON test suite.
+A Gleam implementation of [CCL (Categorical Configuration Language)](https://catconflang.com/) with an integrated test runner for the [ccl-test-data](https://github.com/CatConfLang/ccl-test-data) JSON test suite.
 
 ## Packages
 
@@ -48,4 +48,4 @@ just ci        # Full CI check
 
 ## Test Suite Format
 
-See the [CCL Test Suite Guide](https://ccl.tylerbutler.com/test-suite-guide/) for details on the JSON test format and expected results structure.
+See the [CCL Test Suite Guide](https://catconflang.com/test-suite-guide/) for details on the JSON test format and expected results structure.
