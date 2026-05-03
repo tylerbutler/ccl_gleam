@@ -378,8 +378,9 @@ fn build_value(lines: List(String), options: ParseOptions) -> String {
     [first, ..rest] -> {
       let processed = case options.tab_handling {
         TabsAsWhitespace -> {
-          // Strip tab-based indentation from continuation lines
-          [first, ..list.map(rest, strip_tab_indentation)]
+          // Strip tab-based indentation from continuation lines, then treat
+          // any remaining tabs as value whitespace.
+          [first, ..list.map(rest, normalize_continuation_tabs)]
         }
         TabsAsContent -> {
           // Preserve tabs as content — no stripping in build_value.
@@ -487,7 +488,7 @@ fn split_on_equals_with(
 ) -> Result(#(String, String), Nil) {
   let trim_value = case options.tab_handling {
     TabsAsContent -> trim_leading_spaces_only
-    _ -> trim_leading_whitespace
+    _ -> fn(s) { normalize_tabs_to_spaces(trim_leading_whitespace(s)) }
   }
   case options.delimiter_strategy {
     DelimiterPreferSpaced -> split_on_spaced_equals(line, trim_value)
@@ -563,6 +564,14 @@ fn trim_leading_spaces_only(s: String) -> String {
     Ok(" ") -> trim_leading_spaces_only(string.drop_start(s, 1))
     _ -> s
   }
+}
+
+fn normalize_continuation_tabs(line: String) -> String {
+  normalize_tabs_to_spaces(strip_tab_indentation(line))
+}
+
+fn normalize_tabs_to_spaces(s: String) -> String {
+  string.replace(s, "\t", " ")
 }
 
 /// Trim trailing whitespace from a string.

@@ -35,7 +35,8 @@ fn parse_options_for_test(tc: TestCase) -> ccl_types.ParseOptions {
     False -> ccl_types.NormalizeToLf
   }
   let tab_handling = case
-    list.contains(tc.behaviours, "continuation_tab_preserve")
+    list.contains(tc.behaviours, "tabs_as_content")
+    || list.contains(tc.behaviours, "continuation_tab_preserve")
   {
     True -> ccl_types.TabsAsContent
     False -> ccl_types.TabsAsWhitespace

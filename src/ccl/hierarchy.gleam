@@ -129,8 +129,16 @@ fn maybe_sort(
   build_options: BuildOptions,
 ) -> List(CCLValue) {
   case build_options.array_order {
-    LexicographicOrder -> sort_ccl_values(values)
+    LexicographicOrder ->
+      values |> list.filter(non_empty_value) |> sort_ccl_values
     _ -> values
+  }
+}
+
+fn non_empty_value(value: CCLValue) -> Bool {
+  case value {
+    CclString("") -> False
+    _ -> True
   }
 }
 

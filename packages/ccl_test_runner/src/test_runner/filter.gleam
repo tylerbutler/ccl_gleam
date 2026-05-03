@@ -151,6 +151,8 @@ pub fn full_config() -> ImplementationConfig {
       "boolean_strict", "boolean_lenient",
       // Continuation tab handling — both supported
       "continuation_tab_preserve", "continuation_tab_to_space",
+      // Value tab handling — both supported
+      "tabs_as_content", "tabs_as_whitespace",
       // List coercion — both supported
       "list_coercion_disabled", "list_coercion_enabled",
       // Array ordering — both supported

@@ -5,7 +5,10 @@ import ccl/hierarchy
 import ccl/model
 import ccl/model/nested_parser
 import ccl/parser
-import ccl/types.{CclObject, CclString, Entry, Model, default_parse_options}
+import ccl/types.{
+  BuildOptions, CclList, CclObject, CclString, Entry, LexicographicOrder, Model,
+  ParseOptions, TabsAsContent, TabsAsWhitespace, default_parse_options,
+}
 import gleam/dict
 
 pub fn main() {
@@ -104,6 +107,26 @@ pub fn parse_continuation_mixed_tab_space_test() {
   )
 }
 
+pub fn parse_tabs_as_whitespace_replaces_value_tabs_test() {
+  let opts =
+    ParseOptions(..default_parse_options(), tab_handling: TabsAsWhitespace)
+
+  let result = parser.parse_with("key = \tvalue\twith\ttabs", opts)
+
+  result
+  |> expect.to_equal(Ok([Entry(key: "key", value: "value with tabs")]))
+}
+
+pub fn parse_tabs_as_content_preserves_value_tabs_test() {
+  let opts =
+    ParseOptions(..default_parse_options(), tab_handling: TabsAsContent)
+
+  let result = parser.parse_with("key = \tvalue\twith\ttabs", opts)
+
+  result
+  |> expect.to_equal(Ok([Entry(key: "key", value: "\tvalue\twith\ttabs")]))
+}
+
 /// `multiline_keys` feature: indented non-`=` continuation lines accumulate
 /// into the pending key before a subsequent line starting with `=` completes
 /// the entry. Trimmed continuations are joined with a single space.
@@ -139,6 +162,24 @@ pub fn hierarchy_value_with_spaced_equals_test() {
   // "a = b + c" is single-line, so resolve_value treats it as terminal
   formula_val
   |> expect.to_equal(CclString("a = b + c"))
+}
+
+pub fn hierarchy_reference_order_drops_empty_duplicate_values_test() {
+  let entries = [
+    Entry(key: "items", value: "spaced"),
+    Entry(key: "items", value: "normal"),
+    Entry(key: "items", value: ""),
+    Entry(key: "items", value: ""),
+  ]
+  let result =
+    hierarchy.build_hierarchy_with(
+      entries,
+      BuildOptions(array_order: LexicographicOrder),
+      default_parse_options(),
+    )
+
+  dict.get(result, "items")
+  |> expect.to_equal(Ok(CclList([CclString("normal"), CclString("spaced")])))
 }
 
 pub fn build_model_terminal_value_becomes_leaf_key_test() {
