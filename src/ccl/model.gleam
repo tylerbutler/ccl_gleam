@@ -9,10 +9,9 @@
 ///
 /// `build_hierarchy` is the JSON-friendly projection of this model;
 /// see issue tylerbutler/ccl-test-data#142 for the layering.
-import ccl/parser
+import ccl/model/nested_parser
 import ccl/types.{type Entry, type Model, type ParseOptions, Model}
 import gleam/dict.{type Dict}
-import gleam/string
 
 pub fn build_model(entries: List(Entry)) -> Model {
   build_model_with(entries, types.default_parse_options())
@@ -45,16 +44,10 @@ fn build_entries(
 }
 
 fn resolve_value(raw_value: String, parse_options: ParseOptions) -> Model {
-  let is_multiline =
-    string.starts_with(raw_value, "\n") || string.starts_with(raw_value, "\r\n")
-  case is_multiline {
-    True ->
-      case parser.parse_value_with(raw_value, parse_options) {
-        Ok([]) -> singleton_leaf(raw_value)
-        Ok(nested_entries) -> build_model_with(nested_entries, parse_options)
-        Error(_) -> singleton_leaf(raw_value)
-      }
-    False -> singleton_leaf(raw_value)
+  case nested_parser.parse(raw_value, parse_options) {
+    Ok([]) -> singleton_leaf(raw_value)
+    Ok(nested_entries) -> build_model_with(nested_entries, parse_options)
+    Error(_) -> singleton_leaf(raw_value)
   }
 }
 
