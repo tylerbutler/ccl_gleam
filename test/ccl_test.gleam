@@ -2,9 +2,10 @@ import startest
 import startest/expect
 
 import ccl/hierarchy
+import ccl/model
 import ccl/model/nested_parser
 import ccl/parser
-import ccl/types.{CclObject, CclString, Entry, default_parse_options}
+import ccl/types.{CclObject, CclString, Entry, Model, default_parse_options}
 import gleam/dict
 
 pub fn main() {
@@ -138,4 +139,78 @@ pub fn hierarchy_value_with_spaced_equals_test() {
   // "a = b + c" is single-line, so resolve_value treats it as terminal
   formula_val
   |> expect.to_equal(CclString("a = b + c"))
+}
+
+pub fn build_model_terminal_value_becomes_leaf_key_test() {
+  let result = model.build_model([Entry(key: "name", value: "Alice")])
+  let empty = Model(dict.new())
+
+  result
+  |> expect.to_equal(
+    Model(dict.from_list([
+      #("name", Model(dict.from_list([#("Alice", empty)]))),
+    ])),
+  )
+}
+
+pub fn build_model_multiline_value_becomes_recursive_model_test() {
+  let result =
+    model.build_model([
+      Entry(key: "server", value: "\n  host = localhost\n  port = 5432"),
+    ])
+  let empty = Model(dict.new())
+
+  result
+  |> expect.to_equal(
+    Model(dict.from_list([
+      #(
+        "server",
+        Model(dict.from_list([
+          #("host", Model(dict.from_list([#("localhost", empty)]))),
+          #("port", Model(dict.from_list([#("5432", empty)]))),
+        ])),
+      ),
+    ])),
+  )
+}
+
+pub fn build_model_duplicate_keys_merge_recursively_test() {
+  let result =
+    model.build_model([
+      Entry(key: "env", value: "\n  db = primary"),
+      Entry(key: "env", value: "\n  cache = redis"),
+      Entry(key: "env", value: "\n  db = replica"),
+    ])
+  let empty = Model(dict.new())
+
+  result
+  |> expect.to_equal(
+    Model(dict.from_list([
+      #(
+        "env",
+        Model(dict.from_list([
+          #(
+            "db",
+            Model(dict.from_list([
+              #("primary", empty),
+              #("replica", empty),
+            ])),
+          ),
+          #("cache", Model(dict.from_list([#("redis", empty)]))),
+        ])),
+      ),
+    ])),
+  )
+}
+
+pub fn build_model_empty_nested_parse_falls_back_to_terminal_leaf_test() {
+  let result = model.build_model([Entry(key: "blank", value: "\n")])
+  let empty = Model(dict.new())
+
+  result
+  |> expect.to_equal(
+    Model(dict.from_list([
+      #("blank", Model(dict.from_list([#("\n", empty)]))),
+    ])),
+  )
 }
