@@ -147,9 +147,11 @@ pub fn build_model_terminal_value_becomes_leaf_key_test() {
 
   result
   |> expect.to_equal(
-    Model(dict.from_list([
-      #("name", Model(dict.from_list([#("Alice", empty)]))),
-    ])),
+    Model(
+      dict.from_list([
+        #("name", Model(dict.from_list([#("Alice", empty)]))),
+      ]),
+    ),
   )
 }
 
@@ -162,15 +164,19 @@ pub fn build_model_multiline_value_becomes_recursive_model_test() {
 
   result
   |> expect.to_equal(
-    Model(dict.from_list([
-      #(
-        "server",
-        Model(dict.from_list([
-          #("host", Model(dict.from_list([#("localhost", empty)]))),
-          #("port", Model(dict.from_list([#("5432", empty)]))),
-        ])),
-      ),
-    ])),
+    Model(
+      dict.from_list([
+        #(
+          "server",
+          Model(
+            dict.from_list([
+              #("host", Model(dict.from_list([#("localhost", empty)]))),
+              #("port", Model(dict.from_list([#("5432", empty)]))),
+            ]),
+          ),
+        ),
+      ]),
+    ),
   )
 }
 
@@ -185,21 +191,27 @@ pub fn build_model_duplicate_keys_merge_recursively_test() {
 
   result
   |> expect.to_equal(
-    Model(dict.from_list([
-      #(
-        "env",
-        Model(dict.from_list([
-          #(
-            "db",
-            Model(dict.from_list([
-              #("primary", empty),
-              #("replica", empty),
-            ])),
+    Model(
+      dict.from_list([
+        #(
+          "env",
+          Model(
+            dict.from_list([
+              #(
+                "db",
+                Model(
+                  dict.from_list([
+                    #("primary", empty),
+                    #("replica", empty),
+                  ]),
+                ),
+              ),
+              #("cache", Model(dict.from_list([#("redis", empty)]))),
+            ]),
           ),
-          #("cache", Model(dict.from_list([#("redis", empty)]))),
-        ])),
-      ),
-    ])),
+        ),
+      ]),
+    ),
   )
 }
 
@@ -209,8 +221,10 @@ pub fn build_model_empty_nested_parse_falls_back_to_terminal_leaf_test() {
 
   result
   |> expect.to_equal(
-    Model(dict.from_list([
-      #("blank", Model(dict.from_list([#("\n", empty)]))),
-    ])),
+    Model(
+      dict.from_list([
+        #("blank", Model(dict.from_list([#("\n", empty)]))),
+      ]),
+    ),
   )
 }

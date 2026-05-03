@@ -189,7 +189,10 @@ pub fn to_snake_case(name: String) -> String {
 // --- Internal: type extraction ---
 
 /// Extract a single type definition from a source file by name.
-fn extract_type_def(source: String, type_name: String) -> Result(String, String) {
+fn extract_type_def(
+  source: String,
+  type_name: String,
+) -> Result(String, String) {
   let lines = string.split(source, "\n")
   let marker = "type " <> type_name <> " "
   let alt_marker = "type " <> type_name <> "{"
@@ -281,7 +284,10 @@ fn parse_after_type_keyword(rest: String) -> Result(TypeDef, String) {
   }
 }
 
-fn parse_constructor(type_name: String, body: String) -> Result(TypeDef, String) {
+fn parse_constructor(
+  type_name: String,
+  body: String,
+) -> Result(TypeDef, String) {
   case string.split_once(body, "(") {
     Ok(#(constructor_name, fields_part)) -> {
       let constructor = string.trim(constructor_name)

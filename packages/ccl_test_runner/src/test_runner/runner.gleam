@@ -189,7 +189,10 @@ pub fn run_test_suite(
 }
 
 /// Run a single test case
-pub fn run_single_test(tc: TestCase, config: ImplementationConfig) -> TestResult {
+pub fn run_single_test(
+  tc: TestCase,
+  config: ImplementationConfig,
+) -> TestResult {
   case filter.get_skip_reason(config, tc) {
     Error(reason) -> TestSkipped(tc.name, reason)
     Ok(Nil) -> execute_test(tc)
@@ -214,7 +217,8 @@ fn execute_test(tc: TestCase) -> TestResult {
     "print" -> run_print_test(tc.name, input, tc.expected, parse_opts)
     "build_hierarchy" ->
       run_hierarchy_test(tc.name, input, tc.expected, parse_opts, build_opts)
-    "build_model" -> run_build_model_test(tc.name, input, tc.expected, parse_opts)
+    "build_model" ->
+      run_build_model_test(tc.name, input, tc.expected, parse_opts)
     "get_string" ->
       run_get_string_test(
         tc.name,
@@ -784,7 +788,8 @@ fn run_get_bool_test(
   access_opts: ccl_types.AccessOptions,
 ) -> TestResult {
   case expected {
-    ExpectedBool(count, expected_value) | ExpectedBoolean(count, expected_value) -> {
+    ExpectedBool(count, expected_value)
+    | ExpectedBoolean(count, expected_value) -> {
       case parse_and_build_with(input, parse_opts, build_opts) {
         Ok(obj) -> {
           case access.get_bool_with(obj, path, access_opts) {

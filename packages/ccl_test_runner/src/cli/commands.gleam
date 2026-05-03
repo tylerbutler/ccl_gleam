@@ -59,7 +59,10 @@ pub fn build_config(
 }
 
 /// Use the override list if non-empty, otherwise keep the base value.
-fn override_or_keep(override: List(String), base: List(String)) -> List(String) {
+fn override_or_keep(
+  override: List(String),
+  base: List(String),
+) -> List(String) {
   case override {
     [] -> base
     values -> values
