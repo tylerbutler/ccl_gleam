@@ -2,8 +2,9 @@ import startest
 import startest/expect
 
 import ccl/hierarchy
+import ccl/model/nested_parser
 import ccl/parser
-import ccl/types.{CclObject, CclString, Entry}
+import ccl/types.{CclObject, CclString, Entry, default_parse_options}
 import gleam/dict
 
 pub fn main() {
@@ -15,6 +16,20 @@ pub fn parse_basic_key_value_test() {
   let result = parser.parse(input)
   result
   |> expect.to_equal(Ok([Entry(key: "key", value: "value")]))
+}
+
+pub fn model_nested_parser_accepts_lf_multiline_value_test() {
+  let result = nested_parser.parse("\n  child = value", default_parse_options())
+
+  result
+  |> expect.to_equal(Ok([Entry(key: "child", value: "value")]))
+}
+
+pub fn model_nested_parser_rejects_single_line_value_test() {
+  let result = nested_parser.parse("plain value", default_parse_options())
+
+  result
+  |> expect.to_equal(Error(Nil))
 }
 
 pub fn parse_empty_input_test() {
