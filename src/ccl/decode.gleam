@@ -46,7 +46,10 @@ pub type DecodeError {
 // --- Entry points ---
 
 /// Run a decoder on a `CCLValue`.
-pub fn run(decoder: Decoder(a), value: CCLValue) -> Result(a, List(DecodeError)) {
+pub fn run(
+  decoder: Decoder(a),
+  value: CCLValue,
+) -> Result(a, List(DecodeError)) {
   decoder(value)
 }
 
@@ -60,7 +63,10 @@ pub fn from_ccl(ccl: CCL, decoder: Decoder(a)) -> Result(a, List(DecodeError)) {
 /// Parse CCL text and decode it in one step.
 ///
 /// Composes `parser.parse` → `hierarchy.build_hierarchy` → decoder.
-pub fn decode(text: String, decoder: Decoder(a)) -> Result(a, List(DecodeError)) {
+pub fn decode(
+  text: String,
+  decoder: Decoder(a),
+) -> Result(a, List(DecodeError)) {
   case parser.parse(text) {
     Ok(entries) -> {
       let ccl = hierarchy.build_hierarchy(entries)
