@@ -162,7 +162,8 @@ fn ccl_value_key(value: CCLValue) -> String {
 
 /// Merge two values for the same key.
 /// Two objects merge recursively. Otherwise, accumulate into a list.
-/// Empty-string values are filtered from duplicate-key lists.
+/// Empty-string values are preserved (the reference keeps trailing empty
+/// list items produced by repeated `key =` entries).
 /// Lexicographic sorting is applied when configured.
 fn merge_values(
   existing: CCLValue,
@@ -174,30 +175,15 @@ fn merge_values(
     CclObject(a), CclObject(b) -> CclObject(merge_dicts(a, b, build_options))
     // Existing list: append new value
     CclList(items), _ -> {
-      let new_list =
-        list.append(items, [new])
-        |> filter_empty_strings
+      let new_list = list.append(items, [new])
       CclList(maybe_sort(new_list, build_options))
     }
     // Convert to list
     _, _ -> {
-      let new_list =
-        [existing, new]
-        |> filter_empty_strings
+      let new_list = [existing, new]
       CclList(maybe_sort(new_list, build_options))
     }
   }
-}
-
-/// Filter out empty-string values from a list.
-/// Duplicate named keys with empty values (e.g. `key =`) are excluded.
-fn filter_empty_strings(values: List(CCLValue)) -> List(CCLValue) {
-  list.filter(values, fn(v) {
-    case v {
-      CclString("") -> False
-      _ -> True
-    }
-  })
 }
 
 /// Merge two CCL dicts, recursively merging values for shared keys.

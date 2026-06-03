@@ -10,8 +10,8 @@ import test_runner/types.{
   type Conflicts, type Expected, type ExpectedNode, type TestCase,
   type TestSuite, Conflicts, ExpectedBool, ExpectedBoolean, ExpectedCountOnly,
   ExpectedEntries, ExpectedError, ExpectedFloat, ExpectedInt, ExpectedList,
-  ExpectedObject, ExpectedValue, NodeList, NodeObject, NodeString, TestCase,
-  TestEntry, TestSuite,
+  ExpectedObject, ExpectedValue, NodeList, NodeObject, NodeString, Predicate,
+  TestCase, TestEntry, TestSuite,
 }
 
 /// Load a test suite from a JSON file
@@ -63,6 +63,11 @@ fn test_case_decoder() -> decode.Decoder(TestCase) {
     Conflicts(behaviours: []),
     conflicts_decoder(),
   )
+  use predicate <- decode.optional_field(
+    "predicate",
+    None,
+    decode.optional(predicate_decoder()),
+  )
 
   decode.success(TestCase(
     name: name,
@@ -77,7 +82,16 @@ fn test_case_decoder() -> decode.Decoder(TestCase) {
     path: path,
     args: args,
     conflicts: conflicts,
+    predicate: predicate,
   ))
+}
+
+/// Decoder for the optional filter predicate field
+fn predicate_decoder() -> decode.Decoder(types.Predicate) {
+  use field <- decode.field("field", decode.string)
+  use op <- decode.field("op", decode.string)
+  use value <- decode.field("value", decode.string)
+  decode.success(Predicate(field: field, op: op, value: value))
 }
 
 /// Decoder for the conflicts field
