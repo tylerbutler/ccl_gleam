@@ -62,6 +62,47 @@ pub fn hierarchy_multiple_semver_ranges_test() {
   dict.get(inner, "typescript") |> expect.to_equal(Ok(CclString("~=5.0")))
 }
 
+/// Issue #12: an unindented no-`=` line following an *empty-key* entry folds
+/// into the KEY of the next `key = value` entry (joined with `\n`), rather than
+/// being emitted as a standalone entry or being dropped.
+pub fn multiline_keys_fold_into_next_key_test() {
+  let opts =
+    types.ParseOptions(
+      ..types.default_parse_options(),
+      delimiter_strategy: types.DelimiterFirstEquals,
+    )
+  let input = "== Section Header =\nprefix for next key\nkey = value"
+  parser.parse_with(input, opts)
+  |> expect.to_equal(
+    Ok([
+      Entry(key: "", value: "= Section Header ="),
+      Entry(key: "prefix for next key\nkey", value: "value"),
+    ]),
+  )
+}
+
+/// Issue #12: an unindented no-`=` line following a *named-key* entry does NOT
+/// fold forward; it becomes its own entry with an empty value (and is not
+/// dropped). Mirrors the `list_multiline_values` fixture.
+pub fn multiline_keys_non_merging_line_is_standalone_entry_test() {
+  let opts =
+    types.ParseOptions(
+      ..types.default_parse_options(),
+      delimiter_strategy: types.DelimiterFirstEquals,
+    )
+  let input =
+    "descriptions = First line\nsecond line\ndescriptions = Another item\ndescriptions = Third item"
+  parser.parse_with(input, opts)
+  |> expect.to_equal(
+    Ok([
+      Entry(key: "descriptions", value: "First line"),
+      Entry(key: "second line", value: ""),
+      Entry(key: "descriptions", value: "Another item"),
+      Entry(key: "descriptions", value: "Third item"),
+    ]),
+  )
+}
+
 /// Single-line value containing ` = ` is still a terminal string in hierarchy.
 pub fn hierarchy_value_with_spaced_equals_test() {
   let input = "config =\n  formula = a = b + c"

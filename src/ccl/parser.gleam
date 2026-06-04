@@ -136,7 +136,11 @@ fn parse_lines(
 ) -> Result(List(Entry), String) {
   case lines {
     [] -> {
-      // Flush any remaining entry (pending_key without `=` is discarded)
+      // Flush any remaining entry. A trailing pending key (a no-`=` line at
+      // end of input) is intentionally discarded: with no following `=` line
+      // it can neither fold into a key nor form a `key = value` entry, matching
+      // the reference parser. Mid-stream non-merging pending keys are emitted
+      // as standalone empty-value entries (see flush_pending_key).
       let final_acc = flush_entry(acc, current, options)
       Ok(list.reverse(final_acc))
     }
@@ -197,6 +201,9 @@ fn parse_lines(
                 Ok(#(key, value)) -> {
                   // Fold any buffered multiline-key lines into this key.
                   let merge = should_merge_pending(acc, key)
+                  // A pending key that does not fold forward is its own entry
+                  // (empty value), not discarded.
+                  let acc = flush_pending_key(acc, pending_key, merge, options)
                   let final_key =
                     combine_key(pending_key, key, indent, baseline, merge)
                   let new_current = Some(#(final_key, [value]))
@@ -224,6 +231,10 @@ fn parse_lines(
                 Ok(#(key, value)) -> {
                   // Fold any buffered multiline-key lines into this key.
                   let merge = should_merge_pending(new_acc, key)
+                  // A pending key that does not fold forward is its own entry
+                  // (empty value), not discarded.
+                  let new_acc =
+                    flush_pending_key(new_acc, pending_key, merge, options)
                   let final_key =
                     combine_key(pending_key, key, indent, baseline, merge)
                   let new_current = Some(#(final_key, [value]))
@@ -294,6 +305,24 @@ fn extend_pending(
   case pending {
     None -> trimmed_line
     Some(p) -> p <> key_separator(indent, baseline) <> trimmed_line
+  }
+}
+
+/// Emit a buffered pending key as a standalone empty-value entry when it does
+/// not fold forward into the next `=` line's key (`merge == False`). This is
+/// the non-merging half of the multiline-key rule: an unindented no-`=` line
+/// following a *named*-key entry (e.g. repeated list keys) is its own entry
+/// rather than a prefix of the following key. When `merge == True` the buffer
+/// is consumed by `combine_key`, so nothing is emitted here.
+fn flush_pending_key(
+  acc: List(Entry),
+  pending: Option(String),
+  merge: Bool,
+  options: ParseOptions,
+) -> List(Entry) {
+  case pending, merge {
+    Some(p), False -> flush_entry(acc, Some(#(string.trim(p), [])), options)
+    _, _ -> acc
   }
 }
 
