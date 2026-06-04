@@ -191,7 +191,10 @@ pub fn run_test_suite(
 }
 
 /// Run a single test case
-pub fn run_single_test(tc: TestCase, config: ImplementationConfig) -> TestResult {
+pub fn run_single_test(
+  tc: TestCase,
+  config: ImplementationConfig,
+) -> TestResult {
   case filter.get_skip_reason(config, tc) {
     Error(reason) -> TestSkipped(tc.name, reason)
     Ok(Nil) -> execute_test(tc)
@@ -263,7 +266,8 @@ fn execute_test(tc: TestCase) -> TestResult {
         build_opts,
         access_opts,
       )
-    "filter" -> run_filter_test(tc.name, input, tc.expected, parse_opts)
+    "filter" ->
+      run_filter_test(tc.name, input, tc.expected, tc.predicate, parse_opts)
     "round_trip" -> run_round_trip_test(tc.name, input, tc.expected, parse_opts)
     "canonical_format" ->
       run_canonical_format_test(
@@ -389,6 +393,7 @@ fn run_filter_test(
   name: String,
   input: String,
   expected: Expected,
+  predicate: option.Option(types.Predicate),
   parse_opts: ccl_types.ParseOptions,
 ) -> TestResult {
   case expected {
@@ -398,6 +403,7 @@ fn run_filter_test(
           let filtered =
             entries
             |> list.filter(fn(e) { e.key != "/" })
+            |> apply_predicate(predicate)
           let expected_list =
             expected_entries
             |> list.map(fn(e) { ccl_types.Entry(e.key, e.value) })
@@ -422,6 +428,7 @@ fn run_filter_test(
           let filtered =
             entries
             |> list.filter(fn(e) { e.key != "/" })
+            |> apply_predicate(predicate)
           // Count-only: just verify the count matches
           case list.length(filtered) == count {
             True -> TestPassed(name, count)
@@ -439,6 +446,28 @@ fn run_filter_test(
       }
     }
     _ -> error_fail(name, "Invalid expected type for filter test", 0)
+  }
+}
+
+/// Keep only entries that satisfy the filter predicate.
+/// With no predicate, all entries are kept.
+fn apply_predicate(
+  entries: List(ccl_types.Entry),
+  predicate: option.Option(types.Predicate),
+) -> List(ccl_types.Entry) {
+  case predicate {
+    option.None -> entries
+    option.Some(types.Predicate(field, op, target)) ->
+      list.filter(entries, fn(e) {
+        let actual = case field {
+          "value" -> e.value
+          _ -> e.key
+        }
+        case op {
+          "!=" -> actual != target
+          _ -> actual == target
+        }
+      })
   }
 }
 
@@ -682,7 +711,8 @@ fn run_get_bool_test(
   access_opts: ccl_types.AccessOptions,
 ) -> TestResult {
   case expected {
-    ExpectedBool(count, expected_value) | ExpectedBoolean(count, expected_value) -> {
+    ExpectedBool(count, expected_value)
+    | ExpectedBoolean(count, expected_value) -> {
       case parse_and_build_with(input, parse_opts, build_opts) {
         Ok(obj) -> {
           case access.get_bool_with(obj, path, access_opts) {
