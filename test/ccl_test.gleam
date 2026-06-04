@@ -23,6 +23,16 @@ pub fn parse_empty_input_test() {
   |> expect.to_equal(Ok([]))
 }
 
+/// Issue #11: `delimiter_prefer_spaced` (the default strategy) must fall back to
+/// the first bare `=` when no ` = ` (space-equals-space) delimiter exists. A
+/// trailing ` =` without a trailing space is NOT a spaced delimiter, so
+/// `== Section Header =` yields an empty key with the full RHS as the value.
+pub fn parse_prefer_spaced_falls_back_to_first_equals_test() {
+  let result = parser.parse("== Section Header =")
+  result
+  |> expect.to_equal(Ok([Entry(key: "", value: "= Section Header =")]))
+}
+
 /// Issue #3: Values containing `=` (like semver ranges `>=18`) should not be
 /// recursively parsed as nested key-value pairs.
 pub fn hierarchy_value_with_equals_not_reparsed_test() {
