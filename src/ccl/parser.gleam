@@ -123,33 +123,26 @@ fn parse_with_baseline(
 /// State machine for parsing lines into entries.
 /// Accumulates continuation lines into the current entry's value.
 ///
-/// `pending_key` buffers a line without `=` and any subsequent indented no-`=`
-/// lines, so we can defer the interpretation of that buffer until we see what
-/// closes it:
-///
-/// - If the buffer is closed by a line whose split yields an empty key (e.g.
-///   `= val`, or `\t= val`), the buffered head plus each trimmed tail line
-///   joined by a single space becomes the entry's key (`multiline_keys`
-///   feature), with the value taken from the `=` line.
-/// - If the buffer is closed by any other event (a new unindented entry, end
-///   of input, an indented `=` line with a non-empty key), the buffered tail
-///   is preserved as the head entry's multi-line value so that
-///   `build_hierarchy` can recursively reparse it.
-///
-/// The tuple is `(head_trimmed, tail_raw_lines_in_order)`.
+/// `pending_key`: buffered text from lines without `=`, to be combined
+/// with the next line that has `=`. This mirrors OCaml's `many (not_char '=')`
+/// which reads across line boundaries until it hits `=`.
 fn parse_lines(
   lines: List(String),
   baseline: Int,
   acc: List(Entry),
   current: Option(#(String, List(String))),
-  pending_key: Option(#(String, List(String))),
+  pending_key: Option(String),
   options: ParseOptions,
 ) -> Result(List(Entry), String) {
   case lines {
     [] -> {
-      let acc1 = flush_entry(acc, current, options)
-      let acc2 = flush_pending_key(acc1, pending_key)
-      Ok(list.reverse(acc2))
+      // Flush any remaining entry. A trailing pending key (a no-`=` line at
+      // end of input) is intentionally discarded: with no following `=` line
+      // it can neither fold into a key nor form a `key = value` entry, matching
+      // the reference parser. Mid-stream non-merging pending keys are emitted
+      // as standalone empty-value entries (see flush_pending_key).
+      let final_acc = flush_entry(acc, current, options)
+      Ok(list.reverse(final_acc))
     }
     [line, ..rest] -> {
       let indent = count_leading_whitespace(line)
@@ -160,8 +153,10 @@ fn parse_lines(
         "" -> {
           case current {
             Some(#(key, value_lines)) -> {
+              // Check if there are more continuation lines after this empty line
               case has_continuation_after(rest, baseline) {
                 True -> {
+                  // Preserve empty line within the value
                   let new_current = Some(#(key, list.append(value_lines, [""])))
                   parse_lines(
                     rest,
@@ -173,6 +168,7 @@ fn parse_lines(
                   )
                 }
                 False -> {
+                  // End of value, flush and continue
                   let new_acc = flush_entry(acc, current, options)
                   parse_lines(
                     rest,
@@ -185,126 +181,82 @@ fn parse_lines(
                 }
               }
             }
-            None -> parse_lines(rest, baseline, acc, None, pending_key, options)
+            None -> {
+              // Skip standalone empty lines
+              parse_lines(rest, baseline, acc, None, pending_key, options)
+            }
           }
         }
         _ -> {
-          case indent > baseline, current, pending_key {
+          case indent > baseline, current {
             // Continuation line: append to current entry's value
-            True, Some(#(key, value_lines)), _ -> {
+            True, Some(#(key, value_lines)) -> {
               let new_current = Some(#(key, list.append(value_lines, [line])))
               parse_lines(rest, baseline, acc, new_current, None, options)
             }
-            // Continuation line, no current, pending_key buffer exists.
-            //
-            // - Indented `= val` with empty key closes the buffer as a
-            //   multi-line key (`multiline_keys` feature).
-            // - Indented `=` with a non-empty key: fall back to the nested
-            //   value block — head becomes the entry key, and the buffered
-            //   tail plus this line make up the nested value.
-            // - Indented no-`=` line: append raw line to the tail; decision is
-            //   still deferred.
-            True, None, Some(#(head, tail)) -> {
-              case split_on_equals_with(line, options) {
-                Ok(#(key, value)) ->
-                  case string.trim(key) {
-                    "" -> {
-                      let combined = combine_pending_key(head, tail)
-                      let new_current = Some(#(combined, [value]))
-                      parse_lines(
-                        rest,
-                        baseline,
-                        acc,
-                        new_current,
-                        None,
-                        options,
-                      )
-                    }
-                    _ -> {
-                      let value_lines =
-                        list.append(list.append([""], tail), [line])
-                      let new_current = Some(#(head, value_lines))
-                      parse_lines(
-                        rest,
-                        baseline,
-                        acc,
-                        new_current,
-                        None,
-                        options,
-                      )
-                    }
-                  }
-                Error(_) -> {
-                  let new_pending = Some(#(head, list.append(tail, [line])))
-                  parse_lines(rest, baseline, acc, None, new_pending, options)
-                }
-              }
-            }
-            // Continuation line, no current, no pending_key
-            True, None, None -> {
+            // Continuation line but no current entry: treat as new entry
+            // This handles the case where indented text appears at the start
+            True, None -> {
               case split_on_equals_with(line, options) {
                 Ok(#(key, value)) -> {
-                  let new_current = Some(#(key, [value]))
+                  // Fold any buffered multiline-key lines into this key.
+                  let merge = should_merge_pending(acc, key)
+                  // A pending key that does not fold forward is its own entry
+                  // (empty value), not discarded.
+                  let acc = flush_pending_key(acc, pending_key, merge, options)
+                  let final_key =
+                    combine_key(pending_key, key, indent, baseline, merge)
+                  let new_current = Some(#(final_key, [value]))
                   parse_lines(rest, baseline, acc, new_current, None, options)
                 }
-                // No `=`: start a pending buffer so it can combine with a
-                // later `=value` line.
-                Error(_) ->
+                // Line without '=' — accumulate into the pending key
+                Error(_) -> {
+                  let new_pending =
+                    extend_pending(pending_key, trimmed, indent, baseline)
                   parse_lines(
                     rest,
                     baseline,
                     acc,
                     None,
-                    Some(#(trimmed, [])),
+                    Some(new_pending),
                     options,
                   )
+                }
               }
             }
             // New entry (indent <= baseline): flush current, start new
-            False, _, _ -> {
-              let acc1 = flush_entry(acc, current, options)
+            False, _ -> {
+              let new_acc = flush_entry(acc, current, options)
               case split_on_equals_with(line, options) {
                 Ok(#(key, value)) -> {
-                  case pending_key, string.trim(key) {
-                    // pending_key + line starting with `=`: combine as
-                    // multi-line key entry
-                    Some(#(head, tail)), "" -> {
-                      let combined = combine_pending_key(head, tail)
-                      let new_current = Some(#(combined, [value]))
-                      parse_lines(
-                        rest,
-                        baseline,
-                        acc1,
-                        new_current,
-                        None,
-                        options,
-                      )
-                    }
-                    // Otherwise flush pending buffer and start a fresh entry
-                    _, _ -> {
-                      let acc2 = flush_pending_key(acc1, pending_key)
-                      let new_current = Some(#(key, [value]))
-                      parse_lines(
-                        rest,
-                        baseline,
-                        acc2,
-                        new_current,
-                        None,
-                        options,
-                      )
-                    }
-                  }
-                }
-                // Line without `=`: flush any prior pending buffer and start
-                // a new one with this line as the head
-                Error(_) -> {
-                  let acc2 = flush_pending_key(acc1, pending_key)
+                  // Fold any buffered multiline-key lines into this key.
+                  let merge = should_merge_pending(new_acc, key)
+                  // A pending key that does not fold forward is its own entry
+                  // (empty value), not discarded.
+                  let new_acc =
+                    flush_pending_key(new_acc, pending_key, merge, options)
+                  let final_key =
+                    combine_key(pending_key, key, indent, baseline, merge)
+                  let new_current = Some(#(final_key, [value]))
                   parse_lines(
                     rest,
                     baseline,
-                    acc2,
+                    new_acc,
+                    new_current,
                     None,
-                    Some(#(trimmed, [])),
+                    options,
+                  )
+                }
+                // Line without '=' at entry level — accumulate as pending key
+                Error(_) -> {
+                  let new_pending =
+                    extend_pending(pending_key, trimmed, indent, baseline)
+                  parse_lines(
+                    rest,
+                    baseline,
+                    new_acc,
+                    None,
+                    Some(new_pending),
                     options,
                   )
                 }
@@ -313,37 +265,6 @@ fn parse_lines(
           }
         }
       }
-    }
-  }
-}
-
-/// Flush a pending key buffer that was never closed by a `=` line. With no
-/// tail lines, it emits as `(head, "")`. With tail lines, the buffer is
-/// preserved as a nested-value block on the head entry so `build_hierarchy`
-/// can recurse into it.
-fn flush_pending_key(
-  acc: List(Entry),
-  pending_key: Option(#(String, List(String))),
-) -> List(Entry) {
-  case pending_key {
-    None -> acc
-    Some(#(head, [])) -> [Entry(key: head, value: ""), ..acc]
-    Some(#(head, tail)) -> {
-      let value = "\n" <> string.join(tail, "\n")
-      [Entry(key: head, value: value), ..acc]
-    }
-  }
-}
-
-/// Join a pending-key head and its tail into a single key. Tail lines are
-/// trimmed of their structural indentation and joined to the head by a single
-/// space, per `multiline_keys` semantics.
-fn combine_pending_key(head: String, tail: List(String)) -> String {
-  case tail {
-    [] -> head
-    _ -> {
-      let trimmed_tail = list.map(tail, string.trim)
-      head <> " " <> string.join(trimmed_tail, " ")
     }
   }
 }
@@ -363,24 +284,111 @@ fn flush_entry(
   }
 }
 
+/// Separator used when folding a multiline-key line into the buffer.
+/// An indented continuation line folds into a single space; an unindented
+/// line keeps the literal newline. Mirrors the OCaml reference, which reads
+/// every char up to `=` and trims the whole multiline-key mouthful.
+fn key_separator(indent: Int, baseline: Int) -> String {
+  case indent > baseline {
+    True -> " "
+    False -> "\n"
+  }
+}
+
+/// Accumulate a buffered key line (a line with no `=`) into the pending key.
+fn extend_pending(
+  pending: Option(String),
+  trimmed_line: String,
+  indent: Int,
+  baseline: Int,
+) -> String {
+  case pending {
+    None -> trimmed_line
+    Some(p) -> p <> key_separator(indent, baseline) <> trimmed_line
+  }
+}
+
+/// Emit a buffered pending key as a standalone empty-value entry when it does
+/// not fold forward into the next `=` line's key (`merge == False`). This is
+/// the non-merging half of the multiline-key rule: an unindented no-`=` line
+/// following a *named*-key entry (e.g. repeated list keys) is its own entry
+/// rather than a prefix of the following key. When `merge == True` the buffer
+/// is consumed by `combine_key`, so nothing is emitted here.
+fn flush_pending_key(
+  acc: List(Entry),
+  pending: Option(String),
+  merge: Bool,
+  options: ParseOptions,
+) -> List(Entry) {
+  case pending, merge {
+    Some(p), False -> flush_entry(acc, Some(#(string.trim(p), [])), options)
+    _, _ -> acc
+  }
+}
+
+/// Decide whether a buffered pending key should fold into the key part of a
+/// `=` line. An empty key part always absorbs the pending buffer (the buffer
+/// *is* the key, e.g. `my\n key\n= val`). A non-empty key part only absorbs the
+/// pending buffer when the preceding entry has an empty key (or there is no
+/// preceding entry) — this is the multiline-key continuation case. Otherwise
+/// the pending buffer belongs to a distinct entry and must not merge forward
+/// (e.g. a stray unindented line between repeated list keys).
+fn should_merge_pending(acc: List(Entry), key_part: String) -> Bool {
+  case string.trim(key_part) {
+    "" -> True
+    _ ->
+      case acc {
+        [] -> True
+        [first, ..] -> first.key == ""
+      }
+  }
+}
+
+/// Combine the buffered pending key with the key part of the `=` line.
+/// The whole result is trimmed, matching the reference's String.trim.
+/// When `merge` is False the pending buffer is dropped and only the key part
+/// is used.
+fn combine_key(
+  pending: Option(String),
+  key_part: String,
+  indent: Int,
+  baseline: Int,
+  merge: Bool,
+) -> String {
+  let trimmed_key = string.trim(key_part)
+  case pending {
+    None -> trimmed_key
+    Some(p) ->
+      case merge {
+        False -> trimmed_key
+        True ->
+          case trimmed_key {
+            "" -> string.trim(p)
+            _ ->
+              string.trim(p <> key_separator(indent, baseline) <> trimmed_key)
+          }
+      }
+  }
+}
+
 /// Build the final value string from accumulated lines.
 /// First line has leading whitespace already trimmed.
 /// Trailing whitespace on the final line is trimmed.
 ///
 /// Tab handling depends on options:
-/// - `TabsAsWhitespace`: tabs in indentation are structural, stripped;
-///   remaining tabs in content are replaced with spaces
+/// - `TabsAsWhitespace`: LEADING tabs on continuation lines are structural
+///   and stripped; interior tabs within a value are always preserved
+///   (`tab_in_value_preserved`).
 /// - `TabsAsContent`: tabs are preserved as-is
 fn build_value(lines: List(String), options: ParseOptions) -> String {
-  let result = case lines {
+  case lines {
     [] -> ""
     [single] -> trim_trailing(single)
     [first, ..rest] -> {
       let processed = case options.tab_handling {
         TabsAsWhitespace -> {
-          // Strip tab-based indentation from continuation lines, then treat
-          // any remaining tabs as value whitespace.
-          [first, ..list.map(rest, normalize_continuation_tabs)]
+          // Strip tab-based indentation from continuation lines
+          [first, ..list.map(rest, strip_tab_indentation)]
         }
         TabsAsContent -> {
           // Preserve tabs as content — no stripping in build_value.
@@ -394,27 +402,35 @@ fn build_value(lines: List(String), options: ParseOptions) -> String {
       trim_trailing(joined)
     }
   }
-  result
 }
 
-/// Map each leading tab on a continuation line to a single space (OCaml-canonical
-/// `continuation_tab_to_space`). Leading spaces pass through unchanged. Stops at
-/// the first non-whitespace character.
+/// Strip leading whitespace from a continuation line if it contains tabs.
+/// Lines with tab-based indentation have ALL leading whitespace stripped
+/// (the tabs were structural indentation, not content).
+/// Lines with space-only indentation are preserved as-is.
 fn strip_tab_indentation(line: String) -> String {
-  let #(mapped, rest) =
-    map_leading_tabs_to_spaces(string.to_graphemes(line), "")
-  mapped <> rest
+  case has_leading_tab(line) {
+    True -> strip_all_leading_whitespace(line)
+    False -> line
+  }
 }
 
-fn map_leading_tabs_to_spaces(
-  chars: List(String),
-  acc: String,
-) -> #(String, String) {
+/// Check if a line has any tab characters in its leading whitespace.
+fn has_leading_tab(line: String) -> Bool {
+  has_leading_tab_chars(string.to_graphemes(line))
+}
+
+fn has_leading_tab_chars(chars: List(String)) -> Bool {
   case chars {
-    ["\t", ..rest] -> map_leading_tabs_to_spaces(rest, acc <> " ")
-    [" ", ..rest] -> map_leading_tabs_to_spaces(rest, acc <> " ")
-    _ -> #(acc, string.concat(chars))
+    ["\t", ..] -> True
+    [" ", ..rest] -> has_leading_tab_chars(rest)
+    _ -> False
   }
+}
+
+/// Strip all leading whitespace (tabs and spaces) from a string.
+fn strip_all_leading_whitespace(s: String) -> String {
+  trim_leading_whitespace(s)
 }
 
 /// Strip the minimum space-only indent from continuation lines in each entry.
@@ -488,7 +504,7 @@ fn split_on_equals_with(
 ) -> Result(#(String, String), Nil) {
   let trim_value = case options.tab_handling {
     TabsAsContent -> trim_leading_spaces_only
-    _ -> fn(s) { normalize_tabs_to_spaces(trim_leading_whitespace(s)) }
+    _ -> trim_leading_whitespace
   }
   case options.delimiter_strategy {
     DelimiterPreferSpaced -> split_on_spaced_equals(line, trim_value)
@@ -513,7 +529,8 @@ fn split_on_first_equals(
 }
 
 /// Split a line preferring ` = ` (space-equals-space) as delimiter.
-/// Falls back to ` =` at end of line, then to first `=`.
+/// A spaced delimiter requires BOTH a leading and trailing space; when no
+/// such delimiter exists, falls back to the first bare `=`.
 fn split_on_spaced_equals(
   line: String,
   trim_value: fn(String) -> String,
@@ -525,19 +542,8 @@ fn split_on_spaced_equals(
       let value = trim_value(raw_value)
       Ok(#(key, value))
     }
-    Error(_) -> {
-      // Try " =" at end of line (space-equals with empty value)
-      case string.ends_with(string.trim_end(line), " =") {
-        True -> {
-          let trimmed = string.trim_end(line)
-          let raw_key = string.drop_end(trimmed, 2)
-          let key = trim_key(raw_key)
-          Ok(#(key, ""))
-        }
-        // Fall back to first `=`
-        False -> split_on_first_equals(line, trim_value)
-      }
-    }
+    // No spaced delimiter: fall back to first `=`
+    Error(_) -> split_on_first_equals(line, trim_value)
   }
 }
 
@@ -564,14 +570,6 @@ fn trim_leading_spaces_only(s: String) -> String {
     Ok(" ") -> trim_leading_spaces_only(string.drop_start(s, 1))
     _ -> s
   }
-}
-
-fn normalize_continuation_tabs(line: String) -> String {
-  normalize_tabs_to_spaces(strip_tab_indentation(line))
-}
-
-fn normalize_tabs_to_spaces(s: String) -> String {
-  string.replace(s, "\t", " ")
 }
 
 /// Trim trailing whitespace from a string.

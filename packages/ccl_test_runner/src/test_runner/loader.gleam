@@ -7,11 +7,11 @@ import gleam/option.{None}
 import gleam/string
 import simplifile
 import test_runner/types.{
-  type Conflicts, type Expected, type ExpectedNode, type Predicate,
-  type TestCase, type TestSuite, Conflicts, ExpectedBool, ExpectedBoolean,
-  ExpectedCountOnly, ExpectedEntries, ExpectedError, ExpectedFloat, ExpectedInt,
-  ExpectedList, ExpectedObject, ExpectedValue, NodeList, NodeObject, NodeString,
-  Predicate, TestCase, TestEntry, TestSuite,
+  type Conflicts, type Expected, type ExpectedNode, type TestCase,
+  type TestSuite, Conflicts, ExpectedBool, ExpectedBoolean, ExpectedCountOnly,
+  ExpectedEntries, ExpectedError, ExpectedFloat, ExpectedInt, ExpectedList,
+  ExpectedObject, ExpectedValue, NodeList, NodeObject, NodeString, Predicate,
+  TestCase, TestEntry, TestSuite,
 }
 
 /// Load a test suite from a JSON file
@@ -86,8 +86,8 @@ fn test_case_decoder() -> decode.Decoder(TestCase) {
   ))
 }
 
-/// Decoder for the predicate field: `{field, op, value}`.
-fn predicate_decoder() -> decode.Decoder(Predicate) {
+/// Decoder for the optional filter predicate field
+fn predicate_decoder() -> decode.Decoder(types.Predicate) {
   use field <- decode.field("field", decode.string)
   use op <- decode.field("op", decode.string)
   use value <- decode.field("value", decode.string)

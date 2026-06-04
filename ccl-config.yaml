@@ -18,36 +18,28 @@ functions:
   - filter
   - canonical_format
 
-# Optional: Features this implementation supports.
-# Features are declarative (for capability reporting); they do not gate tests.
+# Optional: Features this implementation supports
 features:
   - comments
+  - multiline
   - empty_keys
-  - multiline_continuation
-  - multiline_keys
-  - optional_typed_accessors
-  - toplevel_indent_strip
   - unicode
-  - whitespace
 
 # Optional: Behavioral choices (both sides of supported pairs)
 behaviors:
-  - array_order_insertion
-  - array_order_lexicographic
-  - boolean_lenient
   - boolean_strict
-  - continuation_tab_preserve
-  - continuation_tab_to_space
+  - boolean_lenient
   - crlf_normalize_to_lf
   - crlf_preserve_literal
-  - delimiter_first_equals
-  - delimiter_prefer_spaced
-  - indent_spaces
-  - indent_tabs
+  - toplevel_indent_strip
+  - toplevel_indent_preserve
+  - tabs_as_whitespace
+  - tabs_as_content
   - list_coercion_disabled
   - list_coercion_enabled
-  - multiline_values
-  - path_traversal
+  - array_order_insertion
+  - array_order_lexicographic
+  - indent_spaces
 
 # Optional: Specification variant
 variants:

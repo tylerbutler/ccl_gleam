@@ -33,7 +33,7 @@ pub type Conflicts {
   Conflicts(behaviours: List(String))
 }
 
-/// Predicate for filter tests: `{field, op, value}`.
+/// A filter predicate for `filter` validation tests.
 /// `field` is "key" or "value"; `op` is "==" or "!=".
 pub type Predicate {
   Predicate(field: String, op: String, value: String)

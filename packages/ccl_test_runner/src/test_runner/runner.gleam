@@ -18,12 +18,12 @@ import gleam/string
 import test_runner/filter
 import test_runner/loader
 import test_runner/types.{
-  type Expected, type ExpectedNode, type ImplementationConfig, type Predicate,
-  type TestCase, type TestResult, type TestSuite, type TestSuiteResult,
-  ExpectedBool, ExpectedBoolean, ExpectedCountOnly, ExpectedEntries,
-  ExpectedError, ExpectedFloat, ExpectedInt, ExpectedList, ExpectedObject,
-  ExpectedValue, FailureDetail, NodeList, NodeObject, NodeString, Predicate,
-  TestFailed, TestPassed, TestSkipped, TestSuiteResult,
+  type Expected, type ExpectedNode, type ImplementationConfig, type TestCase,
+  type TestResult, type TestSuite, type TestSuiteResult, ExpectedBool,
+  ExpectedBoolean, ExpectedCountOnly, ExpectedEntries, ExpectedError,
+  ExpectedFloat, ExpectedInt, ExpectedList, ExpectedObject, ExpectedValue,
+  FailureDetail, NodeList, NodeObject, NodeString, TestFailed, TestPassed,
+  TestSkipped, TestSuiteResult,
 }
 
 /// Derive ParseOptions from a test case's behaviours list.
@@ -34,14 +34,16 @@ fn parse_options_for_test(tc: TestCase) -> ccl_types.ParseOptions {
     True -> ccl_types.PreserveLiteral
     False -> ccl_types.NormalizeToLf
   }
-  let tab_handling = case
-    list.contains(tc.behaviours, "tabs_as_content")
-    || list.contains(tc.behaviours, "continuation_tab_preserve")
-  {
+  let tab_handling = case list.contains(tc.behaviours, "tabs_as_content") {
     True -> ccl_types.TabsAsContent
     False -> ccl_types.TabsAsWhitespace
   }
-  let continuation_baseline = ccl_types.IndentStrip
+  let continuation_baseline = case
+    list.contains(tc.behaviours, "toplevel_indent_preserve")
+  {
+    True -> ccl_types.IndentPreserve
+    False -> ccl_types.IndentStrip
+  }
   let delimiter_strategy = case
     list.contains(tc.behaviours, "delimiter_prefer_spaced")
   {
@@ -268,7 +270,7 @@ fn execute_test(tc: TestCase) -> TestResult {
         access_opts,
       )
     "filter" ->
-      run_filter_test(tc.name, input, tc.expected, parse_opts, tc.predicate)
+      run_filter_test(tc.name, input, tc.expected, tc.predicate, parse_opts)
     "round_trip" -> run_round_trip_test(tc.name, input, tc.expected, parse_opts)
     "canonical_format" ->
       run_canonical_format_test(
@@ -394,15 +396,17 @@ fn run_filter_test(
   name: String,
   input: String,
   expected: Expected,
+  predicate: option.Option(types.Predicate),
   parse_opts: ccl_types.ParseOptions,
-  predicate: option.Option(Predicate),
 ) -> TestResult {
-  let match = predicate_matcher(predicate)
   case expected {
     ExpectedEntries(count, expected_entries) -> {
       case parser.parse_with(input, parse_opts) {
         Ok(entries) -> {
-          let filtered = list.filter(entries, match)
+          let filtered =
+            entries
+            |> list.filter(fn(e) { e.key != "/" })
+            |> apply_predicate(predicate)
           let expected_list =
             expected_entries
             |> list.map(fn(e) { ccl_types.Entry(e.key, e.value) })
@@ -424,7 +428,11 @@ fn run_filter_test(
     ExpectedCountOnly(count) -> {
       case parser.parse_with(input, parse_opts) {
         Ok(entries) -> {
-          let filtered = list.filter(entries, match)
+          let filtered =
+            entries
+            |> list.filter(fn(e) { e.key != "/" })
+            |> apply_predicate(predicate)
+          // Count-only: just verify the count matches
           case list.length(filtered) == count {
             True -> TestPassed(name, count)
             False ->
@@ -444,23 +452,25 @@ fn run_filter_test(
   }
 }
 
-/// Build a filter predicate from a test's `predicate` field.
-/// When no predicate is provided, default to comment-exclusion (key != "/").
-fn predicate_matcher(
-  predicate: option.Option(Predicate),
-) -> fn(ccl_types.Entry) -> Bool {
+/// Keep only entries that satisfy the filter predicate.
+/// With no predicate, all entries are kept.
+fn apply_predicate(
+  entries: List(ccl_types.Entry),
+  predicate: option.Option(types.Predicate),
+) -> List(ccl_types.Entry) {
   case predicate {
-    option.None -> fn(e: ccl_types.Entry) { e.key != "/" }
-    option.Some(Predicate(field, op, value)) -> fn(e: ccl_types.Entry) {
-      let field_value = case field {
-        "value" -> e.value
-        _ -> e.key
-      }
-      case op {
-        "!=" -> field_value != value
-        _ -> field_value == value
-      }
-    }
+    option.None -> entries
+    option.Some(types.Predicate(field, op, target)) ->
+      list.filter(entries, fn(e) {
+        let actual = case field {
+          "value" -> e.value
+          _ -> e.key
+        }
+        case op {
+          "!=" -> actual != target
+          _ -> actual == target
+        }
+      })
   }
 }
 
@@ -603,8 +613,6 @@ fn run_hierarchy_test(
     _ -> error_fail(name, "Invalid expected type for hierarchy test", 0)
   }
 }
-
-// --- Build model tests ---
 
 fn run_build_model_test(
   name: String,

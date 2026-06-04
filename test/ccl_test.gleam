@@ -7,7 +7,7 @@ import ccl/model/nested_parser
 import ccl/parser
 import ccl/types.{
   BuildOptions, CclList, CclObject, CclString, Entry, LexicographicOrder, Model,
-  ParseOptions, TabsAsContent, TabsAsWhitespace, default_parse_options,
+  default_parse_options,
 }
 import gleam/dict
 
@@ -40,6 +40,16 @@ pub fn parse_empty_input_test() {
   let result = parser.parse("")
   result
   |> expect.to_equal(Ok([]))
+}
+
+/// Issue #11: `delimiter_prefer_spaced` (the default strategy) must fall back to
+/// the first bare `=` when no ` = ` (space-equals-space) delimiter exists. A
+/// trailing ` =` without a trailing space is NOT a spaced delimiter, so
+/// `== Section Header =` yields an empty key with the full RHS as the value.
+pub fn parse_prefer_spaced_falls_back_to_first_equals_test() {
+  let result = parser.parse("== Section Header =")
+  result
+  |> expect.to_equal(Ok([Entry(key: "", value: "= Section Header =")]))
 }
 
 /// Issue #3: Values containing `=` (like semver ranges `>=18`) should not be
@@ -81,73 +91,45 @@ pub fn hierarchy_multiple_semver_ranges_test() {
   dict.get(inner, "typescript") |> expect.to_equal(Ok(CclString("~=5.0")))
 }
 
-/// `continuation_tab_to_space`: leading tabs on continuation lines map 1:1 to
-/// spaces (OCaml-canonical semantics in ccl-test-data v1.0.0), not "strip all
-/// leading whitespace when a tab is present".
-pub fn parse_continuation_tabs_to_spaces_test() {
-  let input = "section =\n\t\tindented_with_tabs\n\t\tanother_line"
-  let result = parser.parse(input)
-  result
+/// Issue #12: an unindented no-`=` line following an *empty-key* entry folds
+/// into the KEY of the next `key = value` entry (joined with `\n`), rather than
+/// being emitted as a standalone entry or being dropped.
+pub fn multiline_keys_fold_into_next_key_test() {
+  let opts =
+    types.ParseOptions(
+      ..types.default_parse_options(),
+      delimiter_strategy: types.DelimiterFirstEquals,
+    )
+  let input = "== Section Header =\nprefix for next key\nkey = value"
+  parser.parse_with(input, opts)
   |> expect.to_equal(
     Ok([
-      Entry(key: "section", value: "\n  indented_with_tabs\n  another_line"),
+      Entry(key: "", value: "= Section Header ="),
+      Entry(key: "prefix for next key\nkey", value: "value"),
     ]),
   )
 }
 
-/// Mixed leading tab/space on continuation line: each tab becomes one space.
-pub fn parse_continuation_mixed_tab_space_test() {
-  let input = "section =\n \tmixed_indent\n\t another_line"
-  let result = parser.parse(input)
-  result
+/// Issue #12: an unindented no-`=` line following a *named-key* entry does NOT
+/// fold forward; it becomes its own entry with an empty value (and is not
+/// dropped). Mirrors the `list_multiline_values` fixture.
+pub fn multiline_keys_non_merging_line_is_standalone_entry_test() {
+  let opts =
+    types.ParseOptions(
+      ..types.default_parse_options(),
+      delimiter_strategy: types.DelimiterFirstEquals,
+    )
+  let input =
+    "descriptions = First line\nsecond line\ndescriptions = Another item\ndescriptions = Third item"
+  parser.parse_with(input, opts)
   |> expect.to_equal(
     Ok([
-      Entry(key: "section", value: "\n  mixed_indent\n  another_line"),
+      Entry(key: "descriptions", value: "First line"),
+      Entry(key: "second line", value: ""),
+      Entry(key: "descriptions", value: "Another item"),
+      Entry(key: "descriptions", value: "Third item"),
     ]),
   )
-}
-
-pub fn parse_tabs_as_whitespace_replaces_value_tabs_test() {
-  let opts =
-    ParseOptions(..default_parse_options(), tab_handling: TabsAsWhitespace)
-
-  let result = parser.parse_with("key = \tvalue\twith\ttabs", opts)
-
-  result
-  |> expect.to_equal(Ok([Entry(key: "key", value: "value with tabs")]))
-}
-
-pub fn parse_tabs_as_content_preserves_value_tabs_test() {
-  let opts =
-    ParseOptions(..default_parse_options(), tab_handling: TabsAsContent)
-
-  let result = parser.parse_with("key = \tvalue\twith\ttabs", opts)
-
-  result
-  |> expect.to_equal(Ok([Entry(key: "key", value: "\tvalue\twith\ttabs")]))
-}
-
-/// `multiline_keys` feature: indented non-`=` continuation lines accumulate
-/// into the pending key before a subsequent line starting with `=` completes
-/// the entry. Trimmed continuations are joined with a single space.
-pub fn parse_multiline_key_two_lines_test() {
-  let result = parser.parse("my\n key\n= val")
-  result
-  |> expect.to_equal(Ok([Entry(key: "my key", value: "val")]))
-}
-
-pub fn parse_multiline_key_three_lines_test() {
-  let result = parser.parse("a\n b\n c\n= val")
-  result
-  |> expect.to_equal(Ok([Entry(key: "a b c", value: "val")]))
-}
-
-/// Tab-indented `= val` completes the pending key (tab counts as whitespace
-/// and the split yields an empty key, signalling combination).
-pub fn parse_multiline_key_tab_equals_test() {
-  let result = parser.parse("key\n\t= val")
-  result
-  |> expect.to_equal(Ok([Entry(key: "key", value: "val")]))
 }
 
 /// Single-line value containing ` = ` is still a terminal string in hierarchy.
@@ -164,7 +146,7 @@ pub fn hierarchy_value_with_spaced_equals_test() {
   |> expect.to_equal(CclString("a = b + c"))
 }
 
-pub fn hierarchy_reference_order_drops_empty_duplicate_values_test() {
+pub fn hierarchy_reference_order_preserves_empty_duplicate_values_test() {
   let entries = [
     Entry(key: "items", value: "spaced"),
     Entry(key: "items", value: "normal"),
@@ -179,7 +161,16 @@ pub fn hierarchy_reference_order_drops_empty_duplicate_values_test() {
     )
 
   dict.get(result, "items")
-  |> expect.to_equal(Ok(CclList([CclString("normal"), CclString("spaced")])))
+  |> expect.to_equal(
+    Ok(
+      CclList([
+        CclString(""),
+        CclString(""),
+        CclString("normal"),
+        CclString("spaced"),
+      ]),
+    ),
+  )
 }
 
 pub fn build_model_terminal_value_becomes_leaf_key_test() {

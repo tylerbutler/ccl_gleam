@@ -1,0 +1,4 @@
+kind: Fixed
+body: |-
+  Support multiline keys. Lines without `=` are now buffered and folded into the following key, with indented continuations joined by a space and unindented lines joined by a newline. A non-empty key part only absorbs the buffer when the preceding entry has an empty key, so stray unindented lines between repeated list keys are not merged.
+time: 2026-06-03T13:55:01Z
