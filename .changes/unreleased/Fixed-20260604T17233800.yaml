@@ -1,0 +1,4 @@
+kind: Fixed
+body: |-
+  Fix `delimiter_prefer_spaced` to fall back to the first `=` when no ` = ` (space-equals-space) delimiter exists, instead of incorrectly splitting on a trailing ` =`. For example `== Section Header =` now parses as `("", "= Section Header =")` (issue #11). This also unblocks `multiline_keys` folding so an unindented no-`=` line is joined into the next entry's key with `\n` (issue #12).
+time: 2026-06-04T17:23:38Z

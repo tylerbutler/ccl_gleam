@@ -500,7 +500,13 @@ fn split_on_first_equals(
 }
 
 /// Split a line preferring ` = ` (space-equals-space) as delimiter.
-/// Falls back to ` =` at end of line, then to first `=`.
+/// Falls back to the first `=` if no spaced version exists.
+///
+/// Note: the fallback is strictly the first `=`; a trailing ` =`
+/// (space-equals without a following space) is NOT a spaced delimiter.
+/// For example `== Section Header =` has no ` = `, so it splits at the
+/// first `=`, yielding `("", "= Section Header =")` — matching the OCaml
+/// reference — rather than `("== Section Header", "")`.
 fn split_on_spaced_equals(
   line: String,
   trim_value: fn(String) -> String,
@@ -512,19 +518,8 @@ fn split_on_spaced_equals(
       let value = trim_value(raw_value)
       Ok(#(key, value))
     }
-    Error(_) -> {
-      // Try " =" at end of line (space-equals with empty value)
-      case string.ends_with(string.trim_end(line), " =") {
-        True -> {
-          let trimmed = string.trim_end(line)
-          let raw_key = string.drop_end(trimmed, 2)
-          let key = trim_key(raw_key)
-          Ok(#(key, ""))
-        }
-        // Fall back to first `=`
-        False -> split_on_first_equals(line, trim_value)
-      }
-    }
+    // No spaced delimiter: fall back to the first `=`.
+    Error(_) -> split_on_first_equals(line, trim_value)
   }
 }
 
