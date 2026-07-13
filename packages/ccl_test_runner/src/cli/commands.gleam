@@ -4,14 +4,13 @@
 /// CLI flags override individual fields from the config file.
 import birch
 import cli/flags
+import filepath
 import gleam/dict
 import gleam/int
 import gleam/io
 import gleam/list
-import gleam/result
 import gleam/string
 import glint
-import simplifile
 import test_runner/config
 import test_runner/filter
 import test_runner/loader
@@ -106,10 +105,7 @@ fn run_tests(test_dir: String, config: ImplementationConfig) -> CommandResult {
     Ok(results) -> {
       runner.print_results(results)
 
-      let total_failed =
-        results
-        |> list.map(fn(r) { r.failed })
-        |> list.fold(0, fn(acc, n) { acc + n })
+      let total_failed = int.sum(list.map(results, fn(r) { r.failed }))
 
       case total_failed > 0 {
         True -> Failure("Tests failed: " <> int.to_string(total_failed))
@@ -149,19 +145,17 @@ fn list_files(test_dir: String) -> CommandResult {
       let total_tests =
         files
         |> list.map(fn(file) {
-          let count = get_test_count(file)
-          let name = get_filename(file)
-          let size = get_file_size(file)
+          let count = loader.test_count(file)
           io.println(
-            pad_right(name, 45)
+            string.pad_end(filepath.base_name(file), 45, " ")
             <> " "
-            <> pad_left(int.to_string(count), 5)
+            <> string.pad_start(int.to_string(count), 5, " ")
             <> " tests  "
-            <> size,
+            <> loader.file_size(file),
           )
           count
         })
-        |> list.fold(0, fn(acc, n) { acc + n })
+        |> int.sum
 
       io.println("")
       io.println(
@@ -241,7 +235,7 @@ fn show_stats(test_dir: String, config: ImplementationConfig) -> CommandResult {
         let #(validation, tests) = pair
         io.println(
           "  "
-          <> pad_right(validation, 20)
+          <> string.pad_end(validation, 20, " ")
           <> " "
           <> int.to_string(list.length(tests)),
         )
@@ -255,7 +249,9 @@ fn show_stats(test_dir: String, config: ImplementationConfig) -> CommandResult {
       function_counts
       |> list.each(fn(pair: #(String, Int)) {
         let #(func, count) = pair
-        io.println("  " <> pad_right(func, 20) <> " " <> int.to_string(count))
+        io.println(
+          "  " <> string.pad_end(func, 20, " ") <> " " <> int.to_string(count),
+        )
       })
 
       io.println("")
@@ -269,13 +265,13 @@ fn show_stats(test_dir: String, config: ImplementationConfig) -> CommandResult {
       io.println("Compatibility (with current config):")
       io.println(
         "  "
-        <> pad_right("Compatible", 20)
+        <> string.pad_end("Compatible", 20, " ")
         <> " "
         <> int.to_string(compatible_count),
       )
       io.println(
         "  "
-        <> pad_right("Would skip", 20)
+        <> string.pad_end("Would skip", 20, " ")
         <> " "
         <> int.to_string(skipped_count),
       )
@@ -296,57 +292,6 @@ fn show_stats(test_dir: String, config: ImplementationConfig) -> CommandResult {
 }
 
 // Helper functions
-
-fn get_test_count(file: String) -> Int {
-  case loader.load_test_file(file) {
-    Ok(suite) -> list.length(suite.tests)
-    Error(_) -> 0
-  }
-}
-
-fn get_filename(path: String) -> String {
-  path
-  |> string.split("/")
-  |> list.last
-  |> result.unwrap(path)
-}
-
-fn get_file_size(path: String) -> String {
-  case simplifile.file_info(path) {
-    Ok(info) -> format_size(info.size)
-    Error(_) -> "?"
-  }
-}
-
-fn format_size(bytes: Int) -> String {
-  case bytes {
-    b if b < 1024 -> int.to_string(b) <> "B"
-    b if b < 1_048_576 -> {
-      let kb = b / 1024
-      int.to_string(kb) <> "K"
-    }
-    b -> {
-      let mb = b / 1_048_576
-      int.to_string(mb) <> "M"
-    }
-  }
-}
-
-fn pad_right(s: String, width: Int) -> String {
-  let len = string.length(s)
-  case len >= width {
-    True -> s
-    False -> s <> string.repeat(" ", width - len)
-  }
-}
-
-fn pad_left(s: String, width: Int) -> String {
-  let len = string.length(s)
-  case len >= width {
-    True -> s
-    False -> string.repeat(" ", width - len) <> s
-  }
-}
 
 fn count_tags(
   tests: List(TestCase),

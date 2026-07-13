@@ -28,11 +28,6 @@ pub type ExpectedNode {
   NodeObject(Dict(String, ExpectedNode))
 }
 
-/// Conflicts that make a test incompatible with certain implementations
-pub type Conflicts {
-  Conflicts(behaviours: List(String))
-}
-
 /// A filter predicate for `filter` validation tests.
 /// `field` is "key" or "value"; `op` is "==" or "!=".
 pub type Predicate {
@@ -43,7 +38,6 @@ pub type Predicate {
 pub type TestCase {
   TestCase(
     name: String,
-    source_test: String,
     validation: String,
     functions: List(String),
     inputs: List(String),
@@ -53,7 +47,6 @@ pub type TestCase {
     expected: Expected,
     path: Option(List(String)),
     args: Option(List(String)),
-    conflicts: Conflicts,
     predicate: Option(Predicate),
   )
 }

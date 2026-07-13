@@ -1,5 +1,6 @@
 /// Shared UI components for the CCL test viewer TUI
 import gleam/option.{Some}
+import gleam/string
 import shore
 import shore/style
 import shore/ui
@@ -32,5 +33,13 @@ pub fn selection_marker(is_selected: Bool) -> String {
   case is_selected {
     True -> "> "
     False -> "  "
+  }
+}
+
+/// Truncate a string to a maximum length with a trailing ellipsis
+pub fn truncate(s: String, max_len: Int) -> String {
+  case string.length(s) > max_len {
+    True -> string.slice(s, 0, max_len - 3) <> "..."
+    False -> s
   }
 }

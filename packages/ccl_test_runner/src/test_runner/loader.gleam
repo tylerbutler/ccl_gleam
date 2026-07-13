@@ -1,17 +1,17 @@
 /// Load JSON test files from ccl-test-data/generated_tests/
 import gleam/dict.{type Dict}
 import gleam/dynamic/decode
+import gleam/int
 import gleam/json
 import gleam/list
 import gleam/option.{None}
 import gleam/string
 import simplifile
 import test_runner/types.{
-  type Conflicts, type Expected, type ExpectedNode, type TestCase,
-  type TestSuite, Conflicts, ExpectedBool, ExpectedBoolean, ExpectedCountOnly,
-  ExpectedEntries, ExpectedError, ExpectedFloat, ExpectedInt, ExpectedList,
-  ExpectedObject, ExpectedValue, NodeList, NodeObject, NodeString, Predicate,
-  TestCase, TestEntry, TestSuite,
+  type Expected, type ExpectedNode, type TestCase, type TestSuite, ExpectedBool,
+  ExpectedBoolean, ExpectedCountOnly, ExpectedEntries, ExpectedError,
+  ExpectedFloat, ExpectedInt, ExpectedList, ExpectedObject, ExpectedValue,
+  NodeList, NodeObject, NodeString, Predicate, TestCase, TestEntry, TestSuite,
 }
 
 /// Load a test suite from a JSON file
@@ -39,7 +39,6 @@ fn test_suite_decoder() -> decode.Decoder(TestSuite) {
 /// Decoder for a single test case
 fn test_case_decoder() -> decode.Decoder(TestCase) {
   use name <- decode.field("name", decode.string)
-  use source_test <- decode.field("source_test", decode.string)
   use validation <- decode.field("validation", decode.string)
   use functions <- decode.field("functions", decode.list(decode.string))
   use inputs <- decode.field("inputs", decode.list(decode.string))
@@ -58,11 +57,6 @@ fn test_case_decoder() -> decode.Decoder(TestCase) {
     None,
     decode.optional(decode.list(decode.string)),
   )
-  use conflicts <- decode.optional_field(
-    "conflicts",
-    Conflicts(behaviours: []),
-    conflicts_decoder(),
-  )
   use predicate <- decode.optional_field(
     "predicate",
     None,
@@ -71,7 +65,6 @@ fn test_case_decoder() -> decode.Decoder(TestCase) {
 
   decode.success(TestCase(
     name: name,
-    source_test: source_test,
     validation: validation,
     functions: functions,
     inputs: inputs,
@@ -81,7 +74,6 @@ fn test_case_decoder() -> decode.Decoder(TestCase) {
     expected: expected,
     path: path,
     args: args,
-    conflicts: conflicts,
     predicate: predicate,
   ))
 }
@@ -92,16 +84,6 @@ fn predicate_decoder() -> decode.Decoder(types.Predicate) {
   use op <- decode.field("op", decode.string)
   use value <- decode.field("value", decode.string)
   decode.success(Predicate(field: field, op: op, value: value))
-}
-
-/// Decoder for the conflicts field
-fn conflicts_decoder() -> decode.Decoder(Conflicts) {
-  use behaviours <- decode.optional_field(
-    "behaviors",
-    [],
-    decode.list(decode.string),
-  )
-  decode.success(Conflicts(behaviours: behaviours))
 }
 
 /// Decoder for expected results (polymorphic)
@@ -216,6 +198,30 @@ fn boolean_expected_decoder() -> decode.Decoder(Expected) {
 fn count_only_expected_decoder() -> decode.Decoder(Expected) {
   use count <- decode.field("count", decode.int)
   decode.success(ExpectedCountOnly(count: count))
+}
+
+/// Number of tests in a file, or 0 if it cannot be loaded.
+pub fn test_count(path: String) -> Int {
+  case load_test_file(path) {
+    Ok(suite) -> list.length(suite.tests)
+    Error(_) -> 0
+  }
+}
+
+/// Human-readable file size (e.g. "12K"), or "?" if unreadable.
+pub fn file_size(path: String) -> String {
+  case simplifile.file_info(path) {
+    Ok(info) -> format_size(info.size)
+    Error(_) -> "?"
+  }
+}
+
+fn format_size(bytes: Int) -> String {
+  case bytes {
+    b if b < 1024 -> int.to_string(b) <> "B"
+    b if b < 1_048_576 -> int.to_string(b / 1024) <> "K"
+    b -> int.to_string(b / 1_048_576) <> "M"
+  }
 }
 
 /// List all JSON test files in a directory

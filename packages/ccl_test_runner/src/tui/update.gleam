@@ -1,13 +1,12 @@
 /// Update function for the CCL test viewer TUI
 import gleam/dict
+import gleam/int
 import gleam/list
 import test_runner/loader
 import tui/model.{type Model, FileListView, Model, TestDetailView, TestListView}
 import tui/msg.{
-  type Msg, Back, CancelFilter, ClearFilter, GoToBottom, GoToFileList,
-  GoToTestDetail, GoToTestList, GoToTop, NavigateDown, NavigateUp, NextTest,
-  Noop, PageDown, PageUp, PrevTest, Quit, Select, StartFilter, SuiteLoaded,
-  UpdateFilter,
+  type Msg, Back, GoToBottom, GoToTop, NavigateDown, NavigateUp, NextTest,
+  PageDown, PageUp, PrevTest, Select, SuiteLoaded,
 }
 
 /// Update the model based on a message
@@ -23,34 +22,7 @@ pub fn update(model: Model, msg: Msg) -> #(Model, List(fn() -> Msg)) {
     Select -> handle_select(model)
     Back -> #(handle_back(model), [])
 
-    // View transitions
-    GoToFileList -> #(
-      Model(..model, view: FileListView, selected_index: 0, scroll_offset: 0),
-      [],
-    )
-    GoToTestList(path) -> handle_go_to_test_list(model, path)
-    GoToTestDetail(path, index) -> #(
-      Model(..model, view: TestDetailView(path, index)),
-      [],
-    )
-
-    // Filter
-    StartFilter -> #(
-      Model(..model, filter: model.FilterState(..model.filter, active: True)),
-      [],
-    )
-    UpdateFilter(text) -> #(
-      Model(..model, filter: model.FilterState(text: text, active: True)),
-      [],
-    )
-    ClearFilter -> #(Model(..model, filter: model.empty_filter()), [])
-    CancelFilter -> #(
-      Model(..model, filter: model.FilterState(..model.filter, active: False)),
-      [],
-    )
-
     // Data loading
-    msg.FilesLoaded(_) -> #(model, [])
     SuiteLoaded(path, result) -> {
       case result {
         Ok(suite) -> #(
@@ -67,10 +39,6 @@ pub fn update(model: Model, msg: Msg) -> #(Model, List(fn() -> Msg)) {
     // Test navigation shortcuts
     NextTest -> #(next_test(model), [])
     PrevTest -> #(prev_test(model), [])
-
-    // App control
-    Quit -> #(model, [])
-    Noop -> #(model, [])
   }
 }
 
@@ -95,7 +63,7 @@ fn navigate_down(model: Model) -> Model {
 
 fn page_up(model: Model) -> Model {
   let page_size = model.terminal_height - 5
-  let new_index = int_max(0, model.selected_index - page_size)
+  let new_index = int.max(0, model.selected_index - page_size)
   Model(..model, selected_index: new_index)
   |> model.adjust_scroll(get_item_count(model))
 }
@@ -103,7 +71,7 @@ fn page_up(model: Model) -> Model {
 fn page_down(model: Model) -> Model {
   let count = get_item_count(model)
   let page_size = model.terminal_height - 5
-  let new_index = int_min(count - 1, model.selected_index + page_size)
+  let new_index = int.min(count - 1, model.selected_index + page_size)
   Model(..model, selected_index: new_index)
   |> model.adjust_scroll(count)
 }
@@ -114,7 +82,7 @@ fn go_to_top(model: Model) -> Model {
 
 fn go_to_bottom(model: Model) -> Model {
   let count = get_item_count(model)
-  let new_index = int_max(0, count - 1)
+  let new_index = int.max(0, count - 1)
   Model(..model, selected_index: new_index)
   |> model.adjust_scroll(count)
 }
@@ -136,7 +104,7 @@ fn handle_select(model: Model) -> #(Model, List(fn() -> Msg)) {
   case model.view {
     FileListView -> {
       case list.drop(model.files, model.selected_index) {
-        [file, ..] -> handle_go_to_test_list(model, file.path)
+        [file, ..] -> go_to_test_list(model, file.path)
         [] -> #(model, [])
       }
     }
@@ -163,10 +131,7 @@ fn handle_back(model: Model) -> Model {
   }
 }
 
-fn handle_go_to_test_list(
-  model: Model,
-  path: String,
-) -> #(Model, List(fn() -> Msg)) {
+fn go_to_test_list(model: Model, path: String) -> #(Model, List(fn() -> Msg)) {
   // Check if suite is already loaded
   case dict.get(model.loaded_suites, path) {
     Ok(_) -> #(
@@ -204,7 +169,7 @@ fn next_test(model: Model) -> Model {
       case dict.get(model.loaded_suites, path) {
         Ok(suite) -> {
           let max_index = list.length(suite.tests) - 1
-          let new_index = int_min(max_index, index + 1)
+          let new_index = int.min(max_index, index + 1)
           Model(..model, view: TestDetailView(path, new_index))
         }
         Error(_) -> model
@@ -217,23 +182,9 @@ fn next_test(model: Model) -> Model {
 fn prev_test(model: Model) -> Model {
   case model.view {
     TestDetailView(path, index) -> {
-      let new_index = int_max(0, index - 1)
+      let new_index = int.max(0, index - 1)
       Model(..model, view: TestDetailView(path, new_index))
     }
     _ -> model
-  }
-}
-
-fn int_min(a: Int, b: Int) -> Int {
-  case a < b {
-    True -> a
-    False -> b
-  }
-}
-
-fn int_max(a: Int, b: Int) -> Int {
-  case a > b {
-    True -> a
-    False -> b
   }
 }
