@@ -14,6 +14,7 @@ import gleam/dict
 import gleam/float
 import gleam/int
 import gleam/list
+import gleam/result
 import gleam/string
 
 /// Navigate to a path and return the string value.
@@ -29,7 +30,7 @@ pub fn get_string(ccl: CCL, path: List(String)) -> Result(String, String) {
 
 /// Navigate to a path and parse value as integer.
 pub fn get_int(ccl: CCL, path: List(String)) -> Result(Int, String) {
-  use str <- try_string(ccl, path)
+  use str <- result.try(get_string(ccl, path))
   case int.parse(str) {
     Ok(n) -> Ok(n)
     Error(_) -> Error("Not an integer: " <> string.inspect(str))
@@ -48,7 +49,7 @@ pub fn get_bool_with(
   path: List(String),
   options: AccessOptions,
 ) -> Result(Bool, String) {
-  use str <- try_string(ccl, path)
+  use str <- result.try(get_string(ccl, path))
   let lower = string.lowercase(str)
   case options.boolean_parsing {
     BooleanLenient ->
@@ -68,7 +69,7 @@ pub fn get_bool_with(
 
 /// Navigate to a path and parse value as float.
 pub fn get_float(ccl: CCL, path: List(String)) -> Result(Float, String) {
-  use str <- try_string(ccl, path)
+  use str <- result.try(get_string(ccl, path))
   case float.parse(str) {
     Ok(f) -> Ok(f)
     Error(_) -> {
@@ -152,18 +153,6 @@ fn navigate(
         Error(_) -> Error("Key not found: " <> key)
       }
     }
-  }
-}
-
-/// Helper: navigate to path, extract string, then apply conversion.
-fn try_string(
-  ccl: CCL,
-  path: List(String),
-  convert: fn(String) -> Result(a, String),
-) -> Result(a, String) {
-  case get_string(ccl, path) {
-    Ok(s) -> convert(s)
-    Error(e) -> Error(e)
   }
 }
 

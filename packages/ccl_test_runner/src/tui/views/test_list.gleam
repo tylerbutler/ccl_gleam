@@ -1,9 +1,9 @@
 /// Test list view for browsing tests within a file
+import filepath
 import gleam/dict
 import gleam/int
 import gleam/list
 import gleam/option.{None, Some}
-import gleam/result
 import gleam/string
 import shore
 import shore/style
@@ -16,7 +16,7 @@ import tui/msg.{type Msg}
 
 /// Render the test list view
 pub fn render(model: Model, file_path: String) -> shore.Node(Msg) {
-  let file_name = get_filename(file_path)
+  let file_name = filepath.base_name(file_path)
 
   case dict.get(model.loaded_suites, file_path) {
     Ok(suite) -> {
@@ -64,10 +64,10 @@ fn render_test_row(
   is_compatible: Bool,
 ) -> shore.Node(Msg) {
   let marker = components.selection_marker(is_selected)
-  let name = truncate(tc.name, 45)
+  let name = components.truncate(tc.name, 45)
   let tags = format_tags(tc)
 
-  let line = marker <> pad_right(name, 47) <> " " <> tags
+  let line = marker <> string.pad_end(name, 47, " ") <> " " <> tags
 
   case is_selected, is_compatible {
     True, True -> ui.text_styled(line, Some(style.Black), Some(style.Cyan))
@@ -102,29 +102,5 @@ fn render_scroll_indicator(model: Model, total: Int) -> shore.Node(Msg) {
       ui.text_styled(indicator, Some(style.Yellow), None)
     }
     False -> ui.text("")
-  }
-}
-
-// Helper functions
-
-fn get_filename(path: String) -> String {
-  path
-  |> string.split("/")
-  |> list.last
-  |> result.unwrap(path)
-}
-
-fn pad_right(s: String, width: Int) -> String {
-  let len = string.length(s)
-  case len >= width {
-    True -> s
-    False -> s <> string.repeat(" ", width - len)
-  }
-}
-
-fn truncate(s: String, max_len: Int) -> String {
-  case string.length(s) > max_len {
-    True -> string.slice(s, 0, max_len - 3) <> "..."
-    False -> s
   }
 }

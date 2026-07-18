@@ -13,26 +13,10 @@ pub type Msg {
   Select
   Back
 
-  // View transitions
-  GoToFileList
-  GoToTestList(file_path: String)
-  GoToTestDetail(file_path: String, test_index: Int)
-
-  // Filter
-  StartFilter
-  UpdateFilter(text: String)
-  ClearFilter
-  CancelFilter
-
   // Data loading
-  FilesLoaded(files: List(#(String, Int, String)))
   SuiteLoaded(path: String, result: Result(TestSuite, String))
 
   // Navigation shortcuts
   NextTest
   PrevTest
-
-  // App control
-  Quit
-  Noop
 }
