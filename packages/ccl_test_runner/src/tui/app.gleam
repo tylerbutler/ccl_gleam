@@ -1,12 +1,9 @@
 /// Shore TUI application setup for CCL test viewer
+import filepath
 import gleam/erlang/process
-import gleam/int
 import gleam/list
-import gleam/result
-import gleam/string
 import shore
 import shore/key
-import simplifile
 import test_runner/loader
 import test_runner/types.{type ImplementationConfig}
 import tui/model.{type FileInfo, FileInfo, Model}
@@ -76,46 +73,13 @@ fn load_files(test_dir: String) -> List(FileInfo) {
     Ok(files) ->
       files
       |> list.map(fn(path) {
-        let name = get_filename(path)
-        let count = get_test_count(path)
-        let size = get_file_size(path)
-        FileInfo(path: path, name: name, test_count: count, size: size)
+        FileInfo(
+          path: path,
+          name: filepath.base_name(path),
+          test_count: loader.test_count(path),
+          size: loader.file_size(path),
+        )
       })
     Error(_) -> []
-  }
-}
-
-fn get_filename(path: String) -> String {
-  path
-  |> string.split("/")
-  |> list.last
-  |> result.unwrap(path)
-}
-
-fn get_test_count(file: String) -> Int {
-  case loader.load_test_file(file) {
-    Ok(suite) -> list.length(suite.tests)
-    Error(_) -> 0
-  }
-}
-
-fn get_file_size(path: String) -> String {
-  case simplifile.file_info(path) {
-    Ok(info) -> format_size(info.size)
-    Error(_) -> "?"
-  }
-}
-
-fn format_size(bytes: Int) -> String {
-  case bytes {
-    b if b < 1024 -> int.to_string(b) <> "B"
-    b if b < 1_048_576 -> {
-      let kb = b / 1024
-      int.to_string(kb) <> "K"
-    }
-    b -> {
-      let mb = b / 1_048_576
-      int.to_string(mb) <> "M"
-    }
   }
 }

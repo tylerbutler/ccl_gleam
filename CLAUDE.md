@@ -39,7 +39,7 @@ just ci                  # Full CI check (format, build, test)
 ## Project Structure
 
 ```
-# CCL library lives at the repo root (gleam.toml, src/ccl/*)
+gleam.toml                         # CCL library package at repo root (gleam_stdlib only)
 src/ccl/
 ├── types.gleam                    # Entry, CCLValue (String|Object|List), CCL type alias, Model
 ├── parser.gleam                   # parse(), parse_indented() — indentation-aware
@@ -50,7 +50,8 @@ src/ccl/
 └── format.gleam                   # print (structure-preserving), canonical_format
 
 packages/
-├── ccl_codegen/                   # Decoder codegen helper package
+├── ccl_codegen/                   # Decoder codegen CLI (depends on nothing but stdlib)
+│   └── src/ccl_codegen/gen.gleam  # Gleam type parsing + decoder emission
 └── ccl_test_runner/               # Test runner package (depends on ccl via path)
     ├── gleam.toml
     ├── ccl-test-data/             # JSON test suite data (downloaded, not committed)
@@ -58,8 +59,9 @@ packages/
     │   ├── ccl_test_runner.gleam  # CLI entry point
     │   ├── test_runner/           # Test execution infrastructure
     │   │   ├── runner.gleam       # Test execution against ccl/ library
-    │   │   ├── loader.gleam       # JSON test suite loading
+    │   │   ├── loader.gleam       # JSON test suite loading + file metadata helpers
     │   │   ├── filter.gleam       # Capability-based test filtering
+    │   │   ├── config.gleam       # ccl-config.yaml loading
     │   │   └── types.gleam        # Test-specific types (TestCase, Expected, etc.)
     │   ├── cli/                   # CLI commands
     │   │   ├── commands.gleam     # run/list/stats commands

@@ -5,7 +5,7 @@ import shore/ui
 import tui/model.{type Model, FileListView, TestDetailView, TestListView}
 import tui/msg.{
   type Msg, Back, GoToBottom, GoToTop, NavigateDown, NavigateUp, NextTest,
-  PageDown, PageUp, PrevTest, Quit, Select,
+  PageDown, PageUp, PrevTest, Select,
 }
 import tui/views/file_list
 import tui/views/test_detail
@@ -59,8 +59,5 @@ fn global_keybinds() -> shore.Node(Msg) {
     // Test detail navigation
     ui.keybind(key.Char("n"), NextTest),
     ui.keybind(key.Char("p"), PrevTest),
-
-    // Quit (handled by shore keybinds, but also add explicit binding)
-    ui.keybind(key.Char("q"), Quit),
   ])
 }

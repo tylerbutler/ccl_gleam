@@ -22,11 +22,11 @@ pub fn render(model: Model) -> shore.Node(Msg) {
     ui.row([
       ui.text_styled(
         "  "
-          <> pad_right("FILE", 42)
+          <> string.pad_end("FILE", 42, " ")
           <> " "
-          <> pad_left("TESTS", 6)
+          <> string.pad_start("TESTS", 6, " ")
           <> "  "
-          <> pad_left("SIZE", 6),
+          <> string.pad_start("SIZE", 6, " "),
         Some(style.Cyan),
         None,
       ),
@@ -54,11 +54,12 @@ pub fn render(model: Model) -> shore.Node(Msg) {
 /// Render a single file row
 fn render_file_row(file: model.FileInfo, is_selected: Bool) -> shore.Node(Msg) {
   let marker = components.selection_marker(is_selected)
-  let name = truncate(file.name, 40)
-  let count = pad_left(int.to_string(file.test_count), 6)
-  let size = pad_left(file.size, 6)
+  let name = components.truncate(file.name, 40)
+  let count = string.pad_start(int.to_string(file.test_count), 6, " ")
+  let size = string.pad_start(file.size, 6, " ")
 
-  let line = marker <> pad_right(name, 42) <> " " <> count <> "  " <> size
+  let line =
+    marker <> string.pad_end(name, 42, " ") <> " " <> count <> "  " <> size
 
   case is_selected {
     True -> ui.text_styled(line, Some(style.Black), Some(style.Cyan))
@@ -77,30 +78,5 @@ fn render_scroll_indicator(model: Model, total: Int) -> shore.Node(Msg) {
       ui.text_styled(indicator, Some(style.Yellow), None)
     }
     False -> ui.text("")
-  }
-}
-
-// Helper functions
-
-fn pad_right(s: String, width: Int) -> String {
-  let len = string.length(s)
-  case len >= width {
-    True -> s
-    False -> s <> string.repeat(" ", width - len)
-  }
-}
-
-fn pad_left(s: String, width: Int) -> String {
-  let len = string.length(s)
-  case len >= width {
-    True -> s
-    False -> string.repeat(" ", width - len) <> s
-  }
-}
-
-fn truncate(s: String, max_len: Int) -> String {
-  case string.length(s) > max_len {
-    True -> string.slice(s, 0, max_len - 3) <> "..."
-    False -> s
   }
 }

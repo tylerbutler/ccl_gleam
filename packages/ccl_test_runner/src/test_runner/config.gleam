@@ -70,8 +70,3 @@ fn extract_optional_string_list(root: yay.Node, key: String) -> List(String) {
     Error(_) -> []
   }
 }
-
-/// Load config from the default path, returning a descriptive error if not found.
-pub fn load_default_config() -> Result(ImplementationConfig, String) {
-  load_config(default_config_path)
-}

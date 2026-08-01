@@ -17,9 +17,9 @@
 ///
 /// The CLI test runner (`gleam run -- run`) is still available for the TUI,
 /// stats, and other specialized use cases.
+import filepath
 import gleam/dict
 import gleam/list
-import gleam/result
 import gleam/string
 import startest
 import startest/assertion_error.{AssertionError}
@@ -63,7 +63,7 @@ pub fn ccl_json_suite_tests() {
   let all_tests =
     files
     |> list.flat_map(fn(file) {
-      let filename = file_basename(file)
+      let filename = filepath.base_name(file)
       case loader.load_test_file(file) {
         Ok(suite) ->
           suite.tests
@@ -74,9 +74,12 @@ pub fn ccl_json_suite_tests() {
       }
     })
 
-  // Group tests by validation type
+  // Group tests by validation type (list.group prepends, so reverse each
+  // group to restore source order)
   let by_validation =
-    group_by(all_tests, fn(tagged) { tagged.test_case.validation })
+    all_tests
+    |> list.group(fn(tagged) { tagged.test_case.validation })
+    |> dict.map_values(fn(_, tagged_tests) { list.reverse(tagged_tests) })
 
   // Sort validation groups alphabetically for stable output
   let sorted_groups =
@@ -128,27 +131,4 @@ fn assert_test_result(result: types.TestResult, file: String) -> Nil {
     }
     TestSkipped(_, _) -> Nil
   }
-}
-
-/// Group a list of items by a key function, preserving insertion order.
-fn group_by(
-  items: List(a),
-  key_fn: fn(a) -> String,
-) -> dict.Dict(String, List(a)) {
-  list.fold(items, dict.new(), fn(acc, item) {
-    let key = key_fn(item)
-    let existing = case dict.get(acc, key) {
-      Ok(vals) -> vals
-      Error(_) -> []
-    }
-    dict.insert(acc, key, list.append(existing, [item]))
-  })
-}
-
-/// Extract the filename from a path.
-fn file_basename(path: String) -> String {
-  path
-  |> string.split("/")
-  |> list.last
-  |> result.unwrap(path)
 }

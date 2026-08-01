@@ -45,12 +45,6 @@ pub fn parse_with(
 /// Parse indented CCL text by auto-detecting the baseline indentation.
 /// Unlike `parse` which uses N=0, this detects the baseline from the first
 /// content line's indentation, allowing pre-indented text to be parsed correctly.
-@internal
-pub fn parse_indented(text: String) -> Result(List(Entry), String) {
-  parse_indented_with(text, types.default_parse_options())
-}
-
-/// Parse indented CCL text with configurable options.
 /// When `tabs_as_content`, strips the minimum space-only indent from
 /// continuation lines in each entry's value, since the structural
 /// indentation (spaces) should be removed while preserving tab content.
@@ -524,7 +518,8 @@ fn split_on_first_equals(
 ) -> Result(#(String, String), Nil) {
   case string.split_once(line, "=") {
     Ok(#(raw_key, raw_value)) -> {
-      let key = trim_key(raw_key)
+      // Trim all whitespace from keys (including newlines), per the docs.
+      let key = string.trim(raw_key)
       let value = trim_value(raw_value)
       Ok(#(key, value))
     }
@@ -544,19 +539,13 @@ fn split_on_spaced_equals(
   // Try " =" first (space before equals)
   case string.split_once(line, " =") {
     Ok(#(raw_key, raw_value)) -> {
-      let key = trim_key(raw_key)
+      let key = string.trim(raw_key)
       let value = trim_value(raw_value)
       Ok(#(key, value))
     }
     // No spaced delimiter: fall back to first `=`
     Error(_) -> split_on_first_equals(line, trim_value)
   }
-}
-
-/// Trim all whitespace from a key (including internal newlines).
-/// Per the docs: "Trim all whitespace from keys (including newlines)"
-fn trim_key(raw: String) -> String {
-  string.trim(raw)
 }
 
 /// Trim leading whitespace (spaces and tabs) from a string.

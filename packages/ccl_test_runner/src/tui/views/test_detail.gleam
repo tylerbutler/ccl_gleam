@@ -1,9 +1,10 @@
 /// Test detail view showing full test case information
+import filepath
 import gleam/dict
+import gleam/float
 import gleam/int
 import gleam/list
 import gleam/option.{None, Some}
-import gleam/result
 import gleam/string
 import shore
 import shore/style
@@ -24,7 +25,7 @@ pub fn render(
   file_path: String,
   test_index: Int,
 ) -> shore.Node(Msg) {
-  let file_name = get_filename(file_path)
+  let file_name = filepath.base_name(file_path)
 
   case dict.get(model.loaded_suites, file_path) {
     Ok(suite) -> {
@@ -206,7 +207,7 @@ fn render_expected(expected: Expected) -> shore.Node(Msg) {
         ]),
         ui.row([
           ui.text_styled("value: ", Some(style.Cyan), None),
-          ui.text(float_to_string(value)),
+          ui.text(float.to_string(value)),
         ]),
       ])
 
@@ -294,37 +295,9 @@ fn render_loading(file_name: String) -> shore.Node(Msg) {
 
 // Helper functions
 
-fn get_filename(path: String) -> String {
-  path
-  |> string.split("/")
-  |> list.last
-  |> result.unwrap(path)
-}
-
 fn bool_to_string(b: Bool) -> String {
   case b {
     True -> "true"
     False -> "false"
   }
-}
-
-fn float_to_string(f: Float) -> String {
-  // Use Erlang's float_to_list for proper formatting
-  erlang_float_to_string(f)
-}
-
-@external(erlang, "erlang", "float_to_list")
-fn erlang_float_to_list(f: Float) -> List(Int)
-
-fn erlang_float_to_string(f: Float) -> String {
-  f
-  |> erlang_float_to_list
-  |> list.map(fn(c) { string.utf_codepoint(c) })
-  |> list.filter_map(fn(r) {
-    case r {
-      Ok(cp) -> Ok(cp)
-      Error(_) -> Error(Nil)
-    }
-  })
-  |> string.from_utf_codepoints
 }
