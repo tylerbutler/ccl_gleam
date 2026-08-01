@@ -31,6 +31,16 @@ pub type CCLValue {
 pub type CCL =
   Dict(String, CCLValue)
 
+/// Canonical recursive map-of-maps model, mirroring OCaml's `Fix of t KeyMap.t`.
+///
+/// `build_model` produces this shape: terminal string values become keys
+/// pointing to `Model(empty)`; nested structures are recursive. There are no
+/// strings or lists at the value level — leaves are always `Model(empty)`.
+/// The model is order-agnostic; ordering choices belong to typed projections.
+pub type Model {
+  Model(Dict(String, Model))
+}
+
 // --- Options types for configurable behaviours ---
 
 /// Controls how CRLF line endings are handled during parsing.

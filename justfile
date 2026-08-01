@@ -18,7 +18,7 @@ default:
 # === DEPENDENCIES ===
 
 # Install dependencies for all packages and download test data
-deps: update-test-data
+deps: download-tests
     gleam deps download
     cd {{ runner_dir }} && gleam deps download
     cd {{ codegen_dir }} && gleam deps download
@@ -157,7 +157,7 @@ view DIR="./ccl-test-data/":
     cd {{ runner_dir }} && gleam run -- view {{ DIR }}
 
 # Download latest CCL test data from GitHub releases
-update-test-data:
+download-tests:
     cd {{ runner_dir }} && npx -y ccl-test-runner-ts -o ./ccl-test-data
 
 # Build and run tests in one step

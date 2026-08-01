@@ -41,12 +41,14 @@ just ci                  # Full CI check (format, build, test)
 ```
 gleam.toml                         # CCL library package at repo root (gleam_stdlib only)
 src/ccl/
-├── types.gleam                    # Entry, CCLValue (String|Object|List), CCL type alias
-├── parser.gleam                   # parse() — indentation-aware, two-context parsing
-├── hierarchy.gleam                # build_hierarchy() — recursive fixed-point
+├── types.gleam                    # Entry, CCLValue (String|Object|List), CCL type alias, Model
+├── parser.gleam                   # parse(), parse_indented() — indentation-aware
+├── hierarchy.gleam                # build_hierarchy() — JSON-friendly projection
+├── model.gleam                    # build_model() — OCaml-canonical recursive map
 ├── access.gleam                   # get_string, get_int, get_bool, get_float, get_list
-├── format.gleam                   # print (structure-preserving), canonical_format
-└── decode.gleam                   # Composable decoders for typed Gleam records
+├── decode.gleam                   # Typed decoders with path tracking
+└── format.gleam                   # print (structure-preserving), canonical_format
+
 packages/
 ├── ccl_codegen/                   # Decoder codegen CLI (depends on nothing but stdlib)
 │   └── src/ccl_codegen/gen.gleam  # Gleam type parsing + decoder emission
@@ -106,13 +108,15 @@ just list                                       # List test files
 just view                                       # Interactive TUI
 ```
 
-## CCL Library (`packages/ccl/`)
+## CCL Library (`src/ccl/`)
 
 The core CCL implementation follows the docs at catconflang.com:
 
 ### Core Functions (Required)
-- **`parser.parse(text)`** — Indentation-aware entry parsing with `toplevel_indent_strip` behaviour (N=0 at top level, N=first content line indent for nested)
-- **`hierarchy.build_hierarchy(entries)`** — Recursive fixed-point: values containing `=` are re-parsed until no more structure remains
+- **`parser.parse(text)`** — Top-level entry parsing, baseline N=0 (`toplevel_indent_strip` feature)
+- **`parser.parse_indented(text)`** — Indented entry parsing, baseline detected from first content line (required by `build_hierarchy` in ccl-test-data v1.0.0)
+- **`hierarchy.build_hierarchy(entries)`** — JSON-friendly projection: nested objects, lists for repeated empty keys, strings at leaves
+- **`model.build_model(entries)`** — Canonical recursive map mirroring OCaml's `Fix of t KeyMap.t`. Terminal strings become keys pointing to `Model(empty)`; duplicates merge; order-agnostic (ordering belongs to typed projections). See ccl-test-data#142.
 
 ### Typed Access (Optional)
 - **`access.get_string(ccl, path)`** — Navigate path, return string
@@ -135,18 +139,47 @@ pub type CCLValue {
 }
 ```
 
-### Implemented Behaviours
-- `toplevel_indent_strip` — Top-level baseline N=0
-- `crlf_normalize_to_lf` — Normalize CRLF before parsing
-- `tabs_as_whitespace` — Spaces and tabs count as whitespace
-- `boolean_strict` — Only true/false (case-insensitive)
-- `list_coercion_disabled` — get_list errors on non-lists
-- `array_order_insertion` — Preserve insertion order
-- `indent_spaces` — 2-space indentation in output
+### Implemented Capabilities (ccl-test-data v1.0.0 taxonomy)
+
+Declared in `ccl-config.yaml`. Features are always-on capabilities; behaviors
+are paired choices the runner derives from each test's tags.
+
+**Features declared (capability reports; do not gate tests):**
+- `toplevel_indent_strip` — top-level parse uses baseline N=0
+- `multiline_continuation` — indented continuation lines accumulate into values
+- `multiline_keys` — keys may span multiple lines before `=`
+- `comments`, `empty_keys`, `unicode`, `whitespace`, `optional_typed_accessors`
+
+**Behaviors (paired choices supported):**
+- Line endings: `crlf_normalize_to_lf` / `crlf_preserve_literal`
+- Boolean: `boolean_strict` / `boolean_lenient`
+- Continuation tabs: `continuation_tab_to_space` (1:1 tab→space map) / `continuation_tab_preserve`
+- List coercion: `list_coercion_disabled` / `list_coercion_enabled`
+- Array order: `array_order_insertion` / `array_order_lexicographic`
+- Delimiter: `delimiter_first_equals` / `delimiter_prefer_spaced`
+- Output indent: `indent_spaces` only — `indent_tabs` is not implemented
+  (`format.print`/`canonical_format` always emit space indentation) and is
+  deliberately left undeclared so tests requiring it are skipped rather than
+  run-and-failed
+- Also supports: `multiline_values`, `path_traversal`
+
+**Known gaps** (declared as supported; these specific test cases still fail):
+- `canonical_format`: 5 `*_ocaml_reference`/`*_reference_behavior` tests in
+  `api_reference_compliant.json` expect every terminal value wrapped as its
+  own nested `key =\n` line (e.g. `unicode = 你好世界` →
+  `unicode =\n  你好世界 =\n`), matching the `Ccl.Model.pretty` bug tracked
+  upstream in [ccl-test-data#152](https://github.com/CatConfLang/ccl-test-data/issues/152)
+  rather than the leaf-inlining `key = value` form the other 8
+  `canonical_format` tests (including `toplevel_indent_strip`/
+  `toplevel_indent_preserve` and `continuation_tab_to_space`) and `print`
+  correctly use. Filed as
+  [ccl-test-data#162](https://github.com/CatConfLang/ccl-test-data/issues/162)
+  — we match the documented-correct (inline) convention and leave these 5
+  failing pending a test-data fix.
 
 ## Dependencies
 
-### CCL library (`packages/ccl/`)
+### CCL library (repo root)
 - `gleam_stdlib` - Standard library
 
 ### Test runner (`packages/ccl_test_runner/`)

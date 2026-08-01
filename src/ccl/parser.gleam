@@ -65,6 +65,17 @@ pub fn parse_indented_with(
   }
 }
 
+/// Whether a raw entry value is structurally nested CCL — a multiline value
+/// containing at least one `=` — rather than a terminal leaf string.
+/// Shared by `hierarchy.gleam` and `model/nested_parser.gleam` so the two
+/// projections agree on what counts as nested.
+pub fn is_nested_value(raw_value: String) -> Bool {
+  {
+    string.starts_with(raw_value, "\n") || string.starts_with(raw_value, "\r\n")
+  }
+  && string.contains(raw_value, "=")
+}
+
 /// Parse a nested value (called by build_hierarchy during recursive parsing).
 /// If text starts with \n, detects baseline from first content line's indentation.
 /// Otherwise parses as a single-line value.
@@ -371,8 +382,8 @@ fn combine_key(
 ///
 /// Tab handling depends on options:
 /// - `TabsAsWhitespace`: LEADING tabs on continuation lines are structural
-///   and stripped; interior tabs within a value are always preserved
-///   (`tab_in_value_preserved`).
+///   and converted 1:1 to spaces (`continuation_tab_to_space`); interior
+///   tabs within a value are always preserved (`tab_in_value_preserved`).
 /// - `TabsAsContent`: tabs are preserved as-is
 fn build_value(lines: List(String), options: ParseOptions) -> String {
   case lines {
@@ -381,8 +392,8 @@ fn build_value(lines: List(String), options: ParseOptions) -> String {
     [first, ..rest] -> {
       let processed = case options.tab_handling {
         TabsAsWhitespace -> {
-          // Strip tab-based indentation from continuation lines
-          [first, ..list.map(rest, strip_tab_indentation)]
+          // Convert leading tab-based indentation to spaces, 1 char each
+          [first, ..list.map(rest, normalize_tab_indentation)]
         }
         TabsAsContent -> {
           // Preserve tabs as content — no stripping in build_value.
@@ -398,27 +409,25 @@ fn build_value(lines: List(String), options: ParseOptions) -> String {
   }
 }
 
-/// Strip leading whitespace from a continuation line if it contains tabs.
-/// Lines with tab-based indentation have ALL leading whitespace stripped
-/// (the tabs were structural indentation, not content).
-/// Lines with space-only indentation are preserved as-is.
-fn strip_tab_indentation(line: String) -> String {
-  case has_leading_tab(line) {
-    True -> trim_leading_whitespace(line)
-    False -> line
-  }
+/// Convert a continuation line's leading whitespace (tabs and spaces) to an
+/// equal number of spaces, 1:1 per character (`continuation_tab_to_space`).
+/// Structural indentation is normalized to spaces while its column count
+/// is preserved; content after the leading whitespace is untouched.
+fn normalize_tab_indentation(line: String) -> String {
+  let #(count, rest) = count_and_drop_leading_whitespace(line, 0)
+  string.repeat(" ", count) <> rest
 }
 
-/// Check if a line has any tab characters in its leading whitespace.
-fn has_leading_tab(line: String) -> Bool {
-  has_leading_tab_chars(string.to_graphemes(line))
-}
-
-fn has_leading_tab_chars(chars: List(String)) -> Bool {
-  case chars {
-    ["\t", ..] -> True
-    [" ", ..rest] -> has_leading_tab_chars(rest)
-    _ -> False
+fn count_and_drop_leading_whitespace(
+  line: String,
+  count: Int,
+) -> #(Int, String) {
+  case string.first(line) {
+    Ok(" ") ->
+      count_and_drop_leading_whitespace(string.drop_start(line, 1), count + 1)
+    Ok("\t") ->
+      count_and_drop_leading_whitespace(string.drop_start(line, 1), count + 1)
+    _ -> #(count, line)
   }
 }
 
@@ -518,15 +527,17 @@ fn split_on_first_equals(
   }
 }
 
-/// Split a line preferring ` = ` (space-equals-space) as delimiter.
-/// A spaced delimiter requires BOTH a leading and trailing space; when no
-/// such delimiter exists, falls back to the first bare `=`.
+/// Split a line preferring ` =` (space-then-equals) as delimiter.
+/// A spaced delimiter only requires a leading space — a trailing space is
+/// not required, so an empty value at end of line (`a=b =`) still splits
+/// on the spaced `=`; when no such delimiter exists, falls back to the
+/// first bare `=`.
 fn split_on_spaced_equals(
   line: String,
   trim_value: fn(String) -> String,
 ) -> Result(#(String, String), Nil) {
-  // Try " = " first (space-equals-space)
-  case string.split_once(line, " = ") {
+  // Try " =" first (space before equals)
+  case string.split_once(line, " =") {
     Ok(#(raw_key, raw_value)) -> {
       let key = string.trim(raw_key)
       let value = trim_value(raw_value)
@@ -581,8 +592,9 @@ fn count_ws_chars(chars: List(String), count: Int) -> Int {
 }
 
 /// Detect the baseline indentation from the first non-empty line.
-/// Used for nested parsing context.
-fn detect_baseline(text: String) -> Int {
+/// Used for nested parsing context, and by callers (e.g. `canonical_format`)
+/// that need to know the top-level indent `toplevel_indent_preserve` keeps.
+pub fn detect_baseline(text: String) -> Int {
   let lines = string.split(text, "\n")
   find_first_content_indent(lines)
 }

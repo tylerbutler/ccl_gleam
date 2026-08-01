@@ -38,7 +38,9 @@ fn get_skip_reason_inner(
     [_, ..] ->
       Error("Missing functions: " <> string.join(missing_functions, ", "))
     [] -> {
-      // Check variants
+      // Features are declarative (capability reporting), not a filter gate:
+      // tests requiring features we don't declare still run, and any failures
+      // surface the capability gap.
       case tc.variants {
         [] -> check_behaviours_supported(config, tc)
         req_variants -> {
@@ -55,8 +57,12 @@ fn get_skip_reason_inner(
   }
 }
 
-/// Check that we support at least one of the test's required behaviours.
-/// config.behaviours is the full set of behaviours we can adapt to.
+/// Check that we support every behaviour a test declares. A test's
+/// `behaviours` list is the specific combination it exercises (e.g.
+/// `["indent_tabs", "multiline_values"]` means both at once), not a menu of
+/// alternatives — so one unsupported behaviour (e.g. `indent_tabs`, which
+/// this implementation doesn't declare) must skip the test even when other
+/// listed behaviours are supported.
 fn check_behaviours_supported(
   config: ImplementationConfig,
   tc: TestCase,
@@ -64,11 +70,11 @@ fn check_behaviours_supported(
   case tc.behaviours {
     [] -> Ok(Nil)
     required -> {
-      let has_any =
-        list.any(required, fn(b) { list.contains(config.behaviours, b) })
-      case has_any {
-        True -> Ok(Nil)
-        False -> Error("Unsupported behaviour: " <> string.join(required, ", "))
+      let missing =
+        list.filter(required, fn(b) { !list.contains(config.behaviours, b) })
+      case missing {
+        [] -> Ok(Nil)
+        _ -> Error("Unsupported behaviour: " <> string.join(missing, ", "))
       }
     }
   }
@@ -80,29 +86,42 @@ fn check_behaviours_supported(
 pub fn full_config() -> ImplementationConfig {
   types.ImplementationConfig(
     functions: [
-      "parse", "parse_indented", "print", "build_hierarchy", "get_string",
-      "get_int", "get_bool", "get_float", "get_list", "filter", "compose",
-      "round_trip",
+      "parse", "parse_indented", "print", "build_hierarchy", "build_model",
+      "get_string", "get_int", "get_bool", "get_float", "get_list", "filter",
+      "compose", "round_trip", "canonical_format",
     ],
     behaviours: [
       // Line endings — both supported
       "crlf_normalize_to_lf", "crlf_preserve_literal",
-      // Continuation baseline — both supported
-      "toplevel_indent_strip", "toplevel_indent_preserve",
       // Boolean parsing — both supported
       "boolean_strict", "boolean_lenient",
-      // Tab handling — both supported
-      "tabs_as_whitespace", "tabs_as_content",
+      // Continuation tab handling — both supported
+      "continuation_tab_preserve", "continuation_tab_to_space",
+      // Value tab handling — both supported
+      "tabs_as_content", "tabs_as_whitespace",
       // List coercion — both supported
       "list_coercion_disabled", "list_coercion_enabled",
       // Array ordering — both supported
       "array_order_insertion", "array_order_lexicographic",
       // Delimiter strategy — both supported
       "delimiter_first_equals", "delimiter_prefer_spaced",
-      // Output indentation
+      // Output indentation — only space-indentation is implemented;
+      // `indent_tabs` has no test that passes and is deliberately not
+      // declared (see CLAUDE.md Known gaps)
       "indent_spaces",
+      // Top-level baseline — both supported (also declared as a feature;
+      // ccl-test-data v1.0.0 tags it both ways depending on the test)
+      "toplevel_indent_strip", "toplevel_indent_preserve",
+      // Multi-line value semantics
+      "multiline_values",
+      // Path traversal in typed accessors
+      "path_traversal",
     ],
     variants: ["reference_compliant"],
-    features: ["comments", "multiline", "empty_keys", "unicode"],
+    features: [
+      "comments", "empty_keys", "multiline_continuation", "multiline_keys",
+      "optional_typed_accessors", "toplevel_indent_strip", "unicode",
+      "whitespace",
+    ],
   )
 }

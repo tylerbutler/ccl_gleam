@@ -67,11 +67,9 @@ fn resolve_value(
   build_options: BuildOptions,
   parse_options: ParseOptions,
 ) -> CCLValue {
-  let is_multiline =
-    string.starts_with(raw_value, "\n") || string.starts_with(raw_value, "\r\n")
-  case is_multiline, string.contains(raw_value, "=") {
+  case parser.is_nested_value(raw_value) {
     // Multi-line value with `=` → nested structure, recurse
-    True, True -> {
+    True -> {
       case parser.parse_value_with(raw_value, parse_options) {
         Ok(nested_entries) -> {
           case nested_entries {
@@ -91,7 +89,7 @@ fn resolve_value(
       }
     }
     // Single-line or no `=` → terminal string (fixed point)
-    _, _ -> CclString(raw_value)
+    False -> CclString(raw_value)
   }
 }
 

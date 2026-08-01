@@ -1,0 +1,54 @@
+kind: Fixed
+body: |-
+    Align with ccl-test-data v1.0.0 capability taxonomy
+
+    Remove the deleted `multiline` feature from `ccl-config.yaml` and
+    `test_runner/filter.gleam`. Declare new tags: `parse_indented` and
+    `build_model` functions, `multiline_continuation`/`toplevel_indent_strip`/
+    `whitespace`/`optional_typed_accessors` features, and
+    `continuation_tab_*`/`delimiter_*`/`indent_tabs`/`multiline_values`/
+    `path_traversal`/`toplevel_indent_preserve` behaviors.
+    `toplevel_indent_strip` is declared as both a feature (non-gating
+    capability report) and a behavior (paired with `toplevel_indent_preserve`),
+    matching how ccl-test-data v1.0.0 tags it across different tests.
+
+    Map each leading tab on a continuation line to a single space
+    (`continuation_tab_to_space` OCaml-canonical semantics), instead of
+    stripping all leading whitespace on tab-indented lines.
+
+    Features remain declarative for capability reporting only — they do not
+    gate test filtering. A test requiring a feature the implementation does
+    not declare still runs, and any failure surfaces the capability gap
+    directly rather than being skipped.
+
+    Sync `ccl-config.yaml` with the same taxonomy: declare the `print`,
+    `round_trip`, and `build_model` functions it was missing, and replace its
+    stale behavior/feature tags with the v1.0.0 set.
+
+    Fix `delimiter_prefer_spaced` to split on the first `=` preceded by a
+    space without also requiring a trailing space, so an empty value at end
+    of line (`a=b =`) still splits on the spaced delimiter instead of
+    falling back to the first bare `=`.
+
+    Fix the test runner's behavior-compatibility check
+    (`test_runner/filter.gleam`) to require every behavior a test declares,
+    not just one of them — a test's `behaviors` list is the specific
+    combination it exercises (e.g. `indent_tabs` + `multiline_values`
+    together), not a menu of alternatives, so one unsupported behavior must
+    skip the test even when others in the list are supported.
+
+    Fix `canonical_format` to structurally group entries using the
+    auto-detected baseline (like `parse_indented`) regardless of
+    `toplevel_indent_strip`/`toplevel_indent_preserve`, so a pre-indented
+    top-level document splits into sibling entries instead of collapsing
+    into one; `toplevel_indent_preserve` now only offsets the render
+    indent. Also fix a missing-newline value to no longer get an extra
+    space before its continuation (`key =\n  ...` instead of `key = \n  ...`).
+
+    5 remaining `canonical_format` failures (`*_ocaml_reference`/
+    `*_reference_behavior` tests in `api_reference_compliant.json`) are a
+    test-data bug, not ours: their expected values match the known-buggy
+    `Ccl.Model.pretty` output tracked in ccl-test-data#152 rather than the
+    leaf-inlining form the other 8 `canonical_format` tests correctly use.
+    Filed as ccl-test-data#162.
+time: 2026-04-19T13:15:11.207737000-07:00

@@ -20,7 +20,7 @@ jobs:
           node: "true"
 
       - name: Download test data
-        run: just update-test-data
+        run: just download-tests
 
       - name: Check formatting
         run: just format-check

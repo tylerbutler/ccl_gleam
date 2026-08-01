@@ -2,8 +2,13 @@ import startest
 import startest/expect
 
 import ccl/hierarchy
+import ccl/model
+import ccl/model/nested_parser
 import ccl/parser
-import ccl/types.{CclObject, CclString, Entry}
+import ccl/types.{
+  BuildOptions, CclList, CclObject, CclString, Entry, LexicographicOrder, Model,
+  default_parse_options,
+}
 import gleam/dict
 
 pub fn main() {
@@ -17,20 +22,64 @@ pub fn parse_basic_key_value_test() {
   |> expect.to_equal(Ok([Entry(key: "key", value: "value")]))
 }
 
+pub fn model_nested_parser_accepts_lf_multiline_value_test() {
+  let result = nested_parser.parse("\n  child = value", default_parse_options())
+
+  result
+  |> expect.to_equal(Ok([Entry(key: "child", value: "value")]))
+}
+
+pub fn model_nested_parser_rejects_single_line_value_test() {
+  let result = nested_parser.parse("plain value", default_parse_options())
+
+  result
+  |> expect.to_equal(Error(Nil))
+}
+
+pub fn model_nested_parser_rejects_multiline_value_without_equals_test() {
+  let result =
+    nested_parser.parse("\n  no delimiter here", default_parse_options())
+
+  result
+  |> expect.to_equal(Error(Nil))
+}
+
+pub fn parser_is_nested_value_true_for_multiline_with_equals_test() {
+  parser.is_nested_value("\n  child = value")
+  |> expect.to_equal(True)
+}
+
+pub fn parser_is_nested_value_false_for_multiline_without_equals_test() {
+  parser.is_nested_value("\n  no delimiter here")
+  |> expect.to_equal(False)
+}
+
+pub fn parser_is_nested_value_false_for_single_line_with_equals_test() {
+  parser.is_nested_value("a = b")
+  |> expect.to_equal(False)
+}
+
+pub fn parser_is_nested_value_false_for_empty_string_test() {
+  parser.is_nested_value("")
+  |> expect.to_equal(False)
+}
+
 pub fn parse_empty_input_test() {
   let result = parser.parse("")
   result
   |> expect.to_equal(Ok([]))
 }
 
-/// Issue #11: `delimiter_prefer_spaced` (the default strategy) must fall back to
-/// the first bare `=` when no ` = ` (space-equals-space) delimiter exists. A
-/// trailing ` =` without a trailing space is NOT a spaced delimiter, so
-/// `== Section Header =` yields an empty key with the full RHS as the value.
+/// Issue #11 / ccl-test-data v1.0.0 `delimiter_spaced_empty_value`:
+/// `delimiter_prefer_spaced` (the default strategy) splits on the first `=`
+/// preceded by a space — a trailing space is NOT required, so an empty
+/// value at end of line still counts as a spaced delimiter.
+/// `== Section Header =` has its only space-preceded `=` at the end, so it
+/// splits there: key `== Section Header`, empty value.
 pub fn parse_prefer_spaced_falls_back_to_first_equals_test() {
   let result = parser.parse("== Section Header =")
   result
-  |> expect.to_equal(Ok([Entry(key: "", value: "= Section Header =")]))
+  |> expect.to_equal(Ok([Entry(key: "== Section Header", value: "")]))
 }
 
 /// Issue #3: Values containing `=` (like semver ranges `>=18`) should not be
@@ -125,4 +174,119 @@ pub fn hierarchy_value_with_spaced_equals_test() {
   // "a = b + c" is single-line, so resolve_value treats it as terminal
   formula_val
   |> expect.to_equal(CclString("a = b + c"))
+}
+
+pub fn hierarchy_reference_order_preserves_empty_duplicate_values_test() {
+  let entries = [
+    Entry(key: "items", value: "spaced"),
+    Entry(key: "items", value: "normal"),
+    Entry(key: "items", value: ""),
+    Entry(key: "items", value: ""),
+  ]
+  let result =
+    hierarchy.build_hierarchy_with(
+      entries,
+      BuildOptions(array_order: LexicographicOrder),
+      default_parse_options(),
+    )
+
+  dict.get(result, "items")
+  |> expect.to_equal(
+    Ok(
+      CclList([
+        CclString(""),
+        CclString(""),
+        CclString("normal"),
+        CclString("spaced"),
+      ]),
+    ),
+  )
+}
+
+pub fn build_model_terminal_value_becomes_leaf_key_test() {
+  let result = model.build_model([Entry(key: "name", value: "Alice")])
+  let empty = Model(dict.new())
+
+  result
+  |> expect.to_equal(
+    Model(
+      dict.from_list([
+        #("name", Model(dict.from_list([#("Alice", empty)]))),
+      ]),
+    ),
+  )
+}
+
+pub fn build_model_multiline_value_becomes_recursive_model_test() {
+  let result =
+    model.build_model([
+      Entry(key: "server", value: "\n  host = localhost\n  port = 5432"),
+    ])
+  let empty = Model(dict.new())
+
+  result
+  |> expect.to_equal(
+    Model(
+      dict.from_list([
+        #(
+          "server",
+          Model(
+            dict.from_list([
+              #("host", Model(dict.from_list([#("localhost", empty)]))),
+              #("port", Model(dict.from_list([#("5432", empty)]))),
+            ]),
+          ),
+        ),
+      ]),
+    ),
+  )
+}
+
+pub fn build_model_duplicate_keys_merge_recursively_test() {
+  let result =
+    model.build_model([
+      Entry(key: "env", value: "\n  db = primary"),
+      Entry(key: "env", value: "\n  cache = redis"),
+      Entry(key: "env", value: "\n  db = replica"),
+    ])
+  let empty = Model(dict.new())
+
+  result
+  |> expect.to_equal(
+    Model(
+      dict.from_list([
+        #(
+          "env",
+          Model(
+            dict.from_list([
+              #(
+                "db",
+                Model(
+                  dict.from_list([
+                    #("primary", empty),
+                    #("replica", empty),
+                  ]),
+                ),
+              ),
+              #("cache", Model(dict.from_list([#("redis", empty)]))),
+            ]),
+          ),
+        ),
+      ]),
+    ),
+  )
+}
+
+pub fn build_model_empty_nested_parse_falls_back_to_terminal_leaf_test() {
+  let result = model.build_model([Entry(key: "blank", value: "\n")])
+  let empty = Model(dict.new())
+
+  result
+  |> expect.to_equal(
+    Model(
+      dict.from_list([
+        #("blank", Model(dict.from_list([#("\n", empty)]))),
+      ]),
+    ),
+  )
 }
