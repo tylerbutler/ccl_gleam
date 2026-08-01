@@ -155,13 +155,25 @@ are paired choices the runner derives from each test's tags.
 - List coercion: `list_coercion_disabled` / `list_coercion_enabled`
 - Array order: `array_order_insertion` / `array_order_lexicographic`
 - Delimiter: `delimiter_first_equals` / `delimiter_prefer_spaced`
-- Output indent: `indent_spaces` / `indent_tabs`
+- Output indent: `indent_spaces` only — `indent_tabs` is not implemented
+  (`format.print`/`canonical_format` always emit space indentation) and is
+  deliberately left undeclared so tests requiring it are skipped rather than
+  run-and-failed
 - Also supports: `multiline_values`, `path_traversal`
 
-**Known gaps:**
-- Three `parse_indented` tests in `api_proposed_behavior.json` (and one
-  dependent `build_hierarchy` test) fail due to OCaml-canonical semantics
-  that Gleam's `parse_indented` doesn't yet mirror
+**Known gaps** (declared as supported; these specific test cases still fail):
+- `canonical_format`: 5 `*_ocaml_reference`/`*_reference_behavior` tests in
+  `api_reference_compliant.json` expect every terminal value wrapped as its
+  own nested `key =\n` line (e.g. `unicode = 你好世界` →
+  `unicode =\n  你好世界 =\n`), matching the `Ccl.Model.pretty` bug tracked
+  upstream in [ccl-test-data#152](https://github.com/CatConfLang/ccl-test-data/issues/152)
+  rather than the leaf-inlining `key = value` form the other 8
+  `canonical_format` tests (including `toplevel_indent_strip`/
+  `toplevel_indent_preserve` and `continuation_tab_to_space`) and `print`
+  correctly use. Filed as
+  [ccl-test-data#162](https://github.com/CatConfLang/ccl-test-data/issues/162)
+  — we match the documented-correct (inline) convention and leave these 5
+  failing pending a test-data fix.
 
 ## Dependencies
 

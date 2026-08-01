@@ -550,11 +550,20 @@ fn run_canonical_format_test(
 ) -> TestResult {
   case expected {
     ExpectedValue(count, expected_value) -> {
-      case parser.parse_with(input, parse_opts) {
+      // Structural grouping always uses the auto-detected baseline (like
+      // `parse_indented`), regardless of toplevel_indent_strip/preserve —
+      // otherwise a pre-indented top-level document collapses into one
+      // entry instead of forming siblings. `toplevel_indent_preserve` only
+      // affects the render offset below, not this structural parse.
+      case parser.parse_indented_with(input, parse_opts) {
         Ok(entries) -> {
           let ccl =
             hierarchy.build_hierarchy_with(entries, build_opts, parse_opts)
-          let formatted = format.canonical_format(ccl)
+          let base_indent = case parse_opts.continuation_baseline {
+            ccl_types.IndentPreserve -> parser.detect_baseline(input)
+            ccl_types.IndentStrip -> 0
+          }
+          let formatted = format.canonical_format(ccl, base_indent)
           case formatted == expected_value {
             True -> TestPassed(name, count)
             False ->
@@ -655,18 +664,12 @@ fn compare_model(
   expected: Dict(String, ExpectedNode),
 ) -> Bool {
   let ccl_types.Model(d) = actual
-  let actual_keys = dict.keys(d) |> list.sort(string.compare)
-  let expected_keys = dict.keys(expected) |> list.sort(string.compare)
-  case actual_keys == expected_keys {
-    False -> False
-    True ->
-      list.all(actual_keys, fn(k) {
-        case dict.get(d, k), dict.get(expected, k) {
-          Ok(av), Ok(NodeObject(eo)) -> compare_model(av, eo)
-          _, _ -> False
-        }
-      })
-  }
+  compare_keyed_dict(d, expected, fn(av, ev) {
+    case ev {
+      NodeObject(eo) -> compare_model(av, eo)
+      _ -> False
+    }
+  })
 }
 
 fn format_model(m: ccl_types.Model) -> String {
@@ -675,26 +678,7 @@ fn format_model(m: ccl_types.Model) -> String {
 
 fn format_model_indent(m: ccl_types.Model, indent: Int) -> String {
   let ccl_types.Model(d) = m
-  let pad = string.repeat("  ", indent)
-  let inner_pad = string.repeat("  ", indent + 1)
-  case dict.size(d) {
-    0 -> "{}"
-    _ -> {
-      let entries =
-        d
-        |> dict.to_list
-        |> list.sort(fn(a, b) { string.compare(a.0, b.0) })
-        |> list.map(fn(pair) {
-          let #(k, v) = pair
-          inner_pad
-          <> string.inspect(k)
-          <> ": "
-          <> format_model_indent(v, indent + 1)
-        })
-        |> string.join(",\n")
-      "{\n" <> entries <> "\n" <> pad <> "}"
-    }
-  }
+  format_dict_indent(d, indent, format_model_indent)
 }
 
 // --- Typed access tests ---
@@ -1069,26 +1053,32 @@ fn get_expected_count(expected: Expected) -> Int {
   }
 }
 
+/// Compare two keyed dicts for equality, given a per-value comparator.
+fn compare_keyed_dict(
+  actual: Dict(String, a),
+  expected: Dict(String, b),
+  eq: fn(a, b) -> Bool,
+) -> Bool {
+  let actual_keys = dict.keys(actual) |> list.sort(string.compare)
+  let expected_keys = dict.keys(expected) |> list.sort(string.compare)
+  case actual_keys == expected_keys {
+    False -> False
+    True ->
+      list.all(actual_keys, fn(key) {
+        case dict.get(actual, key), dict.get(expected, key) {
+          Ok(actual_val), Ok(expected_val) -> eq(actual_val, expected_val)
+          _, _ -> False
+        }
+      })
+  }
+}
+
 /// Compare CCL object with expected object
 fn compare_objects(
   actual: ccl_types.CCL,
   expected: Dict(String, ExpectedNode),
 ) -> Bool {
-  let actual_keys = dict.keys(actual) |> list.sort(string.compare)
-  let expected_keys = dict.keys(expected) |> list.sort(string.compare)
-
-  case actual_keys == expected_keys {
-    False -> False
-    True -> {
-      list.all(actual_keys, fn(key) {
-        case dict.get(actual, key), dict.get(expected, key) {
-          Ok(actual_val), Ok(expected_val) ->
-            compare_values(actual_val, expected_val)
-          _, _ -> False
-        }
-      })
-    }
-  }
+  compare_keyed_dict(actual, expected, compare_values)
 }
 
 /// Compare CCL value with expected node
@@ -1128,21 +1118,7 @@ fn format_expected_object_indent(
   obj: Dict(String, ExpectedNode),
   indent: Int,
 ) -> String {
-  let pad = string.repeat("  ", indent)
-  let inner_pad = string.repeat("  ", indent + 1)
-  let entries =
-    obj
-    |> dict.to_list
-    |> list.sort(fn(a, b) { string.compare(a.0, b.0) })
-    |> list.map(fn(pair) {
-      let #(k, v) = pair
-      inner_pad
-      <> string.inspect(k)
-      <> ": "
-      <> format_expected_node_indent(v, indent + 1)
-    })
-    |> string.join(",\n")
-  "{\n" <> entries <> "\n" <> pad <> "}"
+  format_dict_indent(obj, indent, format_expected_node_indent)
 }
 
 fn format_expected_node_indent(node: ExpectedNode, indent: Int) -> String {
@@ -1159,21 +1135,32 @@ fn format_ccl(obj: ccl_types.CCL) -> String {
 }
 
 fn format_ccl_indent(obj: ccl_types.CCL, indent: Int) -> String {
+  format_dict_indent(obj, indent, format_ccl_value_indent)
+}
+
+/// Format a keyed dict for error messages, given a per-value formatter.
+fn format_dict_indent(
+  d: Dict(String, a),
+  indent: Int,
+  format_value: fn(a, Int) -> String,
+) -> String {
   let pad = string.repeat("  ", indent)
   let inner_pad = string.repeat("  ", indent + 1)
-  let entries =
-    obj
-    |> dict.to_list
-    |> list.sort(fn(a, b) { string.compare(a.0, b.0) })
-    |> list.map(fn(pair) {
-      let #(k, v) = pair
-      inner_pad
-      <> string.inspect(k)
-      <> ": "
-      <> format_ccl_value_indent(v, indent + 1)
-    })
-    |> string.join(",\n")
-  "{\n" <> entries <> "\n" <> pad <> "}"
+  case dict.size(d) {
+    0 -> "{}"
+    _ -> {
+      let entries =
+        d
+        |> dict.to_list
+        |> list.sort(fn(a, b) { string.compare(a.0, b.0) })
+        |> list.map(fn(pair) {
+          let #(k, v) = pair
+          inner_pad <> string.inspect(k) <> ": " <> format_value(v, indent + 1)
+        })
+        |> string.join(",\n")
+      "{\n" <> entries <> "\n" <> pad <> "}"
+    }
+  }
 }
 
 fn format_ccl_value_indent(value: ccl_types.CCLValue, indent: Int) -> String {

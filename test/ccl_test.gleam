@@ -36,20 +36,50 @@ pub fn model_nested_parser_rejects_single_line_value_test() {
   |> expect.to_equal(Error(Nil))
 }
 
+pub fn model_nested_parser_rejects_multiline_value_without_equals_test() {
+  let result =
+    nested_parser.parse("\n  no delimiter here", default_parse_options())
+
+  result
+  |> expect.to_equal(Error(Nil))
+}
+
+pub fn parser_is_nested_value_true_for_multiline_with_equals_test() {
+  parser.is_nested_value("\n  child = value")
+  |> expect.to_equal(True)
+}
+
+pub fn parser_is_nested_value_false_for_multiline_without_equals_test() {
+  parser.is_nested_value("\n  no delimiter here")
+  |> expect.to_equal(False)
+}
+
+pub fn parser_is_nested_value_false_for_single_line_with_equals_test() {
+  parser.is_nested_value("a = b")
+  |> expect.to_equal(False)
+}
+
+pub fn parser_is_nested_value_false_for_empty_string_test() {
+  parser.is_nested_value("")
+  |> expect.to_equal(False)
+}
+
 pub fn parse_empty_input_test() {
   let result = parser.parse("")
   result
   |> expect.to_equal(Ok([]))
 }
 
-/// Issue #11: `delimiter_prefer_spaced` (the default strategy) must fall back to
-/// the first bare `=` when no ` = ` (space-equals-space) delimiter exists. A
-/// trailing ` =` without a trailing space is NOT a spaced delimiter, so
-/// `== Section Header =` yields an empty key with the full RHS as the value.
+/// Issue #11 / ccl-test-data v1.0.0 `delimiter_spaced_empty_value`:
+/// `delimiter_prefer_spaced` (the default strategy) splits on the first `=`
+/// preceded by a space — a trailing space is NOT required, so an empty
+/// value at end of line still counts as a spaced delimiter.
+/// `== Section Header =` has its only space-preceded `=` at the end, so it
+/// splits there: key `== Section Header`, empty value.
 pub fn parse_prefer_spaced_falls_back_to_first_equals_test() {
   let result = parser.parse("== Section Header =")
   result
-  |> expect.to_equal(Ok([Entry(key: "", value: "= Section Header =")]))
+  |> expect.to_equal(Ok([Entry(key: "== Section Header", value: "")]))
 }
 
 /// Issue #3: Values containing `=` (like semver ranges `>=18`) should not be

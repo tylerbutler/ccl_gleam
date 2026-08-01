@@ -49,9 +49,14 @@ fn format_entry(entry: Entry) -> String {
 /// Semantic-preserving canonical format. Walks the CCL tree and outputs
 /// normalized 2-space-indented form.
 ///
+/// `base_indent` is the starting indentation for top-level entries — `0`
+/// under `toplevel_indent_strip`, or the detected top-level baseline under
+/// `toplevel_indent_preserve` (so the original top-level indent survives
+/// even though the parsed tree itself carries no indentation info).
+///
 /// Uses `indent_spaces` behaviour (2 spaces per level).
-pub fn canonical_format(ccl: CCL) -> String {
-  format_dict(ccl, 0)
+pub fn canonical_format(ccl: CCL, base_indent: Int) -> String {
+  format_dict(ccl, base_indent)
   |> trim_trailing_newline
 }
 
@@ -76,6 +81,7 @@ fn format_canonical_entry(
   indent: Int,
 ) -> String {
   case value {
+    CclString("\n" <> _ as s) -> prefix <> key <> " =" <> s
     CclString(s) -> prefix <> key <> " = " <> s
     CclObject(nested) -> {
       let children = format_dict(nested, indent + 2)

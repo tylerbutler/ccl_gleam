@@ -16,11 +16,12 @@ pub fn is_compatible(config: ImplementationConfig, tc: TestCase) -> Bool {
     required -> list.any(required, fn(v) { list.contains(config.variants, v) })
   }
 
-  // Check behaviour compatibility — we must support at least one required behaviour
+  // Check behaviour compatibility — a test's behaviours are the specific
+  // combination it exercises, so we must support all of them, not just one.
   let behaviour_ok = case tc.behaviours {
     [] -> True
     required ->
-      list.any(required, fn(b) { list.contains(config.behaviours, b) })
+      list.all(required, fn(b) { list.contains(config.behaviours, b) })
   }
 
   // Features are declarative for capability reporting — not a filter gate.
@@ -86,8 +87,12 @@ fn get_skip_reason_inner(
   }
 }
 
-/// Check that we support at least one of the test's required behaviours.
-/// config.behaviours is the full set of behaviours we can adapt to.
+/// Check that we support every behaviour a test declares. A test's
+/// `behaviours` list is the specific combination it exercises (e.g.
+/// `["indent_tabs", "multiline_values"]` means both at once), not a menu of
+/// alternatives — so one unsupported behaviour (e.g. `indent_tabs`, which
+/// this implementation doesn't declare) must skip the test even when other
+/// listed behaviours are supported.
 fn check_behaviours_supported(
   config: ImplementationConfig,
   tc: TestCase,
@@ -95,11 +100,11 @@ fn check_behaviours_supported(
   case tc.behaviours {
     [] -> Ok(Nil)
     required -> {
-      let has_any =
-        list.any(required, fn(b) { list.contains(config.behaviours, b) })
-      case has_any {
-        True -> Ok(Nil)
-        False -> Error("Unsupported behaviour: " <> format_list(required))
+      let missing =
+        list.filter(required, fn(b) { !list.contains(config.behaviours, b) })
+      case missing {
+        [] -> Ok(Nil)
+        _ -> Error("Unsupported behaviour: " <> format_list(missing))
       }
     }
   }
@@ -140,9 +145,9 @@ pub fn basic_config() -> ImplementationConfig {
 pub fn full_config() -> ImplementationConfig {
   types.ImplementationConfig(
     functions: [
-      "parse", "parse_indented", "print", "build_hierarchy", "get_string",
-      "get_int", "get_bool", "get_float", "get_list", "filter", "compose",
-      "round_trip", "canonical_format",
+      "parse", "parse_indented", "print", "build_hierarchy", "build_model",
+      "get_string", "get_int", "get_bool", "get_float", "get_list", "filter",
+      "compose", "round_trip", "canonical_format",
     ],
     behaviours: [
       // Line endings — both supported
@@ -159,8 +164,13 @@ pub fn full_config() -> ImplementationConfig {
       "array_order_insertion", "array_order_lexicographic",
       // Delimiter strategy — both supported
       "delimiter_first_equals", "delimiter_prefer_spaced",
-      // Output indentation — both supported
-      "indent_spaces", "indent_tabs",
+      // Output indentation — only space-indentation is implemented;
+      // `indent_tabs` has no test that passes and is deliberately not
+      // declared (see CLAUDE.md Known gaps)
+      "indent_spaces",
+      // Top-level baseline — both supported (also declared as a feature;
+      // ccl-test-data v1.0.0 tags it both ways depending on the test)
+      "toplevel_indent_strip", "toplevel_indent_preserve",
       // Multi-line value semantics
       "multiline_values",
       // Path traversal in typed accessors
