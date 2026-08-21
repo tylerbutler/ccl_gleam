@@ -1,7 +1,12 @@
 /// Code generator for CCL decoders from Gleam type definitions.
 ///
 /// Parses Gleam `pub type` definitions and generates corresponding decoder
-/// functions using the `ccl/decode` combinator API.
+/// functions using the `gleam/dynamic/decode` combinator API, as consumed by
+/// `ccl.decode` and `ccl.parse_dynamic`.
+///
+/// Generated code expects `import gleam/dynamic/decode` in the target module,
+/// plus `import ccl` when the type has any `Int`, `Float`, or `Bool` field and
+/// `import gleam/option` when it has any `Option` field.
 ///
 /// ## Example
 ///
@@ -18,8 +23,8 @@
 /// ```gleam
 /// pub fn database_config_decoder() {
 ///   use host <- decode.field("host", decode.string)
-///   use port <- decode.field("port", decode.int)
-///   use debug <- decode.field("debug", decode.bool)
+///   use port <- decode.field("port", ccl.int_decoder())
+///   use debug <- decode.field("debug", ccl.bool_decoder())
 ///   decode.success(DatabaseConfig(host:, port:, debug:))
 /// }
 /// ```
@@ -85,6 +90,9 @@ pub fn emit_decoder(type_def: TypeDef) -> String {
   let field_lines =
     list.map(fields, fn(field) {
       case field.field_type {
+        // `gleam/dynamic/decode` takes the default before the decoder, and
+        // that decoder must itself yield the `Option`, so the inner decoder is
+        // wrapped rather than unwrapped.
         OptionType(inner) -> {
           let inner_decoder = field_type_to_decoder(inner)
           indent
@@ -92,9 +100,9 @@ pub fn emit_decoder(type_def: TypeDef) -> String {
           <> field.name
           <> " <- decode.optional_field(\""
           <> field.name
-          <> "\", "
+          <> "\", option.None, decode.optional("
           <> inner_decoder
-          <> ", option.None)"
+          <> "))"
         }
         _ -> {
           let decoder_expr = field_type_to_decoder(field.field_type)
@@ -110,21 +118,10 @@ pub fn emit_decoder(type_def: TypeDef) -> String {
       }
     })
 
-  let option_fields =
-    list.filter_map(fields, fn(field) {
-      case field.field_type {
-        OptionType(_) -> Ok(field.name)
-        _ -> Error(Nil)
-      }
-    })
-
+  // Every field, optional included, is bound at its declared type, so each one
+  // is passed through with label shorthand.
   let constructor_args =
-    list.map(fields, fn(field) {
-      case list.contains(option_fields, field.name) {
-        True -> field.name <> ": option.Some(" <> field.name <> ")"
-        False -> field.name <> ":"
-      }
-    })
+    list.map(fields, fn(field) { field.name <> ":" })
     |> string.join(", ")
 
   let success_line =
@@ -403,11 +400,17 @@ fn do_split_fields(
 fn field_type_to_decoder(ft: FieldType) -> String {
   case ft {
     StringType -> "decode.string"
-    IntType -> "decode.int"
-    FloatType -> "decode.float"
-    BoolType -> "decode.bool"
+    // Every CCL terminal value is text, so the stdlib scalar decoders never
+    // match a parsed document. `ccl` publishes decoders over the lexical form.
+    IntType -> "ccl.int_decoder()"
+    FloatType -> "ccl.float_decoder()"
+    BoolType -> "ccl.bool_decoder()"
     ListType(inner) -> "decode.list(" <> field_type_to_decoder(inner) <> ")"
-    OptionType(inner) -> field_type_to_decoder(inner)
+    // Reached only for an `Option` nested inside another type; a top-level
+    // `Option` field is wrapped by `emit_decoder` instead, so that the field's
+    // default can be supplied alongside it.
+    OptionType(inner) ->
+      "decode.optional(" <> field_type_to_decoder(inner) <> ")"
     CustomType(name) -> to_snake_case(name) <> "_decoder()"
   }
 }

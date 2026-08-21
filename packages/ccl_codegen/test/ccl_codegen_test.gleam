@@ -163,7 +163,7 @@ pub fn generate_basic_decoder_test() {
   let expected =
     "pub fn config_decoder() {
   use host <- decode.field(\"host\", decode.string)
-  use port <- decode.field(\"port\", decode.int)
+  use port <- decode.field(\"port\", ccl.int_decoder())
   decode.success(Config(host:, port:))
 }"
   gen.generate_decoder(source)
@@ -176,8 +176,8 @@ pub fn generate_decoder_with_bool_test() {
   let expected =
     "pub fn settings_decoder() {
   use name <- decode.field(\"name\", decode.string)
-  use debug <- decode.field(\"debug\", decode.bool)
-  use rate <- decode.field(\"rate\", decode.float)
+  use debug <- decode.field(\"debug\", ccl.bool_decoder())
+  use rate <- decode.field(\"rate\", ccl.float_decoder())
   decode.success(Settings(name:, debug:, rate:))
 }"
   gen.generate_decoder(source)
@@ -200,8 +200,19 @@ pub fn generate_decoder_with_option_test() {
   let expected =
     "pub fn user_decoder() {
   use name <- decode.field(\"name\", decode.string)
-  use bio <- decode.optional_field(\"bio\", decode.string, option.None)
-  decode.success(User(name:, bio: option.Some(bio)))
+  use bio <- decode.optional_field(\"bio\", option.None, decode.optional(decode.string))
+  decode.success(User(name:, bio:))
+}"
+  gen.generate_decoder(source)
+  |> expect.to_equal(Ok(expected))
+}
+
+pub fn generate_decoder_with_nested_option_list_test() {
+  let source = "pub type Tags { Tags(items: Option(List(String))) }"
+  let expected =
+    "pub fn tags_decoder() {
+  use items <- decode.optional_field(\"items\", option.None, decode.optional(decode.list(decode.string)))
+  decode.success(Tags(items:))
 }"
   gen.generate_decoder(source)
   |> expect.to_equal(Ok(expected))
@@ -237,7 +248,7 @@ pub type Baz {
   let expected =
     "pub fn bar_decoder() {
   use name <- decode.field(\"name\", decode.string)
-  use count <- decode.field(\"count\", decode.int)
+  use count <- decode.field(\"count\", ccl.int_decoder())
   decode.success(Bar(name:, count:))
 }"
   gen.generate_decoder_for(source, "Bar")
@@ -261,7 +272,7 @@ pub fn emit_decoder_from_typedef_test() {
   let expected =
     "pub fn config_decoder() {
   use host <- decode.field(\"host\", decode.string)
-  use port <- decode.field(\"port\", decode.int)
+  use port <- decode.field(\"port\", ccl.int_decoder())
   decode.success(Config(host:, port:))
 }"
   gen.emit_decoder(type_def)
