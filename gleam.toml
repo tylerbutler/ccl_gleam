@@ -6,6 +6,17 @@ repository = { type = "github", user = "tylerbutler", repo = "ccl_gleam" }
 target = "erlang"
 gleam = ">= 1.11.0"
 
+# `ccl` is the whole public API. Everything under `ccl/` is an implementation
+# detail: hidden from the docs, and not importable from another package.
+internal_modules = [
+  "ccl/format",
+  "ccl/hierarchy",
+  "ccl/model",
+  "ccl/model/nested_parser",
+  "ccl/parser",
+  "ccl/types",
+]
+
 [dependencies]
 gleam_stdlib = ">= 0.44.0 and < 2.0.0"
 
