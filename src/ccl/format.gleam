@@ -52,7 +52,7 @@ fn format_entry(entry: Entry) -> String {
 /// `base_indent` is the starting indentation for top-level entries — `0`
 /// under `toplevel_indent_strip`, or the detected top-level baseline under
 /// `toplevel_indent_preserve` (so the original top-level indent survives
-/// even though the parsed tree itself carries no indentation info).
+/// even though the parsed tree itself stores no indentation info).
 ///
 /// Uses `indent_spaces` behaviour (2 spaces per level).
 pub fn canonical_format(ccl: CCL, base_indent: Int) -> String {

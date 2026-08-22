@@ -44,7 +44,7 @@ import gleam/string
 /// A parsed CCL document.
 ///
 /// Documents are opaque so CCL can preserve round-trip invariants while the
-/// internal entry representation changes. A document carries the `Options` it
+/// internal entry representation changes. A document keeps the `Options` it
 /// was parsed with, so reads and edits stay consistent with the parse.
 pub opaque type Document {
   Document(
@@ -54,7 +54,7 @@ pub opaque type Document {
     /// from. Cleared by every edit so `to_string` re-emits from the entries.
     original_source: Option(String),
     /// Whether the source ended with a newline. `to_string` restores it on
-    /// edited documents, since the entry list itself carries no trailing
+    /// edited documents, since the entry list itself stores no trailing
     /// terminator.
     trailing_newline: Bool,
   )
@@ -144,9 +144,9 @@ pub type EditError {
   /// Edit paths must contain at least one key segment.
   EmptyKeyPath
 
-  /// A key segment cannot be emitted as CCL. Segments may not be empty, carry
-  /// a newline or an `=`, or have leading or trailing whitespace, since the
-  /// parser would not read the result back as the same key.
+  /// A key segment cannot be emitted as CCL. Segments may not be empty,
+  /// contain a newline or an `=`, or have leading or trailing whitespace,
+  /// since the parser would not read the result back as the same key.
   InvalidKeySegment(segment: String)
 
   /// Comments must be a single line.
@@ -490,7 +490,7 @@ pub fn parse_with(
 /// first content line rather than assuming column 0.
 ///
 /// Use this for a CCL fragment lifted out of a larger document, where every
-/// line still carries the enclosing block's indentation.
+/// line still has the enclosing block's indentation.
 ///
 /// ```gleam
 /// let assert Ok(doc) = ccl.parse_indented("    host = localhost\n")
@@ -962,7 +962,7 @@ pub fn get(doc: Document, key: List(String)) -> Result(Value, GetError) {
 ///
 /// Mirrors `get`, but operates on a `Value` already obtained from `get`, so
 /// nested data can be read without re-walking from the document root. Errors
-/// carry the path relative to the supplied value.
+/// report the path relative to the supplied value.
 pub fn value_get(value: Value, key: List(String)) -> Result(Value, GetError) {
   navigate(value, key, key)
 }
@@ -1108,7 +1108,7 @@ pub fn keys(
 /// Read a string from a `Value`.
 ///
 /// Mirrors `get_string`, but operates on a `Value` already obtained from
-/// `get`. On a type mismatch the error carries an empty key path, since a bare
+/// `get`. On a type mismatch the error reports an empty key path, since a bare
 /// `Value` has no path context.
 pub fn as_string(value: Value) -> Result(String, GetError) {
   case value {
@@ -1663,7 +1663,7 @@ fn replace_entry(
 const comment_key = "/"
 
 // Render entries as the body of a nested block: a leading newline, then every
-// entry at `indent`. A nested value already carries the absolute indentation
+// entry at `indent`. A nested value already includes the absolute indentation
 // of its own deeper lines, so only this level needs a prefix.
 fn nested_raw(entries: List(types.Entry), indent: Int) -> String {
   case entries {

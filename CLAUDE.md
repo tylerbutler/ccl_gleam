@@ -116,7 +116,7 @@ function means adding it to `src/ccl.gleam`, not un-sealing an internal module.
 
 Key shapes:
 
-- **`Document`** — opaque; carries the parsed entries, the `Options` it was
+- **`Document`** — opaque; holds the parsed entries, the `Options` it was
   parsed with, the original source, and whether the source ended in a newline.
   Every edit clears the cached source through `edited/2` so `to_string`
   re-emits.
@@ -132,7 +132,7 @@ Key shapes:
   `DecodeError`. All documented as stable: adding, removing, or renaming a
   variant is a breaking change.
 - **Edit layer** — recursive over the flat `Entry` list. A nested entry's raw
-  value carries the *absolute* indentation of its own deeper lines, so an edit
+  value keeps the *absolute* indentation of its own deeper lines, so an edit
   re-detects the child baseline via `nested_indent` and only prefixes the level
   it is rewriting.
 

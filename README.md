@@ -32,7 +32,7 @@ The `handle_*` functions above stand in for your own error handling; each `case`
 
 ### Parsing and typed access
 
-Use `ccl.parse` for `String` input, `ccl.parse_bytes` when raw bytes need UTF-8 validation first, and `ccl.parse_indented` for a fragment that still carries an enclosing block's indentation.
+Use `ccl.parse` for `String` input, `ccl.parse_bytes` when raw bytes need UTF-8 validation first, and `ccl.parse_indented` for a fragment that still has the enclosing block's indentation.
 
 ```gleam
 let assert Ok(doc) = ccl.parse("server =\n  host = localhost\n  port = 8080\n")
@@ -73,7 +73,7 @@ let options =
 ccl.parse_with(source, options)
 ```
 
-The settings cover line endings (`NormalizeCrlf`/`PreserveCrlf`), tabs (`TabsAsWhitespace`/`TabsAsContent`), the top-level indentation baseline (`StripToplevelIndent`/`PreserveToplevelIndent`), delimiter choice (`PreferSpaced`/`FirstEquals`), boolean strictness (`BooleanStrict`/`BooleanLenient`), list coercion (`CoercionDisabled`/`CoercionEnabled`), and list order (`InsertionOrder`/`LexicographicOrder`). A document carries the options it was parsed with, so reads stay consistent with the parse.
+The settings cover line endings (`NormalizeCrlf`/`PreserveCrlf`), tabs (`TabsAsWhitespace`/`TabsAsContent`), the top-level indentation baseline (`StripToplevelIndent`/`PreserveToplevelIndent`), delimiter choice (`PreferSpaced`/`FirstEquals`), boolean strictness (`BooleanStrict`/`BooleanLenient`), list coercion (`CoercionDisabled`/`CoercionEnabled`), and list order (`InsertionOrder`/`LexicographicOrder`). A document keeps the options it was parsed with, so reads stay consistent with the parse.
 
 ### Dynamic decoding
 
