@@ -2,8 +2,8 @@
 ////
 //// CCL parses into an opaque `Document` that retains the original source, key
 //// order, comments, and indentation. Unedited documents round-trip to their
-//// original text; edits are written back in place while preserving the
-//// surrounding structure. `Document` stays opaque so the internal entry
+//// original text; edits write back in place and preserve the surrounding
+//// structure. `Document` stays opaque so the internal entry
 //// representation can evolve without breaking the public API.
 ////
 //// ```gleam
@@ -62,10 +62,10 @@ pub opaque type Document {
 
 /// Create an empty CCL document.
 ///
-/// Equivalent to `parse("")` for downstream callers; the only observable
-/// difference is that `parse("")` initially round-trips to `""` even after the
-/// document is modified, while the document returned by `new` always emits its
-/// current content.
+/// Equivalent to `parse("")` for downstream callers. The only observable
+/// difference: a document from `parse("")` records that its source had no
+/// trailing newline, so its edits emit none, while a document from `new`
+/// always ends its output with one.
 pub fn new() -> Document {
   Document(
     entries: [],
@@ -79,15 +79,15 @@ pub fn new() -> Document {
 
 /// Errors that can occur while parsing CCL input.
 ///
-/// Variants are part of the stable public API. Adding, removing, or renaming a
-/// variant is treated as a breaking change.
+/// Variants are part of the stable public API. Adding, removing, or renaming
+/// a variant is a breaking change.
 ///
 /// CCL's grammar accepts any text, so `parse` on a `String` does not currently
-/// fail. `ParseError` exists so byte-level and future strict-mode diagnostics
-/// can be reported without a breaking change; `parse_bytes` already returns
-/// `InvalidEncoding`.
+/// fail. `ParseError` exists so the library can report byte-level and future
+/// strict-mode diagnostics without a breaking change; `parse_bytes` already
+/// returns `InvalidEncoding`.
 pub type ParseError {
-  /// Raw bytes could not be decoded as valid UTF-8 text.
+  /// The raw bytes are not valid UTF-8 text.
   InvalidEncoding
 
   /// CCL syntax was invalid at a byte offset.
@@ -96,13 +96,13 @@ pub type ParseError {
 
 /// Stable categories for CCL syntax errors.
 ///
-/// Variants are part of the stable public API. Adding, removing, or renaming a
-/// variant is treated as a breaking change.
+/// Variants are part of the stable public API. Adding, removing, or renaming
+/// a variant is a breaking change.
 pub type SyntaxErrorKind {
-  /// A key was expected before the `=` delimiter.
+  /// The parser expected a key before the `=` delimiter.
   ExpectedKey
 
-  /// A value was expected after the `=` delimiter.
+  /// The parser expected a value after the `=` delimiter.
   ExpectedValue
 
   /// CCL syntax was invalid, but the parser does not expose a narrower stable
@@ -112,8 +112,8 @@ pub type SyntaxErrorKind {
 
 /// Errors that can occur while reading typed values from a document.
 ///
-/// Variants are part of the stable public API. Adding, removing, or renaming a
-/// variant is treated as a breaking change.
+/// Variants are part of the stable public API. Adding, removing, or renaming
+/// a variant is a breaking change.
 pub type GetError {
   /// No value exists at the requested key path.
   KeyNotFound(key: List(String))
@@ -125,8 +125,8 @@ pub type GetError {
 
 /// CCL value kinds used in typed read errors.
 ///
-/// Variants are part of the stable public API. Adding, removing, or renaming a
-/// variant is treated as a breaking change.
+/// Variants are part of the stable public API. Adding, removing, or renaming
+/// a variant is a breaking change.
 pub type ExpectedType {
   ExpectedString
   ExpectedInt
@@ -138,8 +138,8 @@ pub type ExpectedType {
 
 /// Errors that can occur while editing a document.
 ///
-/// Variants are part of the stable public API. Adding, removing, or renaming a
-/// variant is treated as a breaking change.
+/// Variants are part of the stable public API. Adding, removing, or renaming
+/// a variant is a breaking change.
 pub type EditError {
   /// Edit paths must contain at least one key segment.
   EmptyKeyPath
@@ -168,7 +168,7 @@ pub type EditError {
 /// Errors that can occur while parsing CCL and decoding it with a dynamic
 /// decoder.
 pub type DecodeError {
-  /// The input could not be parsed as CCL.
+  /// The input did not parse as CCL.
   DecodeParseError(ParseError)
 
   /// The input parsed successfully, but the supplied decoder did not match the
@@ -180,12 +180,12 @@ pub type DecodeError {
 
 /// A CCL value.
 ///
-/// Variants are part of the stable public API. Adding, removing, or renaming a
-/// variant is treated as a breaking change.
+/// Variants are part of the stable public API. Adding, removing, or renaming
+/// a variant is a breaking change.
 ///
 /// `ObjectValue` exposes its entries as an ordered association list of
-/// `#(key, value)` pairs and will remain shaped that way, so source order
-/// survives a read. Repeated empty keys (`= a`, `= b`) collect into a
+/// `#(key, value)` pairs, and this shape is stable, so source order survives
+/// a read. Repeated empty keys (`= a`, `= b`) collect into a
 /// `ListValue` stored under the `""` key of their enclosing object.
 pub type Value {
   /// A terminal value — the fixed point, with no further `=` to expand.
@@ -200,9 +200,9 @@ pub type Value {
 
 /// A flat key/value entry, as produced by CCL's first parsing pass.
 ///
-/// Keys are trimmed of surrounding whitespace. Values keep their internal
-/// structure, so a nested block's value is the multi-line text under it,
-/// indentation included. Two keys are special: `""` marks a list item written
+/// The parser trims surrounding whitespace from keys. Values keep their
+/// internal structure, so a nested block's value is the multi-line text under
+/// it, indentation included. Two keys are special: `""` marks a list item written
 /// as `= value`, and `"/"` marks a comment written as `/= text`.
 pub type Entry {
   Entry(key: String, value: String)
@@ -222,8 +222,8 @@ pub type Model {
 
 /// A one-based source position.
 ///
-/// Positions are opaque so more source-location detail can be added later
-/// without changing the public constructor shape. Use `position_line` and
+/// Positions are opaque so later versions can add more source-location detail
+/// without a change to the public constructor shape. Use `position_line` and
 /// `position_column` to inspect one.
 pub opaque type Position {
   Position(line: Int, column: Int)
@@ -232,7 +232,7 @@ pub opaque type Position {
 /// Convert a byte offset into a one-based line and column.
 ///
 /// Offsets beyond the end of the input return the position just after the last
-/// character. CRLF is treated as a single line break.
+/// character. CRLF counts as a single line break.
 pub fn line_column(input: String, offset: Int) -> Position {
   count_position(bit_array.from_string(input), offset, 1, 1)
 }
@@ -288,7 +288,7 @@ pub opaque type Options {
   )
 }
 
-/// How CRLF line endings are handled while parsing.
+/// How the parser treats CRLF line endings.
 pub type LineEndings {
   /// Rewrite every `\r\n` to `\n` before parsing. The cross-platform default.
   NormalizeCrlf
@@ -297,12 +297,12 @@ pub type LineEndings {
   PreserveCrlf
 }
 
-/// How tab characters are handled while parsing.
+/// How the parser treats tab characters.
 pub type Tabs {
   /// Spaces and tabs both count as indentation whitespace. The default.
   TabsAsWhitespace
 
-  /// Only spaces count as indentation; tabs are preserved as value content.
+  /// Only spaces count as indentation; tabs stay in the value as content.
   TabsAsContent
 }
 
@@ -312,18 +312,19 @@ pub type Baseline {
   /// The default.
   StripToplevelIndent
 
-  /// The top-level baseline is detected from the first content line, so
-  /// uniformly indented documents parse as if they started at column 0.
+  /// The parser detects the top-level baseline from the first content line,
+  /// so uniformly indented documents parse as if they started at column 0.
   PreserveToplevelIndent
 }
 
-/// How the `=` delimiter is located on a line that contains more than one.
+/// How the parser locates the `=` delimiter on a line that contains more
+/// than one.
 pub type Delimiter {
   /// Always split on the first `=` in the line.
   FirstEquals
 
-  /// Prefer a spaced ` = ` delimiter, falling back to the first `=` when the
-  /// line has no spaced form. Lets keys contain `=`, such as URLs with query
+  /// Prefer a spaced ` = ` delimiter; when the line has no spaced form, split
+  /// on the first `=`. Lets keys contain `=`, such as URLs with query
   /// parameters. The default.
   PreferSpaced
 }
@@ -351,7 +352,7 @@ pub type ListOrder {
   /// Elements keep their source order. The default.
   InsertionOrder
 
-  /// Elements are sorted lexicographically by their terminal text.
+  /// Elements sort lexicographically by their terminal text.
   LexicographicOrder
 }
 
@@ -366,7 +367,7 @@ pub fn default_options() -> Options {
   )
 }
 
-/// Set how CRLF line endings are handled.
+/// Set how the parser treats CRLF line endings.
 pub fn with_line_endings(
   options: Options,
   line_endings: LineEndings,
@@ -381,7 +382,7 @@ pub fn with_line_endings(
   )
 }
 
-/// Set how tab characters are handled.
+/// Set how the parser treats tab characters.
 pub fn with_tabs(options: Options, tabs: Tabs) -> Options {
   let behaviour = case tabs {
     TabsAsWhitespace -> types.TabsAsWhitespace
@@ -405,7 +406,7 @@ pub fn with_baseline(options: Options, baseline: Baseline) -> Options {
   )
 }
 
-/// Set how the `=` delimiter is located.
+/// Set how the parser locates the `=` delimiter.
 pub fn with_delimiter(options: Options, delimiter: Delimiter) -> Options {
   let behaviour = case delimiter {
     FirstEquals -> types.DelimiterFirstEquals
@@ -417,7 +418,7 @@ pub fn with_delimiter(options: Options, delimiter: Delimiter) -> Options {
   )
 }
 
-/// Set which strings are accepted as booleans.
+/// Set which strings `get_bool` and `as_bool` accept.
 pub fn with_booleans(options: Options, booleans: Booleans) -> Options {
   let behaviour = case booleans {
     BooleanStrict -> types.BooleanStrict
@@ -546,7 +547,7 @@ pub fn parse_bytes_with(
 ///
 /// A single-line input is always a terminal `StringValue`, even when it
 /// contains an `=` — that `=` is content, not a delimiter. A multi-line input
-/// is expanded into an `ObjectValue` or `ListValue`.
+/// expands into an `ObjectValue` or `ListValue`.
 ///
 /// ```gleam
 /// ccl.parse_value("localhost")
@@ -601,7 +602,7 @@ pub fn parse_dynamic_with(
 /// ```
 ///
 /// Every CCL terminal value is text, so `decode.int`, `decode.bool`, and
-/// `decode.float` will not match. Use `int_decoder`, `bool_decoder`, and
+/// `decode.float` do not match. Use `int_decoder`, `bool_decoder`, and
 /// `float_decoder` for those fields.
 pub fn decode(
   input: String,
@@ -684,9 +685,9 @@ pub fn float_decoder() -> dynamic_decode.Decoder(Float) {
 
 /// Emit a document as CCL text.
 ///
-/// Unedited parsed documents round-trip to their original source text. Edited
-/// documents are re-emitted from their entries, preserving key order,
-/// comments, and the indentation of untouched blocks.
+/// Unedited parsed documents round-trip to their original source text. An
+/// edited document re-emits from its entries and keeps key order, comments,
+/// and the indentation of untouched blocks.
 pub fn to_string(doc: Document) -> String {
   case doc.original_source {
     Some(source) -> source
@@ -704,8 +705,8 @@ pub fn to_string(doc: Document) -> String {
 /// Emit a document in CCL's canonical form: normalised two-space indentation,
 /// keys sorted lexicographically, and duplicate keys merged.
 ///
-/// This preserves meaning rather than layout, so comments and source order are
-/// not retained.
+/// This preserves meaning rather than layout, so comments and source order do
+/// not survive.
 pub fn to_canonical_string(doc: Document) -> String {
   let base_indent = case doc.options.parse.continuation_baseline {
     types.IndentPreserve -> parser.detect_baseline(to_string(doc))
@@ -977,8 +978,9 @@ fn navigate(
     [head, ..rest], ObjectValue(pairs) ->
       case list.key_find(pairs, head) {
         Ok(found) -> navigate(found, rest, full)
-        // Fall back to indexing the block's own list, so a named list can be
-        // addressed as `["ports", "0"]` without naming the empty key.
+        // When the key is absent, index the block's own list, so a caller can
+        // address a named list as `["ports", "0"]` without naming the empty
+        // key.
         Error(_) ->
           case list.key_find(pairs, "") {
             Ok(ListValue(items)) -> navigate_index(items, head, rest, full)
@@ -1035,7 +1037,7 @@ pub fn get_int(doc: Document, key: List(String)) -> Result(Int, GetError) {
 
 /// Read a terminal value at a key path and parse it as a boolean.
 ///
-/// Which strings are accepted follows the document's `Booleans` option;
+/// The document's `Booleans` option controls which strings match;
 /// `BooleanStrict` (the default) accepts only `true` and `false`,
 /// case-insensitively.
 pub fn get_bool(doc: Document, key: List(String)) -> Result(Bool, GetError) {
@@ -1076,7 +1078,7 @@ pub fn get_list(
 
 /// Read a list of values at a key path, keeping nested items intact.
 ///
-/// The list shapes accepted are the same as `get_list`.
+/// This accepts the same list shapes as `get_list`.
 pub fn get_values(
   doc: Document,
   key: List(String),
@@ -1323,9 +1325,9 @@ pub fn set_object(
 
 /// Set any `Value` at a key path, creating intermediate blocks as needed.
 ///
-/// Nested values are written with two-space indentation relative to their
-/// parent. An existing key is replaced in place, keeping its position and the
-/// comments around it.
+/// This writes nested values with two-space indentation relative to their
+/// parent. It replaces an existing key in place, so the key keeps its
+/// position and the comments around it.
 pub fn set_value(
   doc: Document,
   key: List(String),
@@ -1441,8 +1443,8 @@ fn validate_value(value: Value) -> Result(Nil, EditError) {
     ListValue(items) -> list.try_each(items, validate_value)
     ObjectValue(pairs) ->
       list.try_each(pairs, fn(pair) {
-        // An empty key inside a block is CCL's list-item marker and is written
-        // as `= value`, so it is allowed here even though paths reject it.
+        // An empty key inside a block is CCL's list-item marker, written as
+        // `= value`, so this permits it even though paths reject it.
         use _ <- result.try(case pair.0 {
           "" -> Ok(Nil)
           segment -> validate_segment(segment)
@@ -1679,9 +1681,9 @@ fn render_entries(entries: List(types.Entry), indent: Int) -> String {
   |> string.join("\n")
 }
 
-// Mirrors `format.print`'s entry layout, with one addition: a comment entry is
-// written back as `/= text` rather than `/ = text`, so a comment survives an
-// edit in the spelling it was written in.
+// Mirrors `format.print`'s entry layout, with one addition: a comment entry
+// writes back as `/= text` rather than `/ = text`, so a comment survives an
+// edit in its original spelling.
 fn entry_text(key: String, raw: String) -> String {
   case key, raw {
     "", "" -> "="

@@ -1,14 +1,15 @@
 /// Core CCL types.
 ///
-/// CCL values use a tagged union representation, recommended by the CCL docs
-/// for languages that need structure-preserving `print`. This lets us distinguish
-/// string values from nested structures, unlike OCaml's uniform `Fix of t KeyMap.t`.
+/// CCL values use a tagged union, as the CCL docs recommend for languages
+/// that need a structure-preserving `print`. The tags keep string values
+/// separate from nested structures, unlike OCaml's uniform `Fix of t KeyMap.t`.
 import gleam/dict.{type Dict}
 
 /// A flat key-value entry produced by parsing.
 ///
-/// Key is trimmed of all whitespace (including newlines).
-/// Value preserves internal structure (newlines + indentation for nested content).
+/// The parser trims all whitespace, including newlines, from the key.
+/// The value keeps its internal structure: newlines and indentation for
+/// nested content.
 ///
 /// Special keys:
 /// - Empty string `""` → list item (from `= value` syntax)
@@ -21,9 +22,9 @@ pub type Entry {
 pub type CCLValue {
   /// Terminal value — no `=` in content, fixed point reached.
   CclString(String)
-  /// Nested object — value contained `=` and was recursively parsed.
+  /// Nested object — the value contains `=` and expands recursively.
   CclObject(Dict(String, CCLValue))
-  /// List — accumulated from multiple empty-key entries.
+  /// List — built from repeated empty-key entries.
   CclList(List(CCLValue))
 }
 
@@ -43,7 +44,7 @@ pub type Model {
 
 // --- Options types for configurable behaviours ---
 
-/// Controls how CRLF line endings are handled during parsing.
+/// Controls how the parser treats CRLF line endings.
 pub type LineEndingBehaviour {
   /// Convert all \r\n to \n before parsing (cross-platform default).
   NormalizeToLf
@@ -51,19 +52,19 @@ pub type LineEndingBehaviour {
   PreserveLiteral
 }
 
-/// Controls how tab characters are handled during parsing.
+/// Controls how the parser treats tab characters.
 pub type TabBehaviour {
   /// Both spaces and tabs count as whitespace for indentation.
   TabsAsWhitespace
-  /// Only spaces count as whitespace; tabs are preserved as content.
+  /// Only spaces count as whitespace; tabs stay in the value as content.
   TabsAsContent
 }
 
-/// Controls top-level indentation baseline during parsing.
+/// Controls the top-level indentation baseline during parsing.
 pub type ContinuationBaseline {
-  /// Top-level baseline is always N=0 (OCaml reference behaviour).
+  /// The top-level baseline is always N=0 (OCaml reference behaviour).
   IndentStrip
-  /// Top-level baseline is detected from first content line.
+  /// The parser detects the top-level baseline from the first content line.
   IndentPreserve
 }
 
@@ -77,7 +78,7 @@ pub type ParseOptions {
   )
 }
 
-/// Default parse options matching current hardcoded behaviour.
+/// The default parse options.
 pub fn default_parse_options() -> ParseOptions {
   ParseOptions(
     line_endings: NormalizeToLf,
@@ -87,7 +88,7 @@ pub fn default_parse_options() -> ParseOptions {
   )
 }
 
-/// Controls which string values are accepted as booleans.
+/// Controls which strings the boolean readers accept.
 pub type BooleanParsing {
   /// Only true/false (case-insensitive).
   BooleanStrict
@@ -108,7 +109,7 @@ pub type AccessOptions {
   AccessOptions(boolean_parsing: BooleanParsing, list_coercion: ListCoercion)
 }
 
-/// Default access options matching current hardcoded behaviour.
+/// The default access options.
 pub fn default_access_options() -> AccessOptions {
   AccessOptions(boolean_parsing: BooleanStrict, list_coercion: CoercionDisabled)
 }
@@ -117,7 +118,7 @@ pub fn default_access_options() -> AccessOptions {
 pub type ArrayOrder {
   /// Elements appear in source order.
   InsertionOrder
-  /// Elements are sorted lexicographically.
+  /// The builder sorts elements lexicographically.
   LexicographicOrder
 }
 
@@ -126,17 +127,18 @@ pub type BuildOptions {
   BuildOptions(array_order: ArrayOrder)
 }
 
-/// Default build options matching current hardcoded behaviour.
+/// The default build options.
 pub fn default_build_options() -> BuildOptions {
   BuildOptions(array_order: InsertionOrder)
 }
 
-/// Controls how the `=` delimiter is identified when a line contains multiple `=`.
+/// Controls how the parser finds the `=` delimiter when a line contains more
+/// than one `=`.
 pub type DelimiterStrategy {
   /// Split on the first `=` character in the line.
   DelimiterFirstEquals
-  /// Prefer ` = ` (space-equals-space) as delimiter; fall back to first `=`
-  /// if no spaced version exists. This allows keys containing `=` (e.g. URLs
-  /// with query parameters) when the "real" delimiter is surrounded by spaces.
+  /// Prefer ` = ` (space-equals-space) as the delimiter; if no spaced form
+  /// exists, split on the first `=`. This permits keys that contain `=`
+  /// (e.g. URLs with query parameters) when spaces surround the real delimiter.
   DelimiterPreferSpaced
 }

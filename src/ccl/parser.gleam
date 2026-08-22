@@ -42,12 +42,12 @@ pub fn parse_with(
   parse_with_baseline(normalized, baseline, options)
 }
 
-/// Parse indented CCL text by auto-detecting the baseline indentation.
-/// Unlike `parse` which uses N=0, this detects the baseline from the first
-/// content line's indentation, allowing pre-indented text to be parsed correctly.
-/// When `tabs_as_content`, strips the minimum space-only indent from
-/// continuation lines in each entry's value, since the structural
-/// indentation (spaces) should be removed while preserving tab content.
+/// Parse indented CCL text with an auto-detected baseline indentation.
+/// `parse` uses N=0; this function detects the baseline from the first
+/// content line's indentation, so pre-indented text parses correctly.
+/// Under `tabs_as_content`, this strips the minimum space-only indent from
+/// continuation lines in each entry's value: the structural indentation
+/// (spaces) goes away, and tab content stays.
 @internal
 pub fn parse_indented_with(
   text: String,
@@ -67,8 +67,8 @@ pub fn parse_indented_with(
 
 /// Whether a raw entry value is structurally nested CCL — a multiline value
 /// containing at least one `=` — rather than a terminal leaf string.
-/// Shared by `hierarchy.gleam` and `model/nested_parser.gleam` so the two
-/// projections agree on what counts as nested.
+/// Both `hierarchy.gleam` and `model/nested_parser.gleam` use this, so the
+/// two projections agree on what counts as nested.
 pub fn is_nested_value(raw_value: String) -> Bool {
   {
     string.starts_with(raw_value, "\n") || string.starts_with(raw_value, "\r\n")
@@ -76,10 +76,10 @@ pub fn is_nested_value(raw_value: String) -> Bool {
   && string.contains(raw_value, "=")
 }
 
-/// Parse a nested value (called by build_hierarchy during recursive parsing).
-/// If text starts with \n, detects baseline from first content line's indentation.
-/// Otherwise parses as a single-line value.
-/// Matches OCaml's `parse_value` / `nested_kvs_p`.
+/// Parse a nested value (build_hierarchy calls this during recursive parsing).
+/// If the text starts with `\n`, this detects the baseline from the first
+/// content line's indentation. Otherwise it parses the text as a single-line
+/// value. Matches OCaml's `parse_value` / `nested_kvs_p`.
 pub fn parse_value(text: String) -> Result(List(Entry), String) {
   parse_value_with(text, types.default_parse_options())
 }
@@ -128,9 +128,9 @@ fn parse_with_baseline(
 /// State machine for parsing lines into entries.
 /// Accumulates continuation lines into the current entry's value.
 ///
-/// `pending_key`: buffered text from lines without `=`, to be combined
-/// with the next line that has `=`. This mirrors OCaml's `many (not_char '=')`
-/// which reads across line boundaries until it hits `=`.
+/// `pending_key`: buffered text from lines without `=`. The parser combines
+/// it with the next line that has `=`. This mirrors OCaml's
+/// `many (not_char '=')`, which reads across line boundaries until it hits `=`.
 fn parse_lines(
   lines: List(String),
   baseline: Int,
@@ -141,11 +141,12 @@ fn parse_lines(
 ) -> Result(List(Entry), String) {
   case lines {
     [] -> {
-      // Flush any remaining entry. A trailing pending key (a no-`=` line at
-      // end of input) is intentionally discarded: with no following `=` line
-      // it can neither fold into a key nor form a `key = value` entry, matching
-      // the reference parser. Mid-stream non-merging pending keys are emitted
-      // as standalone empty-value entries (see flush_pending_key).
+      // Flush any remaining entry. The parser discards a trailing pending key
+      // (a no-`=` line at the end of input) on purpose: with no `=` line after
+      // it, the text can neither fold into a key nor form a `key = value`
+      // entry. This matches the reference parser. A mid-stream pending key
+      // that does not merge becomes a standalone empty-value entry (see
+      // flush_pending_key).
       let final_acc = flush_entry(acc, current, options)
       Ok(list.reverse(final_acc))
     }
@@ -199,8 +200,8 @@ fn parse_lines(
               let new_current = Some(#(key, list.append(value_lines, [line])))
               parse_lines(rest, baseline, acc, new_current, None, options)
             }
-            // Continuation line but no current entry: treat as new entry
-            // This handles the case where indented text appears at the start
+            // Continuation line but no current entry: treat as a new entry.
+            // This covers indented text at the start of the input.
             True, None -> {
               case split_on_equals_with(line, options) {
                 Ok(#(key, value)) -> {
@@ -289,10 +290,10 @@ fn flush_entry(
   }
 }
 
-/// Separator used when folding a multiline-key line into the buffer.
+/// The separator used when a multiline-key line folds into the buffer.
 /// An indented continuation line folds into a single space; an unindented
 /// line keeps the literal newline. Mirrors the OCaml reference, which reads
-/// every char up to `=` and trims the whole multiline-key mouthful.
+/// every character up to `=` and trims the whole multiline key.
 fn key_separator(indent: Int, baseline: Int) -> String {
   case indent > baseline {
     True -> " "
@@ -316,9 +317,9 @@ fn extend_pending(
 /// Emit a buffered pending key as a standalone empty-value entry when it does
 /// not fold forward into the next `=` line's key (`merge == False`). This is
 /// the non-merging half of the multiline-key rule: an unindented no-`=` line
-/// following a *named*-key entry (e.g. repeated list keys) is its own entry
-/// rather than a prefix of the following key. When `merge == True` the buffer
-/// is consumed by `combine_key`, so nothing is emitted here.
+/// after a *named*-key entry (e.g. repeated list keys) is its own entry, not
+/// a prefix of the next key. When `merge == True`, `combine_key` consumes the
+/// buffer, so this emits nothing.
 fn flush_pending_key(
   acc: List(Entry),
   pending: Option(String),
@@ -331,12 +332,12 @@ fn flush_pending_key(
   }
 }
 
-/// Decide whether a buffered pending key should fold into the key part of a
-/// `=` line. An empty key part always absorbs the pending buffer (the buffer
-/// *is* the key, e.g. `my\n key\n= val`). A non-empty key part only absorbs the
-/// pending buffer when the preceding entry has an empty key (or there is no
-/// preceding entry) — this is the multiline-key continuation case. Otherwise
-/// the pending buffer belongs to a distinct entry and must not merge forward
+/// Decide whether a buffered pending key folds into the key part of a `=`
+/// line. An empty key part always absorbs the pending buffer (the buffer *is*
+/// the key, e.g. `my\n key\n= val`). A non-empty key part absorbs the pending
+/// buffer only when the preceding entry has an empty key, or when there is no
+/// preceding entry — the multiline-key continuation case. Otherwise the
+/// pending buffer belongs to a distinct entry and must not merge forward
 /// (e.g. a stray unindented line between repeated list keys).
 fn should_merge_pending(acc: List(Entry), key_part: String) -> Bool {
   case string.trim(key_part) {
@@ -350,9 +351,9 @@ fn should_merge_pending(acc: List(Entry), key_part: String) -> Bool {
 }
 
 /// Combine the buffered pending key with the key part of the `=` line.
-/// The whole result is trimmed, matching the reference's String.trim.
-/// When `merge` is False the pending buffer is dropped and only the key part
-/// is used.
+/// This trims the whole result, to match the reference's String.trim.
+/// When `merge` is False, this drops the pending buffer and uses only the
+/// key part.
 fn combine_key(
   pending: Option(String),
   key_part: String,
@@ -377,15 +378,15 @@ fn combine_key(
 }
 
 /// Build the final value string from accumulated lines.
-/// First line has leading whitespace already trimmed.
-/// Trailing whitespace on the final line is trimmed.
+/// The first line already has its leading whitespace trimmed.
+/// This trims trailing whitespace from the final line.
 ///
 /// Tab handling depends on options:
 /// - `TabsAsWhitespace`: tabs on the entry line's value are whitespace and
 ///   convert 1:1 to spaces (`tabs_as_whitespace_in_value`); LEADING tabs on
 ///   continuation lines are structural and also convert 1:1 to spaces
 ///   (`continuation_tab_to_space`).
-/// - `TabsAsContent`: tabs are preserved as-is
+/// - `TabsAsContent`: tabs stay unchanged
 fn build_value(lines: List(String), options: ParseOptions) -> String {
   case lines {
     [] -> ""
@@ -401,9 +402,9 @@ fn build_value(lines: List(String), options: ParseOptions) -> String {
         }
         TabsAsContent -> {
           // Preserve tabs as content — no stripping in build_value.
-          // Continuation indent stripping for tabs_as_content is handled
-          // at a higher level (parse_indented_with) since parse() should
-          // preserve raw continuation indentation.
+          // `parse_indented_with` strips continuation indent for
+          // tabs_as_content at a higher level, because parse() must keep
+          // raw continuation indentation.
           [first, ..rest]
         }
       }
@@ -414,8 +415,8 @@ fn build_value(lines: List(String), options: ParseOptions) -> String {
 }
 
 /// Replace each tab in an entry line's value with a single space.
-/// Under `tabs_as_whitespace` a tab inside a value is whitespace, normalized
-/// 1:1 to spaces; under `tabs_as_content` tabs pass through untouched.
+/// Under `tabs_as_whitespace`, a tab inside a value is whitespace and becomes
+/// one space; under `tabs_as_content`, tabs stay unchanged.
 fn convert_value_tabs(line: String, options: ParseOptions) -> String {
   case options.tab_handling {
     TabsAsWhitespace -> string.replace(line, "\t", " ")
@@ -425,8 +426,8 @@ fn convert_value_tabs(line: String, options: ParseOptions) -> String {
 
 /// Convert a continuation line's leading whitespace (tabs and spaces) to an
 /// equal number of spaces, 1:1 per character (`continuation_tab_to_space`).
-/// Structural indentation is normalized to spaces while its column count
-/// is preserved; content after the leading whitespace is untouched.
+/// This normalizes structural indentation to spaces and keeps the column
+/// count; content after the leading whitespace does not change.
 fn normalize_tab_indentation(line: String) -> String {
   let #(count, rest) = count_and_drop_leading_whitespace(line, 0)
   string.repeat(" ", count) <> rest
@@ -446,9 +447,9 @@ fn count_and_drop_leading_whitespace(
 }
 
 /// Strip the minimum space-only indent from continuation lines in each entry.
-/// For multi-line values (containing \n), the continuation part (after the first
-/// line) has its minimum leading-spaces-only indent removed. This removes
-/// structural indentation while preserving tab content.
+/// For a multi-line value (one that contains `\n`), this removes the minimum
+/// leading-spaces-only indent from the lines after the first. The structural
+/// indentation goes away; tab content stays.
 fn strip_entries_continuation_indent(entries: List(Entry)) -> List(Entry) {
   list.map(entries, fn(entry) {
     case string.split_once(entry.value, "\n") {
@@ -495,7 +496,8 @@ fn min_leading_spaces(lines: List(String)) -> Int {
   |> result.unwrap(0)
 }
 
-/// Strip exactly n leading spaces from a string, stopping at non-space chars.
+/// Strip exactly n leading spaces from a string; stop at the first non-space
+/// character.
 fn strip_n_leading_spaces(line: String, n: Int) -> String {
   case n > 0 {
     False -> line
@@ -508,8 +510,8 @@ fn strip_n_leading_spaces(line: String, n: Int) -> String {
 }
 
 /// Split a line on `=` using the configured delimiter strategy.
-/// Tab handling affects value trimming: when `tabs_as_content`, only spaces
-/// are stripped after `=`; tabs are preserved as content.
+/// Tab handling affects value trimming: under `tabs_as_content`, this strips
+/// only spaces after `=` and keeps tabs as content.
 fn split_on_equals_with(
   line: String,
   options: ParseOptions,
@@ -541,11 +543,11 @@ fn split_on_first_equals(
   }
 }
 
-/// Split a line preferring ` =` (space-then-equals) as delimiter.
-/// A spaced delimiter only requires a leading space — a trailing space is
-/// not required, so an empty value at end of line (`a=b =`) still splits
-/// on the spaced `=`; when no such delimiter exists, falls back to the
-/// first bare `=`.
+/// Split a line on a spaced ` =` (space-then-equals) delimiter when possible.
+/// A spaced delimiter requires only a leading space. A trailing space is not
+/// required, so an empty value at the end of a line (`a=b =`) still splits on
+/// the spaced `=`. When no spaced delimiter exists, this splits on the first
+/// bare `=`.
 fn split_on_spaced_equals(
   line: String,
   trim_value: fn(String) -> String,
@@ -606,8 +608,9 @@ fn count_ws_chars(chars: List(String), count: Int) -> Int {
 }
 
 /// Detect the baseline indentation from the first non-empty line.
-/// Used for nested parsing context, and by callers (e.g. `canonical_format`)
-/// that need to know the top-level indent `toplevel_indent_preserve` keeps.
+/// The nested parsing context uses this, as do callers (e.g.
+/// `canonical_format`) that need the top-level indent
+/// `toplevel_indent_preserve` keeps.
 pub fn detect_baseline(text: String) -> Int {
   let lines = string.split(text, "\n")
   find_first_content_indent(lines)
@@ -625,8 +628,8 @@ fn find_first_content_indent(lines: List(String)) -> Int {
   }
 }
 
-/// Check if any line after the current position has indent > baseline,
-/// indicating more continuation content follows an empty line.
+/// Check if any line after the current position has indent > baseline. If
+/// one does, more continuation content follows the empty line.
 fn has_continuation_after(lines: List(String), baseline: Int) -> Bool {
   case lines {
     [] -> False
