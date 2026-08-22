@@ -26,3 +26,7 @@ Thumbs.db
 
 # Downloaded test data (fetched via `just download-tests`)
 packages/ccl_test_runner/ccl-test-data/
+
+
+# APM dependencies
+apm_modules/
