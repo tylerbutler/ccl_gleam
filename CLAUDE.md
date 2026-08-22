@@ -40,13 +40,12 @@ just ci                  # Full CI check (format, build, test)
 
 ```
 gleam.toml                         # CCL library package at repo root (gleam_stdlib only)
-src/ccl/
+src/ccl.gleam                      # THE public API — everything below is internal
+src/ccl/                           # internal_modules in gleam.toml; not importable externally
 ├── types.gleam                    # Entry, CCLValue (String|Object|List), CCL type alias, Model
 ├── parser.gleam                   # parse(), parse_indented() — indentation-aware
-├── hierarchy.gleam                # build_hierarchy() — JSON-friendly projection
+├── hierarchy.gleam                # build_hierarchy() — Dict-based JSON-friendly projection
 ├── model.gleam                    # build_model() — OCaml-canonical recursive map
-├── access.gleam                   # get_string, get_int, get_bool, get_float, get_list
-├── decode.gleam                   # Typed decoders with path tracking
 └── format.gleam                   # print (structure-preserving), canonical_format
 
 packages/
@@ -108,7 +107,40 @@ just list                                       # List test files
 just view                                       # Interactive TUI
 ```
 
-## CCL Library (`src/ccl/`)
+## Public API (`src/ccl.gleam`)
+
+`ccl` is the entire public API, modelled on [tomlet](https://github.com/tylerbutler/tomlet).
+Everything under `ccl/` is listed in `internal_modules`, so it is hidden from the
+generated docs and cannot be imported from another package. Adding a public
+function means adding it to `src/ccl.gleam`, not un-sealing an internal module.
+
+Key shapes:
+
+- **`Document`** — opaque; holds the parsed entries, the `Options` it was
+  parsed with, the original source, and whether the source ended in a newline.
+  Every edit clears the cached source through `edited/2` so `to_string`
+  re-emits.
+- **`Options`** — opaque; folds `ParseOptions` + `AccessOptions` +
+  `BuildOptions` into one value behind `default_options()` and `with_*`
+  builders.
+- **`Value`** — public tagged union (`StringValue`/`ObjectValue`/`ListValue`).
+  `ObjectValue` uses an **ordered assoc list**, not a `Dict`, so source order
+  survives. `ccl.gleam` therefore has its own order-preserving builder
+  (`build_pairs`) mirroring `hierarchy.gleam`'s merge semantics; the two must
+  stay in step.
+- **Errors** — `ParseError`, `GetError`/`ExpectedType`, `EditError`,
+  `DecodeError`. All documented as stable: adding, removing, or renaming a
+  variant is a breaking change.
+- **Edit layer** — recursive over the flat `Entry` list. A nested entry's raw
+  value keeps the *absolute* indentation of its own deeper lines, so an edit
+  re-detects the child baseline via `nested_indent` and only prefixes the level
+  it is rewriting.
+
+Note that `ccl.print` writes a comment entry as `/= text` where
+`format.print` writes `/ = text`. Both re-parse identically; the facade's form
+is the spelling CCL sources actually use.
+
+## CCL internals (`src/ccl/`)
 
 The core CCL implementation follows the docs at catconflang.com:
 
@@ -119,11 +151,16 @@ The core CCL implementation follows the docs at catconflang.com:
 - **`model.build_model(entries)`** — Canonical recursive map mirroring OCaml's `Fix of t KeyMap.t`. Terminal strings become keys pointing to `Model(empty)`; duplicates merge; order-agnostic (ordering belongs to typed projections). See ccl-test-data#142.
 
 ### Typed Access (Optional)
-- **`access.get_string(ccl, path)`** — Navigate path, return string
-- **`access.get_int(ccl, path)`** — Parse integer
-- **`access.get_bool(ccl, path)`** — Parse boolean (`boolean_strict`: only true/false)
-- **`access.get_float(ccl, path)`** — Parse float
-- **`access.get_list(ccl, path)`** — Extract list (handles `{"": CclList}` pattern)
+Typed reads live on the public module only — `ccl.get_string`, `ccl.get_int`,
+`ccl.get_bool`, `ccl.get_float`, `ccl.get_list`, `ccl.get_values` — walking the
+ordered `Value` tree rather than a `Dict`. There is no internal access module.
+
+### Dynamic decoding
+`ccl.decode`/`ccl.parse_dynamic` feed `gleam/dynamic/decode`. Because every CCL
+terminal value is text, stdlib's `decode.int`/`decode.bool`/`decode.float` never
+match; `ccl.int_decoder()`, `ccl.bool_decoder()`, and `ccl.float_decoder()`
+decode the lexical form instead, mirroring tomlet's `date_decoder()` pattern.
+`ccl_codegen` emits these, so its output must stay in step with them.
 
 ### Formatting (Optional)
 - **`format.print(entries)`** — Structure-preserving: `print(parse(x)) == x` for standard inputs
@@ -198,6 +235,9 @@ are paired choices the runner derives from each test's tags.
 - Use Result types for error handling, not exceptions
 - Pattern match exhaustively
 - Follow Gleam's built-in formatter output
-- The test runner calls `ccl/` modules directly — no interface indirection
-- When adding CCL features, update both `ccl/` library and `test_runner/runner.gleam`
+- The test runner drives the library through the public `ccl` module only, so
+  the conformance suite exercises the published surface. It must not import
+  `ccl/*` — `internal_modules` will reject it
+- When adding CCL features, update the internal module, expose it on
+  `src/ccl.gleam`, and update `test_runner/runner.gleam` if a validation needs it
 - Both `gleam test` and `gleam run -- run` use the same runner; no duplication needed

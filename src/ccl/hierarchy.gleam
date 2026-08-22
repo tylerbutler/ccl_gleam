@@ -6,7 +6,8 @@
 /// no more `=` characters (fixed point).
 ///
 /// This follows the docs' Implementing CCL page and mirrors OCaml's
-/// `Model.fix` function, but uses a tagged union instead of uniform `Fix` type.
+/// `Model.fix` function, but uses a tagged union instead of the uniform `Fix`
+/// type.
 import ccl/parser
 import ccl/types.{
   type BuildOptions, type CCL, type CCLValue, type Entry, type ParseOptions,
@@ -16,13 +17,13 @@ import gleam/dict
 import gleam/list
 import gleam/string
 
-/// Build nested CCL structure from flat entries via recursive parsing.
+/// Build a nested CCL structure from flat entries via recursive parsing.
 /// Uses default options (insertion order, default parse options).
 ///
 /// For each entry:
-/// - If value contains `=` → parse recursively, build hierarchy (recurse)
-/// - If value has no `=` → terminal string (fixed point reached)
-/// - If key is `""` → accumulate as list item
+/// - If the value contains `=`: parse it recursively and build the hierarchy
+/// - If the value has no `=`: it is a terminal string (the fixed point)
+/// - If the key is `""`: collect the value as a list item
 pub fn build_hierarchy(entries: List(Entry)) -> CCL {
   build_hierarchy_with(
     entries,
@@ -31,7 +32,7 @@ pub fn build_hierarchy(entries: List(Entry)) -> CCL {
   )
 }
 
-/// Build nested CCL structure with configurable options.
+/// Build a nested CCL structure with configurable options.
 pub fn build_hierarchy_with(
   entries: List(Entry),
   build_options: BuildOptions,
@@ -40,7 +41,7 @@ pub fn build_hierarchy_with(
   build_entries(entries, dict.new(), build_options, parse_options)
 }
 
-/// Process entries into a CCL dict, accumulating values for duplicate keys.
+/// Process entries into a CCL dict; duplicate keys accumulate their values.
 fn build_entries(
   entries: List(Entry),
   acc: CCL,
@@ -58,10 +59,9 @@ fn build_entries(
 }
 
 /// Resolve a raw value string into a CCLValue.
-/// Only multi-line values (starting with `\n` or `\r\n`) represent nested
-/// structure that should be recursively parsed. Single-line values are always
-/// terminal strings, even if they contain `=` — that `=` is content, not a
-/// delimiter.
+/// Only a multi-line value (one that starts with `\n` or `\r\n`) is nested
+/// structure to parse recursively. A single-line value is always a terminal
+/// string, even when it contains `=` — that `=` is content, not a delimiter.
 fn resolve_value(
   raw_value: String,
   build_options: BuildOptions,
@@ -93,7 +93,8 @@ fn resolve_value(
   }
 }
 
-/// Insert a value into the CCL dict, handling duplicate keys and list accumulation.
+/// Insert a value into the CCL dict; duplicate keys merge, and empty keys
+/// collect into a list.
 fn insert_value(
   acc: CCL,
   key: String,
@@ -131,7 +132,8 @@ fn insert_value(
   }
 }
 
-/// Apply lexicographic sorting if configured, otherwise return as-is.
+/// Apply lexicographic sorting when configured; otherwise return the list
+/// unchanged.
 fn maybe_sort(
   values: List(CCLValue),
   build_options: BuildOptions,
@@ -184,7 +186,7 @@ fn merge_values(
   }
 }
 
-/// Merge two CCL dicts, recursively merging values for shared keys.
+/// Merge two CCL dicts; shared keys merge their values recursively.
 fn merge_dicts(a: CCL, b: CCL, build_options: BuildOptions) -> CCL {
   dict.fold(b, a, fn(acc, key, b_value) {
     case dict.get(acc, key) {

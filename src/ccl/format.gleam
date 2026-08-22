@@ -4,7 +4,7 @@
 /// - `print`: structure-preserving, operates on entries
 ///   Property: print(parse(x)) == x for standard-format inputs
 /// - `canonical_format`: semantic-preserving, operates on CCL tree
-///   Outputs normalized 2-space-indented form
+///   Outputs a normalized 2-space-indented form
 import ccl/types.{
   type CCL, type CCLValue, type Entry, CclList, CclObject, CclString,
 }
@@ -16,9 +16,9 @@ import gleam/string
 ///
 /// For standard-format inputs: `print(parse(x)) == x`
 ///
-/// Each entry is formatted as `key = value`. If the value contains
-/// newlines (nested content), the newlines and indentation are preserved
-/// from the original parse.
+/// Each entry becomes `key = value`. If the value contains newlines (nested
+/// content), the output keeps the newlines and indentation from the original
+/// parse.
 pub fn print(entries: List(Entry)) -> String {
   entries
   |> list.map(format_entry)
@@ -27,8 +27,8 @@ pub fn print(entries: List(Entry)) -> String {
 
 /// Format a single entry back to CCL text.
 ///
-/// Empty keys are formatted without the leading space: `= value`
-/// Non-empty keys use the standard `key = value` format.
+/// An empty key omits the space before `=`: the entry prints as `= value`.
+/// A non-empty key uses the standard `key = value` form.
 fn format_entry(entry: Entry) -> String {
   case entry.key, entry.value {
     // Empty key, empty value
@@ -46,13 +46,13 @@ fn format_entry(entry: Entry) -> String {
   }
 }
 
-/// Semantic-preserving canonical format. Walks the CCL tree and outputs
+/// Semantic-preserving canonical format. Walks the CCL tree and outputs a
 /// normalized 2-space-indented form.
 ///
 /// `base_indent` is the starting indentation for top-level entries — `0`
 /// under `toplevel_indent_strip`, or the detected top-level baseline under
 /// `toplevel_indent_preserve` (so the original top-level indent survives
-/// even though the parsed tree itself carries no indentation info).
+/// even though the parsed tree itself stores no indentation info).
 ///
 /// Uses `indent_spaces` behaviour (2 spaces per level).
 pub fn canonical_format(ccl: CCL, base_indent: Int) -> String {

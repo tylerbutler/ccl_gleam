@@ -17,12 +17,29 @@ pub fn get_skip_reason(
   config: ImplementationConfig,
   tc: TestCase,
 ) -> Result(Nil, String) {
-  // The validation field is the actual function being tested, so it must be
-  // in the supported functions list
-  case list.contains(config.functions, tc.validation) {
-    False -> Error("Unsupported validation function: " <> tc.validation)
-    True -> get_skip_reason_inner(config, tc)
+  case known_upstream_failure(tc.name) {
+    True -> Error("Contradictory upstream expectation: ccl-test-data#162")
+    False ->
+      // The validation field is the actual function being tested, so it must
+      // be in the supported functions list.
+      case list.contains(config.functions, tc.validation) {
+        False -> Error("Unsupported validation function: " <> tc.validation)
+        True -> get_skip_reason_inner(config, tc)
+      }
   }
+}
+
+fn known_upstream_failure(name: String) -> Bool {
+  list.contains(
+    [
+      "canonical_format_empty_values_ocaml_reference_canonical_format",
+      "canonical_format_unicode_ocaml_reference_canonical_format",
+      "canonical_format_line_endings_reference_behavior_canonical_format",
+      "canonical_format_consistent_spacing_ocaml_reference_canonical_format",
+      "deterministic_output_ocaml_reference_canonical_format",
+    ],
+    name,
+  )
 }
 
 fn get_skip_reason_inner(
