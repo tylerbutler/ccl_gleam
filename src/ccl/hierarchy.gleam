@@ -132,12 +132,19 @@ fn insert_value(
 }
 
 /// Apply lexicographic sorting if configured, otherwise return as-is.
+/// Lexicographic order mirrors the OCaml reference, which derives lists from
+/// the model's map keys — an empty item is an empty key and vanishes, so it
+/// is dropped; insertion order keeps empty items. Must stay in step with
+/// `sort_items` in `ccl.gleam`.
 fn maybe_sort(
   values: List(CCLValue),
   build_options: BuildOptions,
 ) -> List(CCLValue) {
   case build_options.array_order {
-    LexicographicOrder -> sort_ccl_values(values)
+    LexicographicOrder ->
+      values
+      |> list.filter(fn(value) { value != CclString("") })
+      |> sort_ccl_values
     _ -> values
   }
 }
@@ -160,9 +167,9 @@ fn ccl_value_key(value: CCLValue) -> String {
 
 /// Merge two values for the same key.
 /// Two objects merge recursively. Otherwise, accumulate into a list.
-/// Empty-string values are preserved (the reference keeps trailing empty
-/// list items produced by repeated `key =` entries).
-/// Lexicographic sorting is applied when configured.
+/// Under insertion order, empty-string values are preserved (trailing empty
+/// list items produced by repeated `key =` entries); lexicographic order
+/// drops them in `maybe_sort`.
 fn merge_values(
   existing: CCLValue,
   new: CCLValue,
