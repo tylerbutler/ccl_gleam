@@ -917,16 +917,10 @@ fn replace_pair(
   })
 }
 
-// Lexicographic order mirrors the OCaml reference, which derives lists from
-// the model's map keys — an empty item is an empty key and vanishes, so it is
-// dropped here. Insertion order keeps empty items (see
-// `list_with_whitespace_*` in the test data for both expectations).
 fn sort_items(items: List(Value), options: Options) -> List(Value) {
   case options.build.array_order {
     types.LexicographicOrder ->
-      items
-      |> list.filter(fn(item) { item != StringValue("") })
-      |> list.sort(fn(a, b) { string.compare(sort_key(a), sort_key(b)) })
+      list.sort(items, fn(a, b) { string.compare(sort_key(a), sort_key(b)) })
     _ -> items
   }
 }

@@ -382,23 +382,19 @@ fn combine_key(
 /// This trims trailing whitespace from the final line.
 ///
 /// Tab handling depends on options:
-/// - `TabsAsWhitespace`: tabs on the entry line's value are whitespace and
-///   convert 1:1 to spaces (`tabs_as_whitespace_in_value`); LEADING tabs on
-///   continuation lines are structural and also convert 1:1 to spaces
-///   (`continuation_tab_to_space`).
+/// - `TabsAsWhitespace`: LEADING tabs on continuation lines are structural
+///   and converted 1:1 to spaces (`continuation_tab_to_space`); interior
+///   tabs within a value are always preserved (`tab_in_value_preserved`).
 /// - `TabsAsContent`: tabs stay unchanged
 fn build_value(lines: List(String), options: ParseOptions) -> String {
   case lines {
     [] -> ""
-    [single] -> trim_trailing(convert_value_tabs(single, options))
+    [single] -> trim_trailing(single)
     [first, ..rest] -> {
       let processed = case options.tab_handling {
         TabsAsWhitespace -> {
           // Convert leading tab-based indentation to spaces, 1 char each
-          [
-            convert_value_tabs(first, options),
-            ..list.map(rest, normalize_tab_indentation)
-          ]
+          [first, ..list.map(rest, normalize_tab_indentation)]
         }
         TabsAsContent -> {
           // Preserve tabs as content — no stripping in build_value.
@@ -411,16 +407,6 @@ fn build_value(lines: List(String), options: ParseOptions) -> String {
       let joined = string.join(processed, "\n")
       trim_trailing(joined)
     }
-  }
-}
-
-/// Replace each tab in an entry line's value with a single space.
-/// Under `tabs_as_whitespace`, a tab inside a value is whitespace and becomes
-/// one space; under `tabs_as_content`, tabs stay unchanged.
-fn convert_value_tabs(line: String, options: ParseOptions) -> String {
-  case options.tab_handling {
-    TabsAsWhitespace -> string.replace(line, "\t", " ")
-    TabsAsContent -> line
   }
 }
 

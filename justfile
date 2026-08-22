@@ -158,7 +158,7 @@ view DIR="./ccl-test-data/":
 
 # Download latest CCL test data from GitHub releases
 download-tests:
-    cd {{ runner_dir }} && npx -y ccl-test-runner-ts -o ./ccl-test-data
+    cd {{ runner_dir }} && npx -y ccl-test-runner-ts --latest -o ./ccl-test-data
 
 # Build and run tests in one step
 all: build test

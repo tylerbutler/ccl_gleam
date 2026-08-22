@@ -176,7 +176,7 @@ pub fn hierarchy_value_with_spaced_equals_test() {
   |> expect.to_equal(CclString("a = b + c"))
 }
 
-pub fn hierarchy_reference_order_drops_empty_duplicate_values_test() {
+pub fn hierarchy_reference_order_preserves_empty_duplicate_values_test() {
   let entries = [
     Entry(key: "items", value: "spaced"),
     Entry(key: "items", value: "normal"),
@@ -190,11 +190,17 @@ pub fn hierarchy_reference_order_drops_empty_duplicate_values_test() {
       default_parse_options(),
     )
 
-  // Lexicographic order mirrors the reference model, where list items are
-  // map keys — empty items vanish (see list_with_whitespace_reference in
-  // the conformance data). Insertion order keeps them.
   dict.get(result, "items")
-  |> expect.to_equal(Ok(CclList([CclString("normal"), CclString("spaced")])))
+  |> expect.to_equal(
+    Ok(
+      CclList([
+        CclString(""),
+        CclString(""),
+        CclString("normal"),
+        CclString("spaced"),
+      ]),
+    ),
+  )
 }
 
 pub fn build_model_terminal_value_becomes_leaf_key_test() {
