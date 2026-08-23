@@ -1,4 +1,0 @@
-kind: Fixed
-body: |-
-  Preserve trailing empty list items when merging repeated keys in `build_hierarchy`, matching the reference for empty-key (`=`) list accumulation.
-time: 2026-06-03T13:55:02Z

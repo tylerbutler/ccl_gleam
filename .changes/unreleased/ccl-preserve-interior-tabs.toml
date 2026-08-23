@@ -1,0 +1,5 @@
+package = "ccl"
+kind = "Fixed"
+body = '''
+Preserve interior tabs in values (`tab_in_value_preserved`). The parser no longer collapses interior tabs to spaces under `tabs_as_whitespace`; only leading continuation-line tabs are treated as structural indentation.
+'''

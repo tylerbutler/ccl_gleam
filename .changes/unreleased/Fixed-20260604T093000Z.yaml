@@ -1,4 +1,0 @@
-kind: Fixed
-body: |-
-  Fix `delimiter_prefer_spaced` to fall back to the first bare `=` when no ` = ` (space-equals-space) delimiter exists. A trailing ` =` without a trailing space is no longer treated as a spaced delimiter, so `== Section Header =` now parses to an empty key with `= Section Header =` as the value (issue #11).
-time: 2026-06-04T09:30:00Z
