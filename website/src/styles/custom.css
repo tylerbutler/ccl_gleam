@@ -224,7 +224,27 @@ mobile-starlight-toc .display-current {
 .pagination-links a {
   border: 1px solid var(--proof-ink);
   border-radius: 0;
+  color: var(--proof-muted);
   background: var(--proof-paper);
+  box-shadow: none;
+}
+
+.pagination-links .link-title {
+  color: var(--proof-ink);
+}
+
+.pagination-links svg {
+  color: var(--proof-pink-dark);
+}
+
+.pagination-links a:hover {
+  border-color: var(--proof-ink);
+  color: var(--proof-ink);
+  background: var(--proof-pink);
+}
+
+.pagination-links a:hover svg {
+  color: var(--proof-ink);
 }
 
 @media (max-width: 50rem) {
