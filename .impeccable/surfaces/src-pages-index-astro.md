@@ -13,4 +13,4 @@ related_targets: ["website/src/content/docs/quickstart.mdx"]
 - **Direction:** Fanfold Proof. Continuous-form paper, carbon-black type, quiet registration gray, and one correction-pink field turn round-trip editing into a visible source proof. The memorable moment is a four-step install → parse → read → edit sequence with unchanged lines pinned in place.
 - **Constraints:** Astro with Starlight, static Netlify delivery, one public `ccl` module, runnable Gleam examples, direct technical prose, strong keyboard and reduced-motion support, and no invented usage or conformance claims.
 - **Boundaries:** Do not duplicate Hexdocs, promote all monorepo packages equally, or turn maintainer tooling into the primary journey.
-- **Open decision:** Final domain name.
+- **Domain:** `https://gleam.catconflang.org`.

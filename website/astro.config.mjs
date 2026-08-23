@@ -1,7 +1,7 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 
-const site = 'https://ccl-gleam.netlify.app';
+const site = 'https://gleam.catconflang.org';
 
 export default defineConfig({
   site,
