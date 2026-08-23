@@ -1,7 +1,10 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 
+const site = 'https://ccl-gleam.netlify.app';
+
 export default defineConfig({
+  site,
   integrations: [
     starlight({
       title: 'ccl',
@@ -48,6 +51,26 @@ export default defineConfig({
         {
           tag: 'meta',
           attrs: { name: 'theme-color', content: '#f4f1e8' },
+        },
+        {
+          tag: 'meta',
+          attrs: { property: 'og:image', content: `${site}/og-image.png` },
+        },
+        {
+          tag: 'meta',
+          attrs: { property: 'og:image:width', content: '1200' },
+        },
+        {
+          tag: 'meta',
+          attrs: { property: 'og:image:height', content: '630' },
+        },
+        {
+          tag: 'meta',
+          attrs: { name: 'twitter:card', content: 'summary_large_image' },
+        },
+        {
+          tag: 'meta',
+          attrs: { name: 'twitter:image', content: `${site}/og-image.png` },
         },
       ],
     }),
