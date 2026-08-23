@@ -13,7 +13,7 @@ let assert Ok(document) = ccl.parse("port = 8080\n")
 
 Use `parse_bytes` when input arrives as raw bytes. Invalid UTF-8 returns `Error(InvalidEncoding)`.
 
-Use `parse_indented` for a fragment that still carries the indentation of its enclosing block:
+Use `parse_indented` for a fragment that retains the indentation of its enclosing block:
 
 ```gleam
 let fragment = "  host = localhost\n  port = 8080\n"
