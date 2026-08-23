@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-08-22T20:21:56.896-07:00",
+  "generatedAt": "2026-08-22T20:26:22.028-07:00",
   "title": "Design System: CCL Gleam",
   "extensions": {
     "colorMeta": {
@@ -58,7 +58,7 @@
       "headline": {"displayName": "Headline", "purpose": "Large section statements."},
       "title": {"displayName": "Title", "purpose": "Documentation and panel headings."},
       "body": {"displayName": "Body", "purpose": "Technical explanation and long-form reading."},
-      "label": {"displayName": "Registration Label", "purpose": "Code, identifiers, proof metadata, and compact labels."}
+      "label": {"displayName": "Registration Label", "purpose": "Code with contextual ligatures, identifiers, proof metadata, and compact labels."}
     },
     "shadows": [
       {"name": "proof-lift", "value": "0 24px 55px rgb(23 23 23 / 20%)", "purpose": "Lift the large source proof above correction-pink stock."},
@@ -98,21 +98,21 @@
       "refersTo": "sequence-tab",
       "description": "Numbered step selector for the install-to-edit sequence.",
       "html": "<button class=\"ds-sequence-tab\" aria-selected=\"true\">1 · Install</button>",
-      "css": ".ds-sequence-tab { min-width:9rem; min-height:5.25rem; border:1px solid var(--proof-ink, #171717); padding:.8rem; color:var(--proof-ink, #171717); background:var(--proof-paper, #f4f1e8); font:700 .8rem 'Geist Mono Variable',monospace; cursor:pointer; } .ds-sequence-tab[aria-selected='true'] { background:var(--proof-pink, #ff62c7); } .ds-sequence-tab:not([aria-selected='true']):hover { background:var(--proof-paper-deep, #e8e3d7); } .ds-sequence-tab:focus-visible { outline:3px solid var(--proof-pink-dark, #a91d78); outline-offset:4px; }"
+      "css": ".ds-sequence-tab { min-width:9rem; min-height:5.25rem; border:1px solid var(--proof-ink, #171717); padding:.8rem; color:var(--proof-ink, #171717); background:var(--proof-paper, #f4f1e8); font:700 .8rem 'Fira Code Variable',monospace; cursor:pointer; } .ds-sequence-tab[aria-selected='true'] { background:var(--proof-pink, #ff62c7); } .ds-sequence-tab:not([aria-selected='true']):hover { background:var(--proof-paper-deep, #e8e3d7); } .ds-sequence-tab:focus-visible { outline:3px solid var(--proof-pink-dark, #a91d78); outline-offset:4px; }"
     },
     {
       "name": "Guide Row",
       "kind": "nav",
       "description": "Ruled, full-width task link used in the homepage guide index.",
       "html": "<a class=\"ds-guide\" href=\"#\"><span class=\"ds-guide-code\">G-01</span><strong>Parsing and options</strong><span class=\"ds-guide-copy\">Choose input, indentation, delimiter, tab, boolean, and list behavior.</span><svg aria-hidden=\"true\" viewBox=\"0 0 16 16\"><path d=\"M2 8h11M9 4l4 4-4 4\"/></svg></a>",
-      "css": ".ds-guide { display:grid; grid-template-columns:4rem minmax(12rem,.8fr) minmax(14rem,1.2fr) auto; gap:1.5rem; align-items:baseline; border-block:1px solid var(--proof-ink, #171717); padding:1.4rem 0; color:var(--proof-ink, #171717); text-decoration:none; } .ds-guide-code { font:.72rem 'Geist Mono Variable',monospace; letter-spacing:.06em; } .ds-guide strong { font:700 2rem/1 'Barlow Condensed',sans-serif; } .ds-guide-copy { color:var(--proof-muted, #68655d); line-height:1.4; } .ds-guide:hover { background:var(--proof-pink, #ff62c7); } .ds-guide:hover .ds-guide-copy { color:var(--proof-ink, #171717); } .ds-guide:focus-visible { outline:3px solid var(--proof-pink-dark, #a91d78); outline-offset:4px; }"
+      "css": ".ds-guide { display:grid; grid-template-columns:4rem minmax(12rem,.8fr) minmax(14rem,1.2fr) auto; gap:1.5rem; align-items:baseline; border-block:1px solid var(--proof-ink, #171717); padding:1.4rem 0; color:var(--proof-ink, #171717); text-decoration:none; } .ds-guide-code { font:.72rem 'Fira Code Variable',monospace; letter-spacing:.06em; } .ds-guide strong { font:700 2rem/1 'Barlow Condensed',sans-serif; } .ds-guide-copy { color:var(--proof-muted, #68655d); line-height:1.4; } .ds-guide:hover { background:var(--proof-pink, #ff62c7); } .ds-guide:hover .ds-guide-copy { color:var(--proof-ink, #171717); } .ds-guide:focus-visible { outline:3px solid var(--proof-pink-dark, #a91d78); outline-offset:4px; }"
     },
     {
       "name": "Source Proof",
       "kind": "custom",
       "description": "Signature source-preservation artifact with ruled context and correction mark.",
       "html": "<article class=\"ds-proof\"><div class=\"ds-tractor\">○<br>○<br>○<br>○</div><div class=\"ds-proof-body\"><div class=\"ds-proof-head\">DOCUMENT PROOF · SET_INT <b>● REGISTERED</b></div><h3>One entry changed.</h3><pre>01  /= the server block\\n02  server =\\n03    host = localhost\\n04    port = <mark>9090</mark></pre><p>Before: <b>8080</b><br>After: <b>9090</b><br>Surrounding lines: <b>preserved</b></p></div></article>",
-      "css": ".ds-proof { display:grid; grid-template-columns:3rem 1fr; border:1px solid var(--proof-ink, #171717); color:var(--proof-ink, #171717); background:var(--proof-white, #fffef9); box-shadow:0 24px 55px rgb(23 23 23 / 20%); } .ds-tractor { border-right:1px solid var(--proof-rule, #b8b3a7); padding:.8rem; color:var(--proof-ink, #171717); line-height:2; } .ds-proof-body { padding:1.35rem 2rem 2rem; } .ds-proof-head { display:flex; justify-content:space-between; color:var(--proof-muted, #68655d); font:.7rem 'Geist Mono Variable',monospace; letter-spacing:.08em; } .ds-proof-head b { color:var(--proof-pink-dark, #a91d78); } .ds-proof h3 { margin:2rem 0 1rem; font:700 2.5rem/1 'Barlow Condensed',sans-serif; } .ds-proof pre { border-block:1px solid var(--proof-rule, #b8b3a7); padding:1rem 0; font:.85rem/1.9 'Geist Mono Variable',monospace; white-space:pre-wrap; } .ds-proof mark { color:var(--proof-pink-dark, #a91d78); background:var(--proof-pink, #ff62c7); font-weight:700; }"
+      "css": ".ds-proof { display:grid; grid-template-columns:3rem 1fr; border:1px solid var(--proof-ink, #171717); color:var(--proof-ink, #171717); background:var(--proof-white, #fffef9); box-shadow:0 24px 55px rgb(23 23 23 / 20%); } .ds-tractor { border-right:1px solid var(--proof-rule, #b8b3a7); padding:.8rem; color:var(--proof-ink, #171717); line-height:2; } .ds-proof-body { padding:1.35rem 2rem 2rem; } .ds-proof-head { display:flex; justify-content:space-between; color:var(--proof-muted, #68655d); font:.7rem 'Fira Code Variable',monospace; letter-spacing:.08em; } .ds-proof-head b { color:var(--proof-pink-dark, #a91d78); } .ds-proof h3 { margin:2rem 0 1rem; font:700 2.5rem/1 'Barlow Condensed',sans-serif; } .ds-proof pre { border-block:1px solid var(--proof-rule, #b8b3a7); padding:1rem 0; font:.85rem/1.9 'Fira Code Variable',monospace; font-variant-ligatures:contextual; font-feature-settings:'calt' 1; white-space:pre-wrap; } .ds-proof mark { color:var(--proof-pink-dark, #a91d78); background:var(--proof-pink, #ff62c7); font-weight:700; }"
     },
     {
       "name": "Current Navigation Item",
@@ -135,7 +135,7 @@
     "rules": [
       {"name": "The One Correction Rule", "body": "Correction pink is the only chromatic accent; use it to mark action, selection, or a changed source fact.", "section": "colors"},
       {"name": "The Paper Stack Rule", "body": "Separate regions with fanfold paper, deep paper, proof white, and carbon rules before adding depth effects.", "section": "colors"},
-      {"name": "The Three Registers Rule", "body": "Barlow Condensed argues, Atkinson explains, and Geist Mono records; do not interchange their roles for novelty.", "section": "typography"},
+      {"name": "The Three Registers Rule", "body": "Barlow Condensed argues, Atkinson explains, and Fira Code records; do not interchange their roles for novelty.", "section": "typography"},
       {"name": "The Short Headline Rule", "body": "Display headings stay compressed and narrow enough to form visible blocks rather than long sentences.", "section": "typography"},
       {"name": "The Register Rule", "body": "Every major region belongs to a clear column, row, or ruled sheet; avoid free-floating content islands.", "section": "layout"},
       {"name": "The Mobile Proof Rule", "body": "Preserve the proof itself on small screens, but remove explanatory furniture before shrinking the evidence below legibility.", "section": "layout"},

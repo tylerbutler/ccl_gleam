@@ -1,7 +1,7 @@
 @import '@fontsource-variable/atkinson-hyperlegible-next';
 @import '@fontsource/barlow-condensed/600.css';
 @import '@fontsource/barlow-condensed/700.css';
-@import '@fontsource-variable/geist-mono';
+@import '@fontsource-variable/fira-code';
 
 :root {
   --proof-paper: #f4f1e8;
@@ -13,7 +13,7 @@
   --proof-pink-dark: #a91d78;
   --proof-white: #fffef9;
   --sl-font: 'Atkinson Hyperlegible Next Variable', sans-serif;
-  --sl-font-mono: 'Geist Mono Variable', monospace;
+  --sl-font-mono: 'Fira Code Variable', monospace;
   --sl-color-accent-low: #f7c8e7;
   --sl-color-accent: #b91f82;
   --sl-color-accent-high: #741050;
@@ -93,6 +93,15 @@ code,
 pre,
 table {
   font-variant-numeric: tabular-nums;
+}
+
+code,
+pre,
+kbd,
+samp,
+.proof-code {
+  font-variant-ligatures: contextual;
+  font-feature-settings: 'calt' 1;
 }
 
 header.header {

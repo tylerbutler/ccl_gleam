@@ -35,7 +35,7 @@ typography:
     fontWeight: 400
     lineHeight: 1.68
   label:
-    fontFamily: "Geist Mono Variable, monospace"
+    fontFamily: "Fira Code Variable, monospace"
     fontSize: "0.72rem"
     fontWeight: 700
     lineHeight: 1.35
@@ -123,9 +123,9 @@ The palette is a warm neutral proofing stock interrupted by one high-chroma corr
 
 **Display Font:** Barlow Condensed (with sans-serif fallback)  
 **Body Font:** Atkinson Hyperlegible Next Variable (with sans-serif fallback)  
-**Label/Mono Font:** Geist Mono Variable (with monospace fallback)
+**Label/Mono Font:** Fira Code Variable (with monospace fallback)
 
-**Character:** Compressed headings resemble printer headlines without compromising scan speed. The open body face supports long technical reading, while mono type is reserved for code, identifiers, registration data, and compact navigation labels.
+**Character:** Compressed headings resemble printer headlines without compromising scan speed. The open body face supports long technical reading, while mono type is reserved for code, identifiers, registration data, and compact navigation labels. Code surfaces enable Fira Code's contextual programming ligatures.
 
 ### Hierarchy
 - **Display:** Extra-large, tightly led condensed type for the homepage claim.
@@ -136,7 +136,7 @@ The palette is a warm neutral proofing stock interrupted by one high-chroma corr
 
 ### Named Rules
 
-**The Three Registers Rule.** Barlow Condensed argues, Atkinson explains, and Geist Mono records; do not interchange their roles for novelty.
+**The Three Registers Rule.** Barlow Condensed argues, Atkinson explains, and Fira Code records; do not interchange their roles for novelty.
 
 **The Short Headline Rule.** Display headings stay compressed and narrow enough to form visible blocks rather than long sentences.
 
