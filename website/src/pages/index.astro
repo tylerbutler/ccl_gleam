@@ -1,4 +1,5 @@
 ---
+import { Code } from '@astrojs/starlight/components';
 import '../styles/custom.css';
 import '../styles/home.css';
 
@@ -177,7 +178,11 @@ const guides = [
                 >
                   <h3>{step.title}</h3>
                   <p>{step.body}</p>
-                  <pre><code>{step.code}</code></pre>
+                  <Code
+                    code={step.code}
+                    lang={step.id === 'install' ? 'shell' : 'gleam'}
+                    frame={step.id === 'install' ? 'terminal' : 'code'}
+                  />
                 </section>
               ))}
             </div>
@@ -217,6 +222,7 @@ const guides = [
         <span>
           <a href="https://github.com/tylerbutler/ccl_gleam">GitHub</a>
           · <a href="https://hexdocs.pm/ccl/">Hexdocs</a>
+          · <a href="https://catconflang.org/">Learn about CCL</a>
           · MIT
         </span>
       </footer>

@@ -431,20 +431,9 @@
   line-height: 1.55;
 }
 
-.sequence-panel pre {
+.sequence-panel .expressive-code {
   max-width: 100%;
-  overflow-x: auto;
-  border: 1px solid var(--proof-ink);
-  border-radius: 0;
-  padding: 1.4rem;
-  color: #eceae4;
-  background: var(--proof-ink);
-  box-shadow: 0 16px 34px rgb(23 23 23 / 14%);
-  font: 0.86rem/1.7 var(--sl-font-mono);
-}
-
-.sequence-panel .code-accent {
-  color: var(--proof-pink);
+  margin-block: 0;
 }
 
 .guide-index {
