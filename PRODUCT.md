@@ -18,7 +18,7 @@ Secondary (confirmed present, not the design target): the maintainer, who runs t
 
 ## Product Purpose
 
-`ccl` is a Gleam (Erlang target) implementation of CCL, the Categorical Configuration Language (catconflang.com). It parses CCL into an opaque `Document`, offers typed reads, writes edits back in place, and integrates with `gleam/dynamic/decode`. Success: a Gleam developer can install the package, parse a config, read typed values, edit a key, and get back source that still looks like what they wrote.
+`ccl` is a Gleam implementation of CCL, the Categorical Configuration Language (catconflang.com), for the Erlang and JavaScript targets. It parses CCL into an opaque `Document`, offers typed reads, writes edits back in place, and integrates with `gleam/dynamic/decode`. Success: a Gleam developer can install the package, parse a config, read typed values, edit a key, and get back source that still looks like what they wrote.
 
 ## Positioning
 
@@ -27,7 +27,7 @@ Round-trip, edit-in-place documents, modelled on [tomlet](https://github.com/tyl
 ## Operating Context
 
 - Package published to Hex; API reference generated on hexdocs. The site is a companion guide and entry point, not a replacement for hexdocs.
-- Users work in Gleam on the Erlang VM, `gleam >= 1.11.0`, `gleam_stdlib` as the only runtime dependency.
+- Users compile Gleam to Erlang or JavaScript with `gleam >= 1.11.0`; `gleam_stdlib` is the only runtime dependency.
 - Related packages in the monorepo: `ccl_codegen` (emits decoders from Gleam types) and `ccl_test_runner` (conformance runner, CLI, TUI).
 - Conformance is measured against the official `ccl-test-data` JSON suite (v1.0.0 taxonomy); declared capabilities live in `ccl-config.yaml`.
 
