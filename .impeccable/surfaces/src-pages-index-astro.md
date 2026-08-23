@@ -1,8 +1,8 @@
 ---
 version: 1
-slug: "src-pages-index-astro"
-primary_target: "src/pages/index.astro"
-related_targets: ["src/content/docs/quickstart.mdx"]
+slug: "website-src-pages-index-astro"
+primary_target: "website/src/pages/index.astro"
+related_targets: ["website/src/content/docs/quickstart.mdx"]
 ---
 
 # Docs site

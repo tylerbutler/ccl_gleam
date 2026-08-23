@@ -99,15 +99,15 @@ docs:
 
 # Run the companion documentation site locally
 site-dev:
-    pnpm dev
+    pnpm --dir website dev
 
 # Build the companion documentation site
 site-build:
-    pnpm build
+    pnpm --dir website build
 
 # Type check the companion documentation site
 site-check:
-    pnpm check
+    pnpm --dir website check
 
 # === CHANGELOG ===
 
