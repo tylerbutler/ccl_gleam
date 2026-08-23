@@ -163,7 +163,8 @@ mobile-starlight-toc .display-current {
 
 .main-pane {
   background:
-    linear-gradient(var(--proof-rule), var(--proof-rule)) 2rem 0 / 1px 100% no-repeat,
+    linear-gradient(var(--proof-rule), var(--proof-rule))
+      calc(var(--sl-content-pad-x) / 2) 0 / 1px 100% no-repeat,
     var(--proof-white);
 }
 
