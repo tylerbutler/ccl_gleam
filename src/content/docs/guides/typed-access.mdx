@@ -1,0 +1,61 @@
+---
+title: Typed access
+description: Read CCL values with typed key paths and explicit mismatch errors.
+---
+
+## Read by key path
+
+Typed accessors walk the ordered `Value` tree:
+
+```gleam
+let assert Ok(document) =
+  ccl.parse("server =\n  host = localhost\n  port = 8080\n")
+
+let assert Ok("localhost") =
+  ccl.get_string(document, ["server", "host"])
+
+let assert Ok(8080) =
+  ccl.get_int(document, ["server", "port"])
+```
+
+Available accessors are `get_string`, `get_int`, `get_bool`, `get_float`, `get_list`, and `get_values`.
+
+## Inspect an unknown value
+
+Use `get` when the shape is not known in advance:
+
+```gleam
+case ccl.get(document, ["server"]) {
+  Ok(ccl.ObjectValue(pairs)) -> inspect_server(pairs)
+  Ok(other) -> handle_other_shape(other)
+  Error(error) -> handle_get_error(error)
+}
+```
+
+`ObjectValue` stores an ordered association list, not a dictionary. Source order survives the read.
+
+## Read through a Value
+
+The `as_*` functions read a `Value` you already hold. `value_get` walks further into it:
+
+```gleam
+let assert Ok(server) = ccl.get(document, ["server"])
+let assert Ok(port_value) = ccl.value_get(server, ["port"])
+let assert Ok(8080) = ccl.as_int(port_value)
+```
+
+## Index a list
+
+A non-negative decimal path segment indexes a list:
+
+```text
+ports =
+  = 80
+  = 443
+```
+
+```gleam
+let assert Ok("80") = ccl.get_string(document, ["ports", "0"])
+```
+
+An invalid or missing path returns a `GetError`. It never falls back to a different shape silently.

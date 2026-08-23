@@ -1,0 +1,91 @@
+---
+title: Quickstart
+description: Install ccl, parse a document, read a typed value, edit it, and emit preserved source.
+---
+
+This guide takes one CCL document through the full loop. You install `ccl`, parse source, read a typed value, edit that value, and emit the result.
+
+## Install
+
+Add `ccl` to a Gleam project:
+
+```sh
+gleam add ccl
+```
+
+`ccl` targets the Erlang VM. It requires Gleam 1.11 or later and uses `gleam_stdlib` as its only runtime dependency.
+
+## Start with a document
+
+This source includes a comment and a nested server block:
+
+```gleam
+import ccl
+
+const source = "/= the server block
+server =
+  host = localhost
+  port = 8080
+"
+```
+
+`ccl.parse` returns an opaque `Document`. The document keeps the original source and the options used to parse it.
+
+```gleam
+let result = ccl.parse(source)
+
+case result {
+  Ok(document) -> use_document(document)
+  Error(error) -> handle_parse_error(error)
+}
+```
+
+If the input is a Gleam `String`, the grammar accepts its text. Use `parse_bytes` when raw bytes need UTF-8 validation.
+
+## Read a typed value
+
+Pass a list of key segments to a typed accessor:
+
+```gleam
+case ccl.get_int(document, ["server", "port"]) {
+  Ok(port) -> io.println(int.to_string(port))
+  Error(error) -> handle_get_error(error)
+}
+```
+
+The result is `Ok(8080)`. A missing path returns `KeyNotFound`. Text that cannot be read as an integer returns `WrongType`.
+
+## Edit in place
+
+Use the same key path to change the port:
+
+```gleam
+case ccl.set_int(document, ["server", "port"], 9090) {
+  Ok(updated) -> {
+    let output = ccl.to_string(updated)
+    io.print(output)
+  }
+  Error(error) -> handle_edit_error(error)
+}
+```
+
+The output is:
+
+```text
+/= the server block
+server =
+  host = localhost
+  port = 9090
+```
+
+Only the affected entry changed. The comment, key order, and indentation remain in place.
+
+## Keep errors explicit
+
+The examples above use `handle_*` names to leave policy to your application. They do not hide exceptions. The library returns stable tagged errors:
+
+- `ParseError` for invalid byte input and future strict syntax diagnostics.
+- `GetError` for missing paths and type mismatches.
+- `EditError` when a requested edit cannot be emitted and read back safely.
+
+Continue with [Editing and round trips](/guides/editing/) to create keys, append list items, remove entries, and insert comments.

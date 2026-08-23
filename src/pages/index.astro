@@ -1,0 +1,259 @@
+---
+import '../styles/custom.css';
+import '../styles/home.css';
+
+const steps = [
+  {
+    id: 'install',
+    label: 'Install',
+    title: 'Add one runtime dependency.',
+    body: 'ccl targets the Erlang VM and uses gleam_stdlib as its only runtime dependency.',
+    code: 'gleam add ccl',
+  },
+  {
+    id: 'parse',
+    label: 'Parse',
+    title: 'Keep the source, not only the data.',
+    body: 'parse returns an opaque Document that retains the original text and the options used to read it.',
+    code: 'let assert Ok(doc) = ccl.parse(source)',
+  },
+  {
+    id: 'read',
+    label: 'Read',
+    title: 'Walk typed key paths.',
+    body: 'Typed accessors return Result values and report missing keys or shape mismatches without crashing.',
+    code: 'let assert Ok(8080) =\\n  ccl.get_int(doc, [\"server\", \"port\"])',
+  },
+  {
+    id: 'edit',
+    label: 'Edit',
+    title: 'Change one value. Preserve the document.',
+    body: 'Edits rewrite the affected entry in place. Comments, key order, and surrounding indentation stay intact.',
+    code: 'let assert Ok(updated) =\\n  ccl.set_int(doc, [\"server\", \"port\"], 9090)\\n\\nccl.to_string(updated)',
+  },
+];
+
+const guides = [
+  ['G-01', 'Parsing and options', 'Choose input, indentation, delimiter, tab, boolean, and list behavior.', '/guides/parsing-options/'],
+  ['G-02', 'Typed access', 'Read strings, numbers, booleans, lists, objects, and indexed list paths.', '/guides/typed-access/'],
+  ['G-03', 'Editing and round trips', 'Set, append, remove, and comment without silently changing the source.', '/guides/editing/'],
+  ['G-04', 'Dynamic decoding', 'Decode CCL text into application types with lexical number and boolean decoders.', '/guides/decoding/'],
+];
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="description" content="Read and edit CCL configuration from Gleam without losing the source you wrote." />
+    <meta name="theme-color" content="#f4f1e8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>ccl — source-preserving CCL for Gleam</title>
+  </head>
+  <body>
+    <!--
+    THESIS: CCL edits are visible source proofs, not generic docs cards.
+    OWN-WORLD: Fanfold paper, carbon ink, registration gray, correction pink, perforations, and proof marks.
+    STORY: Understand CCL, see preservation proven, then install, parse, read, and edit.
+    FIRST VIEWPORT: A compressed headline occupies the left register; a full-height proof sheet on pink changes port 8080 to 9090; Start the quickstart sits beside the claim.
+    FORM: Continuous-form line-printer proof, grounded candidate 6, seed ba4d466b.
+    FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
+    -->
+    <div class="home-shell">
+      <header class="home-header">
+        <a class="wordmark" href="/" aria-label="ccl home">
+          <span class="wordmark-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+          ccl
+        </a>
+        <nav class="home-nav" aria-label="Primary navigation">
+          <a href="/quickstart/">Start</a>
+          <a href="/guides/parsing-options/">Guides</a>
+          <a href="/concepts/document-value-model/">Concepts</a>
+        </nav>
+        <a class="header-api" href="https://hexdocs.pm/ccl/">
+          API
+          <svg class="link-icon" aria-hidden="true" viewBox="0 0 16 16">
+            <path d="M6 3h7v7M13 3 5 11" />
+            <path d="M11 9v4H3V5h4" />
+          </svg>
+        </a>
+      </header>
+
+      <main>
+        <section class="hero">
+          <div class="hero-copy">
+            <div>
+              <h1>Edit the value. Keep the source.</h1>
+              <p class="hero-intro">
+                Parse, read, and edit CCL from Gleam. Your comments, key order,
+                and indentation stay where you put them.
+              </p>
+              <div class="hero-actions">
+                <a class="action action-primary" href="/quickstart/">Start the quickstart</a>
+                <a class="action" href="https://hexdocs.pm/ccl/">
+                  Read the API
+                  <svg class="link-icon" aria-hidden="true" viewBox="0 0 16 16">
+                    <path d="M6 3h7v7M13 3 5 11" />
+                    <path d="M11 9v4H3V5h4" />
+                  </svg>
+                </a>
+              </div>
+            </div>
+            <p class="hero-note">Gleam ≥ 1.11 · Erlang target · MIT</p>
+          </div>
+
+          <div class="proof-stage" aria-label="Source-preserving edit proof">
+            <article class="proof-sheet">
+              <div class="tractor" aria-hidden="true">
+                {Array.from({ length: 15 }, () => <span></span>)}
+              </div>
+              <div class="proof-body">
+                <div class="proof-head">
+                  <span>Document proof · set_int</span>
+                  <span class="proof-status">registered</span>
+                </div>
+                <h2 class="proof-title">One entry changed.</h2>
+                <p class="proof-subtitle">
+                  The comment, block order, and two-space indentation remain
+                  fixed around the edit.
+                </p>
+                <div class="proof-code" aria-label="CCL document after editing the port">
+                  <div class="code-line"><span class="line-no">01</span><span class="line-comment">/= the server block</span></div>
+                  <div class="code-line"><span class="line-no">02</span><span>server =</span></div>
+                  <div class="code-line"><span class="line-no">03</span><span>&nbsp;&nbsp;host = localhost</span></div>
+                  <div class="code-line">
+                    <span class="line-no">04</span>
+                    <span>&nbsp;&nbsp;port = <span class="line-changed">9090</span></span>
+                  </div>
+                </div>
+                <div class="proof-register">
+                  <p class="registration-copy">
+                    Before: <strong>8080</strong><br />
+                    After: <strong>9090</strong><br />
+                    Surrounding lines: <strong>preserved</strong>
+                  </p>
+                  <span class="registration-stamp">read-back safe</span>
+                </div>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section class="journey" aria-labelledby="journey-title">
+          <div class="journey-copy">
+            <h2 id="journey-title">From install to edited source.</h2>
+            <p>
+              Four steps cover the full document loop. The API returns typed
+              errors at every boundary, so the quickstart never hides failure
+              behind placeholder helpers.
+            </p>
+          </div>
+          <div class="sequence">
+            <div class="sequence-tabs" role="tablist" aria-label="Quickstart sequence">
+              {steps.map((step, index) => (
+                <button
+                  class="sequence-tab"
+                  id={`tab-${step.id}`}
+                  type="button"
+                  role="tab"
+                  aria-selected={index === 0 ? 'true' : 'false'}
+                  aria-controls={`panel-${step.id}`}
+                  tabindex={index === 0 ? '0' : '-1'}
+                  data-step={step.id}
+                >
+                  {index + 1} · {step.label}
+                </button>
+              ))}
+            </div>
+            <div class="sequence-output">
+              {steps.map((step, index) => (
+                <section
+                  class="sequence-panel"
+                  id={`panel-${step.id}`}
+                  role="tabpanel"
+                  aria-labelledby={`tab-${step.id}`}
+                  hidden={index !== 0}
+                >
+                  <h3>{step.title}</h3>
+                  <p>{step.body}</p>
+                  <pre><code>{step.code}</code></pre>
+                </section>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section class="guide-index" aria-labelledby="guides-title">
+          <div class="guide-index-head">
+            <h2 id="guides-title">Follow the source.</h2>
+            <p>
+              Learn the public <code>ccl</code> module by task. Hexdocs remains
+              the complete function reference.
+            </p>
+          </div>
+          <div class="guide-list">
+            {guides.map(([code, title, description, href]) => (
+              <a class="guide-link" href={href}>
+                <span class="guide-code">{code}</span>
+                <strong>{title}</strong>
+                <span>{description}</span>
+                <svg class="guide-arrow" aria-hidden="true" viewBox="0 0 16 16">
+                  <path d="M2 8h11M9 4l4 4-4 4" />
+                </svg>
+              </a>
+            ))}
+          </div>
+        </section>
+
+        <section class="close" aria-labelledby="close-title">
+          <h2 id="close-title">Make the first edit.</h2>
+          <a class="action action-primary" href="/quickstart/">Start the quickstart</a>
+        </section>
+      </main>
+
+      <footer class="home-footer">
+        <span>ccl · Categorical Configuration Language for Gleam</span>
+        <span>
+          <a href="https://github.com/tylerbutler/ccl_gleam">GitHub</a>
+          · <a href="https://hexdocs.pm/ccl/">Hexdocs</a>
+          · MIT
+        </span>
+      </footer>
+    </div>
+
+    <script>
+      const tabs = Array.from(document.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
+      const panels = Array.from(document.querySelectorAll<HTMLElement>('[role="tabpanel"]'));
+
+      function selectTab(nextTab: HTMLButtonElement) {
+        for (const tab of tabs) {
+          const selected = tab === nextTab;
+          tab.setAttribute('aria-selected', String(selected));
+          tab.setAttribute('tabindex', selected ? '0' : '-1');
+        }
+
+        for (const panel of panels) {
+          panel.hidden = panel.getAttribute('aria-labelledby') !== nextTab.id;
+        }
+      }
+
+      for (const [index, tab] of tabs.entries()) {
+        tab.addEventListener('click', () => selectTab(tab));
+        tab.addEventListener('keydown', (event: KeyboardEvent) => {
+          if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+          event.preventDefault();
+          const nextIndex =
+            event.key === 'Home'
+              ? 0
+              : event.key === 'End'
+                ? tabs.length - 1
+                : (index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+          const nextTab = tabs[nextIndex];
+          selectTab(nextTab);
+          nextTab.focus();
+        });
+      }
+    </script>
+  </body>
+</html>

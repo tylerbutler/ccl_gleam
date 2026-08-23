@@ -1,0 +1,160 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-22T19:55:55.094-07:00",
+  "title": "Design System: CCL Gleam",
+  "extensions": {
+    "colorMeta": {
+      "correction-pink": {
+        "role": "primary",
+        "displayName": "Correction Pink",
+        "canonical": "#ff62c7",
+        "tonalRamp": ["oklch(15% 0.217 344.3)", "oklch(27% 0.217 344.3)", "oklch(39% 0.217 344.3)", "oklch(51% 0.217 344.3)", "oklch(63% 0.217 344.3)", "oklch(75% 0.217 344.3)", "oklch(87% 0.217 344.3)", "oklch(95% 0.217 344.3)"]
+      },
+      "correction-pink-dark": {
+        "role": "primary",
+        "displayName": "Dark Correction Pink",
+        "canonical": "#a91d78",
+        "tonalRamp": ["oklch(15% 0.192 346.9)", "oklch(27% 0.192 346.9)", "oklch(39% 0.192 346.9)", "oklch(51% 0.192 346.9)", "oklch(63% 0.192 346.9)", "oklch(75% 0.192 346.9)", "oklch(87% 0.192 346.9)", "oklch(95% 0.192 346.9)"]
+      },
+      "carbon-ink": {
+        "role": "neutral",
+        "displayName": "Carbon Ink",
+        "canonical": "#171717",
+        "tonalRamp": ["oklch(15% 0 89.9)", "oklch(27% 0 89.9)", "oklch(39% 0 89.9)", "oklch(51% 0 89.9)", "oklch(63% 0 89.9)", "oklch(75% 0 89.9)", "oklch(87% 0 89.9)", "oklch(95% 0 89.9)"]
+      },
+      "fanfold-paper": {
+        "role": "neutral",
+        "displayName": "Fanfold Paper",
+        "canonical": "#f4f1e8",
+        "tonalRamp": ["oklch(15% 0.012 91.5)", "oklch(27% 0.012 91.5)", "oklch(39% 0.012 91.5)", "oklch(51% 0.012 91.5)", "oklch(63% 0.012 91.5)", "oklch(75% 0.012 91.5)", "oklch(87% 0.012 91.5)", "oklch(95% 0.012 91.5)"]
+      },
+      "fanfold-paper-deep": {
+        "role": "neutral",
+        "displayName": "Deep Fanfold Paper",
+        "canonical": "#e8e3d7",
+        "tonalRamp": ["oklch(15% 0.017 88)", "oklch(27% 0.017 88)", "oklch(39% 0.017 88)", "oklch(51% 0.017 88)", "oklch(63% 0.017 88)", "oklch(75% 0.017 88)", "oklch(87% 0.017 88)", "oklch(95% 0.017 88)"]
+      },
+      "proof-white": {
+        "role": "neutral",
+        "displayName": "Proof White",
+        "canonical": "#fffef9",
+        "tonalRamp": ["oklch(15% 0.007 97.3)", "oklch(27% 0.007 97.3)", "oklch(39% 0.007 97.3)", "oklch(51% 0.007 97.3)", "oklch(63% 0.007 97.3)", "oklch(75% 0.007 97.3)", "oklch(87% 0.007 97.3)", "oklch(95% 0.007 97.3)"]
+      },
+      "registration-gray": {
+        "role": "neutral",
+        "displayName": "Registration Gray",
+        "canonical": "#b8b3a7",
+        "tonalRamp": ["oklch(15% 0.018 88)", "oklch(27% 0.018 88)", "oklch(39% 0.018 88)", "oklch(51% 0.018 88)", "oklch(63% 0.018 88)", "oklch(75% 0.018 88)", "oklch(87% 0.018 88)", "oklch(95% 0.018 88)"]
+      },
+      "muted-ink": {
+        "role": "neutral",
+        "displayName": "Muted Ink",
+        "canonical": "#68655d",
+        "tonalRamp": ["oklch(15% 0.013 89.8)", "oklch(27% 0.013 89.8)", "oklch(39% 0.013 89.8)", "oklch(51% 0.013 89.8)", "oklch(63% 0.013 89.8)", "oklch(75% 0.013 89.8)", "oklch(87% 0.013 89.8)", "oklch(95% 0.013 89.8)"]
+      }
+    },
+    "typographyMeta": {
+      "display": {"displayName": "Display", "purpose": "Homepage claim only."},
+      "headline": {"displayName": "Headline", "purpose": "Large section statements."},
+      "title": {"displayName": "Title", "purpose": "Documentation and panel headings."},
+      "body": {"displayName": "Body", "purpose": "Technical explanation and long-form reading."},
+      "label": {"displayName": "Registration Label", "purpose": "Code, identifiers, proof metadata, and compact labels."}
+    },
+    "shadows": [
+      {"name": "proof-lift", "value": "0 24px 55px rgb(23 23 23 / 20%)", "purpose": "Lift the large source proof above correction-pink stock."},
+      {"name": "code-lift", "value": "0 16px 34px rgb(23 23 23 / 14%)", "purpose": "Lift journey code specimens."},
+      {"name": "documentation-code-lift", "value": "0 12px 30px rgb(23 23 23 / 10%)", "purpose": "Lift Starlight code blocks subtly."}
+    ],
+    "motion": [
+      {"name": "proof-settle", "value": "420ms cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "Reveal the selected sequence panel from the top edge."},
+      {"name": "reduced-motion", "value": "0.01ms linear", "purpose": "Collapse animation and transition duration when reduced motion is requested."}
+    ],
+    "breakpoints": [
+      {"name": "documentation-compact", "value": "50rem"},
+      {"name": "homepage-stack", "value": "64rem"},
+      {"name": "homepage-mobile", "value": "43rem"}
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Action",
+      "kind": "button",
+      "refersTo": "action-primary",
+      "description": "Primary route or completion action on correction-pink stock.",
+      "html": "<a class=\"ds-action ds-action-primary\" href=\"#\">Start the quickstart</a>",
+      "css": ".ds-action { display:inline-flex; align-items:center; justify-content:center; min-height:3.25rem; border:1px solid var(--proof-ink, #171717); padding:.7rem 1.1rem; color:var(--proof-ink, #171717); font:720 1rem 'Atkinson Hyperlegible Next Variable',sans-serif; text-decoration:none; } .ds-action-primary { background:var(--proof-pink, #ff62c7); } .ds-action:hover { color:var(--proof-white, #fffef9); background:var(--proof-ink, #171717); } .ds-action:focus-visible { outline:3px solid var(--proof-pink-dark, #a91d78); outline-offset:4px; }"
+    },
+    {
+      "name": "Secondary Action",
+      "kind": "button",
+      "refersTo": "action-secondary",
+      "description": "Outlined route for a lower-priority adjacent action.",
+      "html": "<a class=\"ds-action ds-action-secondary\" href=\"#\">Read the API <svg aria-hidden=\"true\" viewBox=\"0 0 16 16\"><path d=\"M6 3h7v7M13 3 5 11\"/><path d=\"M11 9v4H3V5h4\"/></svg></a>",
+      "css": ".ds-action { display:inline-flex; align-items:center; justify-content:center; min-height:3.25rem; border:1px solid var(--proof-ink, #171717); padding:.7rem 1.1rem; color:var(--proof-ink, #171717); background:transparent; font:720 1rem 'Atkinson Hyperlegible Next Variable',sans-serif; text-decoration:none; } .ds-action:hover { color:var(--proof-white, #fffef9); background:var(--proof-ink, #171717); } .ds-action:focus-visible { outline:3px solid var(--proof-pink-dark, #a91d78); outline-offset:4px; }"
+    },
+    {
+      "name": "Sequence Tab",
+      "kind": "button",
+      "refersTo": "sequence-tab",
+      "description": "Numbered step selector for the install-to-edit sequence.",
+      "html": "<button class=\"ds-sequence-tab\" aria-selected=\"true\">1 · Install</button>",
+      "css": ".ds-sequence-tab { min-width:9rem; min-height:5.25rem; border:1px solid var(--proof-ink, #171717); padding:.8rem; color:var(--proof-ink, #171717); background:var(--proof-paper, #f4f1e8); font:700 .8rem 'Geist Mono Variable',monospace; cursor:pointer; } .ds-sequence-tab[aria-selected='true'] { background:var(--proof-pink, #ff62c7); } .ds-sequence-tab:not([aria-selected='true']):hover { background:var(--proof-paper-deep, #e8e3d7); } .ds-sequence-tab:focus-visible { outline:3px solid var(--proof-pink-dark, #a91d78); outline-offset:4px; }"
+    },
+    {
+      "name": "Guide Row",
+      "kind": "nav",
+      "description": "Ruled, full-width task link used in the homepage guide index.",
+      "html": "<a class=\"ds-guide\" href=\"#\"><span class=\"ds-guide-code\">G-01</span><strong>Parsing and options</strong><span class=\"ds-guide-copy\">Choose input, indentation, delimiter, tab, boolean, and list behavior.</span><svg aria-hidden=\"true\" viewBox=\"0 0 16 16\"><path d=\"M2 8h11M9 4l4 4-4 4\"/></svg></a>",
+      "css": ".ds-guide { display:grid; grid-template-columns:4rem minmax(12rem,.8fr) minmax(14rem,1.2fr) auto; gap:1.5rem; align-items:baseline; border-block:1px solid var(--proof-ink, #171717); padding:1.4rem 0; color:var(--proof-ink, #171717); text-decoration:none; } .ds-guide-code { font:.72rem 'Geist Mono Variable',monospace; letter-spacing:.06em; } .ds-guide strong { font:700 2rem/1 'Barlow Condensed',sans-serif; } .ds-guide-copy { color:var(--proof-muted, #68655d); line-height:1.4; } .ds-guide:hover { background:var(--proof-pink, #ff62c7); } .ds-guide:hover .ds-guide-copy { color:var(--proof-ink, #171717); } .ds-guide:focus-visible { outline:3px solid var(--proof-pink-dark, #a91d78); outline-offset:4px; }"
+    },
+    {
+      "name": "Source Proof",
+      "kind": "custom",
+      "description": "Signature source-preservation artifact with ruled context and correction mark.",
+      "html": "<article class=\"ds-proof\"><div class=\"ds-tractor\">○<br>○<br>○<br>○</div><div class=\"ds-proof-body\"><div class=\"ds-proof-head\">DOCUMENT PROOF · SET_INT <b>● REGISTERED</b></div><h3>One entry changed.</h3><pre>01  /= the server block\\n02  server =\\n03    host = localhost\\n04    port = <mark>9090</mark></pre><p>Before: <b>8080</b><br>After: <b>9090</b><br>Surrounding lines: <b>preserved</b></p></div></article>",
+      "css": ".ds-proof { display:grid; grid-template-columns:3rem 1fr; border:1px solid var(--proof-ink, #171717); color:var(--proof-ink, #171717); background:var(--proof-white, #fffef9); box-shadow:0 24px 55px rgb(23 23 23 / 20%); } .ds-tractor { border-right:1px solid var(--proof-rule, #b8b3a7); padding:.8rem; color:var(--proof-ink, #171717); line-height:2; } .ds-proof-body { padding:1.35rem 2rem 2rem; } .ds-proof-head { display:flex; justify-content:space-between; color:var(--proof-muted, #68655d); font:.7rem 'Geist Mono Variable',monospace; letter-spacing:.08em; } .ds-proof-head b { color:var(--proof-pink-dark, #a91d78); } .ds-proof h3 { margin:2rem 0 1rem; font:700 2.5rem/1 'Barlow Condensed',sans-serif; } .ds-proof pre { border-block:1px solid var(--proof-rule, #b8b3a7); padding:1rem 0; font:.85rem/1.9 'Geist Mono Variable',monospace; white-space:pre-wrap; } .ds-proof mark { color:var(--proof-pink-dark, #a91d78); background:var(--proof-pink, #ff62c7); font-weight:700; }"
+    },
+    {
+      "name": "Current Navigation Item",
+      "kind": "nav",
+      "description": "Active documentation route in the Starlight sidebar.",
+      "html": "<a class=\"ds-nav-current\" href=\"#\" aria-current=\"page\">Quickstart</a>",
+      "css": ".ds-nav-current { display:block; padding:.35rem .55rem; color:var(--proof-ink, #171717); background:var(--proof-pink, #ff62c7); font:.94rem 'Atkinson Hyperlegible Next Variable',sans-serif; text-decoration:none; } .ds-nav-current:hover { text-decoration:underline; text-decoration-color:var(--proof-pink-dark, #a91d78); text-underline-offset:.24em; } .ds-nav-current:focus-visible { outline:3px solid var(--proof-pink-dark, #a91d78); outline-offset:4px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Fanfold Proof",
+    "overview": "CCL Gleam turns source preservation into a physical proofing system. Warm continuous-form paper, carbon-black rules, tractor perforations, registration marks, and correction pink make edits look inspected rather than merely highlighted. The system is technical and direct, but its print-shop materiality keeps the documentation distinct from generic developer cards.\n\nLarge compressed headings carry the argument; hyperlegible body copy explains it; monospaced registration text annotates evidence. Dense ruled structures organize tasks and reference material, while generous section fields keep the reading path clear.",
+    "keyCharacteristics": [
+      "Warm paper layers bounded by crisp one-pixel carbon rules.",
+      "Correction pink is both the action color and the visual proof of change.",
+      "Condensed display type, highly legible prose, and monospaced technical labels have separate jobs.",
+      "Proof sheets, perforations, stamps, line numbers, and registration copy express source fidelity.",
+      "Square controls and containers preserve the mechanical print-shop character."
+    ],
+    "rules": [
+      {"name": "The One Correction Rule", "body": "Correction pink is the only chromatic accent; use it to mark action, selection, or a changed source fact.", "section": "colors"},
+      {"name": "The Paper Stack Rule", "body": "Separate regions with fanfold paper, deep paper, proof white, and carbon rules before adding depth effects.", "section": "colors"},
+      {"name": "The Three Registers Rule", "body": "Barlow Condensed argues, Atkinson explains, and Geist Mono records; do not interchange their roles for novelty.", "section": "typography"},
+      {"name": "The Short Headline Rule", "body": "Display headings stay compressed and narrow enough to form visible blocks rather than long sentences.", "section": "typography"},
+      {"name": "The Register Rule", "body": "Every major region belongs to a clear column, row, or ruled sheet; avoid free-floating content islands.", "section": "layout"},
+      {"name": "The Mobile Proof Rule", "body": "Preserve the proof itself on small screens, but remove explanatory furniture before shrinking the evidence below legibility.", "section": "layout"},
+      {"name": "The Physical Artifact Rule", "body": "Add a shadow only when a sheet or code specimen is meant to read as an object placed on paper.", "section": "elevation"},
+      {"name": "The Press-Cut Rule", "body": "Interactive and reading surfaces are rectangular and square-cornered; circles signal print mechanics, not generic decoration.", "section": "shapes"}
+    ],
+    "dos": [
+      "Do use correction pink to connect actions, active states, and source changes.",
+      "Do keep examples in visible context with line numbers, comments, or surrounding entries when preservation is the claim.",
+      "Do use paper tones and rules as the first level of hierarchy.",
+      "Do preserve the three type registers and the 70-character reading measure.",
+      "Do honor keyboard focus and reduced-motion behavior on every interactive pattern."
+    ],
+    "donts": [
+      "Don't introduce another accent hue or distribute pink as unstructured decoration.",
+      "Don't round cards, controls, code blocks, or navigation items.",
+      "Don't apply shadows to ordinary sections, navigation, or list rows.",
+      "Don't replace ruled layouts with generic detached card grids.",
+      "Don't hide changed source from its unchanged context."
+    ]
+  }
+}

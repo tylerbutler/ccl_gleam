@@ -11,6 +11,8 @@ erl_crash.dump
 
 # Node.js (if using JavaScript target)
 node_modules/
+.astro/
+dist/
 
 # IDE
 .idea/
@@ -23,6 +25,9 @@ Thumbs.db
 
 # Local settings
 .claude/settings.local.json
+.impeccable/config.local.json
+.impeccable/hook.cache.json
+.impeccable/review/
 
 # Downloaded test data (fetched via `just download-tests`)
 packages/ccl_test_runner/ccl-test-data/
