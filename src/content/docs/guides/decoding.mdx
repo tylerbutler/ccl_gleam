@@ -1,0 +1,50 @@
+---
+title: Dynamic decoding
+description: Decode CCL into application types with gleam/dynamic/decode.
+---
+
+## Decode a shape
+
+`ccl.decode` parses CCL and runs a `gleam/dynamic/decode` decoder:
+
+```gleam
+import ccl
+import gleam/dynamic/decode
+
+let server_decoder = {
+  use host <- decode.field("host", decode.string)
+  use port <- decode.field("port", ccl.int_decoder())
+  decode.success(#(host, port))
+}
+
+ccl.decode("host = localhost\nport = 8080\n", server_decoder)
+// -> Ok(#("localhost", 8080))
+```
+
+## Use CCL lexical decoders
+
+Every terminal CCL value is text. The standard `decode.int`, `decode.bool`, and `decode.float` decoders therefore do not match parsed leaves.
+
+Use:
+
+- `ccl.int_decoder()`
+- `ccl.bool_decoder()`
+- `ccl.float_decoder()`
+
+These accept the same lexical forms as `get_int`, `get_bool`, and `get_float`.
+
+## Separate parsing from decoding
+
+Use `parse_dynamic` to inspect the JSON-like dynamic shape before applying a decoder:
+
+```gleam
+let assert Ok(value) = ccl.parse_dynamic(source)
+```
+
+Use `to_dynamic` when you already have a `Document`.
+
+`DecodeError` separates parse failure from decoder mismatch through `DecodeParseError` and `DecodeDynamicError`.
+
+## Generate decoders
+
+The `ccl_codegen` package can emit decoders from Gleam type definitions. It produces the CCL lexical decoders shown above for numeric and boolean fields.

@@ -1,0 +1,53 @@
+---
+title: Document, Value, and Model
+description: Choose the CCL representation that matches source editing, ordered data, or canonical structure.
+---
+
+CCL exposes several layers because source fidelity, ordered data, and canonical structure solve different problems.
+
+## Document
+
+`Document` is opaque. It stores parsed entries, parse options, the original source while unedited, and trailing-newline state.
+
+Use a `Document` when you need to:
+
+- reproduce input text,
+- read typed values with consistent options,
+- edit one part of the source,
+- preserve comments, order, and indentation.
+
+## Value
+
+`Value` is the public JSON-like projection:
+
+```gleam
+pub type Value {
+  StringValue(String)
+  ObjectValue(List(#(String, Value)))
+  ListValue(List(Value))
+}
+```
+
+`ObjectValue` uses an ordered association list. This is deliberate: a dictionary would lose source order.
+
+Use `to_value` or `parse_value` when you need public structured data but not source-preserving edits.
+
+## Model
+
+`Model` is CCL's canonical recursive map:
+
+```gleam
+pub type Model {
+  Model(List(#(String, Model)))
+}
+```
+
+Terminal strings become keys pointing to an empty model. Duplicate keys merge. Ordering is not part of the model.
+
+Use `to_model` when you need the canonical CCL structure rather than a JSON-like projection.
+
+## Flat entries
+
+`entries` exposes the first parse pass as flat `Entry` values. `print(entries(document))` reproduces standard-format source.
+
+Most applications should start with `Document`. Move to another layer only when its specific representation is useful.

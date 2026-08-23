@@ -97,6 +97,18 @@ docs:
     cd {{ runner_dir }} && gleam docs build
     cd {{ codegen_dir }} && gleam docs build
 
+# Run the companion documentation site locally
+site-dev:
+    pnpm dev
+
+# Build the companion documentation site
+site-build:
+    pnpm build
+
+# Type check the companion documentation site
+site-check:
+    pnpm check
+
 # === CHANGELOG ===
 
 # Create a new changelog entry

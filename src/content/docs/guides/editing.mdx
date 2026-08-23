@@ -1,0 +1,81 @@
+---
+title: Editing and round trips
+description: Change CCL documents while preserving comments, order, and surrounding indentation.
+---
+
+## Set values
+
+Use the setter that matches the value you want to write:
+
+```gleam
+let assert Ok(document) =
+  ccl.new()
+  |> ccl.set_string(["server", "host"], "localhost")
+
+let assert Ok(document) =
+  document
+  |> ccl.set_int(["server", "port"], 8080)
+```
+
+Setters create intermediate blocks when needed. Existing entries keep their place in the document.
+
+Available setters are `set_string`, `set_int`, `set_bool`, `set_float`, `set_list`, `set_object`, and `set_value`.
+
+## Work with lists
+
+Create a list:
+
+```gleam
+let assert Ok(document) =
+  ccl.set_list(ccl.new(), ["ports"], ["80", "443"])
+```
+
+Append one item:
+
+```gleam
+let assert Ok(document) =
+  ccl.append_list_item(document, ["ports"], ccl.StringValue("8443"))
+```
+
+The emitted CCL uses repeated empty keys:
+
+```text
+ports =
+  = 80
+  = 443
+  = 8443
+```
+
+## Remove and comment
+
+Remove an existing key:
+
+```gleam
+let assert Ok(document) = ccl.remove(document, ["server", "debug"])
+```
+
+Insert a one-line comment before a key:
+
+```gleam
+let assert Ok(document) =
+  ccl.insert_comment_before(document, ["server", "port"], "public listener")
+```
+
+## Understand edit rejection
+
+An edit is rejected when its output could not be parsed back as the value you requested. `EditError` includes:
+
+- `EmptyKeyPath`
+- `InvalidKeySegment`
+- `InvalidCommentText`
+- `MissingEditKey`
+- `KeyConflict`
+- `InvalidValue`
+
+For example, `set_string` rejects a string with a newline. Use an object or list value for multi-line data instead.
+
+## Emit the result
+
+`to_string` returns the original text until the first edit. After an edit, it re-emits the changed entries and restores the source's trailing-newline behavior.
+
+Use `to_canonical_string` only when you want normalized two-space indentation, sorted keys, and merged duplicates. Canonical output is not a source-preserving edit.

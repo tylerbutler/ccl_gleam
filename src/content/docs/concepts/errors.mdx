@@ -1,0 +1,49 @@
+---
+title: Errors
+description: Handle stable parse, typed-access, edit, and decode errors.
+---
+
+CCL returns `Result` values. It does not use exceptions for normal parse, read, edit, or decode failure.
+
+## ParseError
+
+`parse_bytes` returns `InvalidEncoding` when the bytes are not UTF-8. `InvalidSyntax` reserves stable syntax categories and byte offsets for strict diagnostics.
+
+Use `line_column` to convert a parse byte offset into a one-based line and column.
+
+## GetError
+
+Typed reads return:
+
+- `KeyNotFound(path)` when no value exists.
+- `WrongType(path, expected)` when the shape or lexical text does not match.
+
+`ExpectedType` identifies strings, integers, booleans, floats, lists, and objects.
+
+```gleam
+case ccl.get_int(document, ["server", "port"]) {
+  Ok(port) -> use_port(port)
+  Error(ccl.KeyNotFound(path)) -> report_missing(path)
+  Error(ccl.WrongType(path, expected)) -> report_mismatch(path, expected)
+}
+```
+
+## EditError
+
+Edits return an error instead of emitting source that would read back incorrectly:
+
+```gleam
+case ccl.set_string(document, ["server", "port"], "8080\n9090") {
+  Ok(updated) -> save(updated)
+  Error(ccl.InvalidValue) -> ask_for_one_line()
+  Error(other) -> report_edit_error(other)
+}
+```
+
+Handle `KeyConflict` when a path tries to descend through a terminal value. Handle `MissingEditKey` when an operation requires an existing entry.
+
+## DecodeError
+
+`DecodeParseError` wraps a CCL parse failure. `DecodeDynamicError` carries the list returned by `gleam/dynamic/decode`.
+
+Error variants are part of the stable public API. Adding, removing, or renaming one is a breaking change.
