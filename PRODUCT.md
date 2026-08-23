@@ -43,7 +43,7 @@ Round-trip, edit-in-place documents, modelled on [tomlet](https://github.com/tyl
 - Errors are stable tagged unions (`ParseError`, `GetError`/`ExpectedType`, `EditError`, `DecodeError`); variant changes are breaking.
 - Known gap: `indent_tabs` output is not implemented; five `canonical_format` reference tests fail pending an upstream test-data fix (ccl-test-data#162).
 - Terminology: "entry", "Document", "Value" (`StringValue`/`ObjectValue`/`ListValue`), "Model", "canonical format", "capabilities"/"behaviors" (test taxonomy).
-- Site URL: `https://gleam.catconflang.org`. The site links to Hexdocs for the full API reference.
+- Site URL: `https://gleam.catconflang.com`. The site links to Hexdocs for the full API reference.
 
 ## Brand Commitments
 
