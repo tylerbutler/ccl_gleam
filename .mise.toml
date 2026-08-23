@@ -1,5 +1,6 @@
 [tools]
 erlang = "28"
+"github:tylerbutler/trellis" = "0.11.2"
 gleam = "latest"
 just = "latest"
 rebar = "latest"

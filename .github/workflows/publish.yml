@@ -1,23 +1,37 @@
 name: Publish
 
 on:
-  push:
-    tags: ['v*']
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+permissions:
+  contents: write
 
 jobs:
-  test:
-    uses: ./.github/workflows/ci.yml
-
   publish:
-    needs: test
+    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Setup environment
         uses: ./.github/actions/setup
 
+      - name: Install trellis
+        run: |
+          curl --proto '=https' --tlsv1.2 -LsSf \
+            https://github.com/tylerbutler/trellis/releases/download/v0.11.2/trellis-gleam-installer.sh | sh
+
+      # Idempotent: no-ops unless a merged release PR left versions unpublished.
       - name: Publish to Hex.pm
-        run: gleam publish --yes
+        run: trellis publish --all-untagged
         env:
           HEXPM_API_KEY: ${{ secrets.HEXPM_API_KEY }}
+
+      - name: Tag and create GitHub release
+        run: trellis tag create --push --github-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

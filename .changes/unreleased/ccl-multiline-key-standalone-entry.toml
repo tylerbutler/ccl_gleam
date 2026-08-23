@@ -1,0 +1,5 @@
+package = "ccl"
+kind = "Fixed"
+body = '''
+A multiline-key line (without `=`) that does not fold into the next key is now emitted as its own empty-value entry instead of being silently dropped. Together with declaring the `parse_indented` function in `ccl-config.yaml`, this resolves issue #12: an unindented no-`=` line following an empty-key entry folds into the next key, while one following a named-key entry stays a standalone entry.
+'''

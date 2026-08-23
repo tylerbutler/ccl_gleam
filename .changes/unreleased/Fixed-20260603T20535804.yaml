@@ -1,4 +1,0 @@
-kind: Fixed
-body: |-
-  Apply filter predicates in the conformance test runner. The runner now decodes the `predicate` field (field/op/value) from test cases and applies key/value equality and non-empty predicates when validating `filter`.
-time: 2026-06-03T13:55:03Z

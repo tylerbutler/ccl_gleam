@@ -100,16 +100,16 @@ docs:
 # === CHANGELOG ===
 
 # Create a new changelog entry
-change:
-    changie new
+change kind body:
+    trellis changelog new --kind "{{ kind }}" --body "{{ body }}"
 
-# Preview unreleased changelog
+# Preview unreleased version bumps and changelog
 changelog-preview:
-    changie batch auto --dry-run
+    trellis version plan
 
-# Generate CHANGELOG.md
-changelog:
-    changie merge
+# Validate change fragments added since base branch
+changelog-check base="main":
+    trellis changelog check --base {{ base }}
 
 # === MAINTENANCE ===
 
