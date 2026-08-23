@@ -23,14 +23,18 @@ const steps = [
     label: 'Read',
     title: 'Walk typed key paths.',
     body: 'Typed accessors return Result values and report missing keys or shape mismatches without crashing.',
-    code: 'let assert Ok(8080) =\\n  ccl.get_int(doc, [\"server\", \"port\"])',
+    code: `let assert Ok(8080) =
+  ccl.get_int(doc, ["server", "port"])`,
   },
   {
     id: 'edit',
     label: 'Edit',
     title: 'Change one value. Preserve the document.',
     body: 'Edits rewrite the affected entry in place. Comments, key order, and surrounding indentation stay intact.',
-    code: 'let assert Ok(updated) =\\n  ccl.set_int(doc, [\"server\", \"port\"], 9090)\\n\\nccl.to_string(updated)',
+    code: `let assert Ok(updated) =
+  ccl.set_int(doc, ["server", "port"], 9090)
+
+ccl.to_string(updated)`,
   },
 ];
 

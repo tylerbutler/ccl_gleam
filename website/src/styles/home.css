@@ -432,8 +432,21 @@
 }
 
 .sequence-panel .expressive-code {
+  --ec-brdCol: var(--proof-ink);
+  --ec-codeBg: var(--proof-ink);
+  --ec-codeFg: var(--proof-white);
+  --ec-frm-edBg: var(--proof-ink);
+  --ec-frm-inlBtnBg: var(--proof-white);
+  --ec-frm-inlBtnFg: var(--proof-white);
+  --ec-frm-trmBg: var(--proof-ink);
+  --ec-frm-trmTtbBg: var(--proof-ink);
+
   max-width: 100%;
   margin-block: 0;
+}
+
+.sequence-panel .expressive-code .ec-line span[style^='--'] {
+  color: var(--0);
 }
 
 .guide-index {
