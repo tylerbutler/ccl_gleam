@@ -1,0 +1,62 @@
+---
+title: Parsing and options
+description: Parse CCL strings, bytes, and indented fragments with explicit behavior options.
+---
+
+## Choose the input form
+
+Use `parse` for a Gleam `String`:
+
+```gleam
+let assert Ok(document) = ccl.parse("port = 8080\n")
+```
+
+Use `parse_bytes` when input arrives as raw bytes. Invalid UTF-8 returns `Error(InvalidEncoding)`.
+
+Use `parse_indented` for a fragment that retains the indentation of its enclosing block:
+
+```gleam
+let fragment = "  host = localhost\n  port = 8080\n"
+let assert Ok(document) = ccl.parse_indented(fragment)
+```
+
+## Build options
+
+`Options` is opaque. Start with `default_options` and pipe it through `with_*` builders:
+
+```gleam
+let options =
+  ccl.default_options()
+  |> ccl.with_delimiter(ccl.FirstEquals)
+  |> ccl.with_tabs(ccl.TabsAsContent)
+  |> ccl.with_booleans(ccl.BooleanLenient)
+
+let assert Ok(document) = ccl.parse_with(source, options)
+```
+
+A `Document` keeps these options. Later reads and edits use the same behavior.
+
+## Available behavior choices
+
+| Concern | Choices |
+| --- | --- |
+| Line endings | `NormalizeCrlf`, `PreserveCrlf` |
+| Tabs | `TabsAsWhitespace`, `TabsAsContent` |
+| Top-level baseline | `StripToplevelIndent`, `PreserveToplevelIndent` |
+| Delimiter | `PreferSpaced`, `FirstEquals` |
+| Booleans | `BooleanStrict`, `BooleanLenient` |
+| List coercion | `CoercionDisabled`, `CoercionEnabled` |
+| List order | `InsertionOrder`, `LexicographicOrder` |
+
+The formatter emits space indentation. Tab-indented output is not implemented.
+
+## Parse a public value
+
+Use `parse_value` when you need the ordered public `Value` tree without a `Document`:
+
+```gleam
+let assert Ok(ccl.ObjectValue(pairs)) =
+  ccl.parse_value("host = localhost\nport = 8080\n")
+```
+
+Use a `Document` when you plan to edit and reproduce source.
